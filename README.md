@@ -474,7 +474,7 @@ underworld-hero-survivor/
 - [ ] Sistema de conquistas com recompensas visuais.
 - [ ] Balanceamento continuo de progressao e economia.
 - [ ] Build distribuivel para Windows (.exe).
-- [ ] Suporte a controle gamepad.
+- [x] Suporte a controle gamepad.
 - [x] Migrar para Pygame-CE (concluido com sucesso).
 - [ ] SDL3 quando Pygame-CE lancar (GPU acceleration e melhor performance).
 - [ ] Multiplayer local (co-op para 2 jogadores).
