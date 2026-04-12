@@ -600,6 +600,7 @@ DROP_CHANCE = 0.025
 BOSS_SPAWN_TIME = 300.0  # 5 Minutos para cada boss
 BOSS_MAX_HP = 500
 MINI_BOSS_SPAWN_TIME = 10.0  # TESTE: mini boss aparece logo no início
+AGIS_SPAWN_TIME = 120.0       # Agis nasce no minuto 2
 SHOOTER_PROJ_IMAGE = "enemy_arrow" 
 
 # Dados dos Personagens - MENU DE ANIME FRAMES - QUANTIDADE DE IMAGENS
@@ -1457,13 +1458,110 @@ class Obstacle(pygame.sprite.Sprite):
         self.rect.center = self.pos + cam
         self.hitbox.center = self.pos
 
+class DoomSeal(pygame.sprite.Sprite):
+    """Selo de invocação do Agis — doom_agis.png.
+    Aparece perto do herói, anima até o fim e sinaliza o spawn do boss."""
+
+    FRAME_W = 512
+    FRAME_H = 512
+    FRAME_COUNT = 36          # 18432 / 512 = 36
+    FRAME_SPEED = 0.075       # segundos por frame (~2.7 s de animação total)
+    DISPLAY_SIZE = (280, 280)
+
+    def __init__(self, pos, loader):
+        super().__init__()
+        frames_raw = loader.load_spritesheet(
+            "sprite/monster/boss/doom_agis",
+            self.FRAME_W, self.FRAME_H,
+            self.FRAME_COUNT,
+            self.DISPLAY_SIZE,
+        )
+        if frames_raw:
+            self.frames = frames_raw
+        else:
+            # Fallback: quadrado roxo pulsante
+            s = pygame.Surface(self.DISPLAY_SIZE, pygame.SRCALPHA)
+            pygame.draw.ellipse(s, (120, 0, 180, 180), s.get_rect())
+            self.frames = [s]
+
+        self.frame_idx  = 0
+        self.timer      = 0.0
+        self.done       = False  # True quando a animação termina → spawna Agis
+        self.pos        = pygame.Vector2(pos)
+        self.image      = self.frames[0]
+        self.rect       = self.image.get_rect()
+
+    def update(self, dt, cam):
+        if self.done:
+            return
+        self.timer += dt
+        if self.timer >= self.FRAME_SPEED:
+            self.timer = 0.0
+            self.frame_idx += 1
+            if self.frame_idx >= len(self.frames):
+                self.frame_idx = len(self.frames) - 1
+                self.done = True
+            self.image = self.frames[self.frame_idx]
+        self.rect.center = self.pos + cam
+
+
+class AgisProjectile(pygame.sprite.Sprite):
+    """Projétil de longa distância do boss Agis — agis_att.png (3 frames, 64×32)."""
+
+    FRAME_W    = 64
+    FRAME_H    = 32
+    FRAME_COUNT = 3
+    FRAME_SPEED = 0.09          # s/frame — animação da orbe
+    DISPLAY_SIZE = (100, 50)    # tamanho de exibição do projétil
+    SPEED      = 230.0          # px/s
+
+    def __init__(self, pos, direction, dmg, loader):
+        super().__init__()
+        frames_raw = loader.load_spritesheet(
+            "sprite/monster/boss/agis_att",
+            self.FRAME_W, self.FRAME_H,
+            self.FRAME_COUNT,
+            self.DISPLAY_SIZE,
+        )
+        if frames_raw:
+            self.frames = frames_raw
+        else:
+            s = pygame.Surface(self.DISPLAY_SIZE, pygame.SRCALPHA)
+            pygame.draw.ellipse(s, (180, 0, 255, 220), s.get_rect())
+            self.frames = [s]
+
+        # Rotaciona frames na direção de disparo
+        angle = -math.degrees(math.atan2(direction.y, direction.x))
+        self.frames = [pygame.transform.rotate(f, angle) for f in self.frames]
+
+        self.frame_idx = 0
+        self.timer     = 0.0
+        self.pos       = pygame.Vector2(pos)
+        self.vel       = direction * self.SPEED
+        self.dmg       = dmg
+        self.image     = self.frames[0]
+        self.rect      = self.image.get_rect()
+
+    def update(self, dt, cam, screen_w, screen_h):
+        self.pos += self.vel * dt
+        self.timer += dt
+        if self.timer >= self.FRAME_SPEED:
+            self.timer = 0.0
+            self.frame_idx = (self.frame_idx + 1) % len(self.frames)
+            self.image = self.frames[self.frame_idx]
+        self.rect.center = self.pos + cam
+        # Remove quando sair de tela com margem
+        if not pygame.Rect(-800, -800, screen_w + 1600, screen_h + 1600).collidepoint(self.rect.center):
+            self.kill()
+
+
 class Gem(pygame.sprite.Sprite):
     def __init__(self, pos, loader):
         super().__init__()
         self.image = loader.load_image("gem", (24, 24), ((0,255,255), (255,255,255)))
         self.rect, self.pos = self.image.get_rect(), pos
         self.fpos = pygame.Vector2(pos)
-        self.magnetic = False 
+        self.magnetic = False
 
     def update(self, dt, cam, player_pos=None):
         if self.magnetic and player_pos:
@@ -1489,6 +1587,7 @@ particles = None
 obstacles = None
 puddles = None
 damage_texts = None
+doom_seals = None
 loader = None
 SFX = {}
 snd_hover = None
@@ -1549,6 +1648,7 @@ MENU_EXIT_DURATION = 0.28
 # Assets de jogo (preenchidos em load_all_assets)
 ground_img = None
 menu_bg_img = None
+cursor_img = None       # cursor personalizado (seta.png)
 forest_deco_manager = None
 dungeon_deco_manager = None
 menu_btn_sprites = []        # frames normais do spritesheet menu.png
@@ -2027,6 +2127,7 @@ def load_all_assets():
     global skill_card_sprites, skill_card_sprites_hover
     global config_title_spr, config_tag_spr
     global forest_deco_manager, dungeon_deco_manager
+    global cursor_img
 
     bg_name = BG_DATA.get(selected_bg, BG_DATA["dungeon"])["name"]
     current_bg_name = bg_name
@@ -2160,6 +2261,7 @@ def load_all_assets():
     slash_frames_raw = loader.load_animation("slash", 6, (120, 120), fallback_colors=((255, 255, 200, 180), (200, 200, 150, 120)))
     orb_img = loader.load_image("orb", (50, 50), ((0, 200, 255), (0, 100, 200)))
     tornado_img = loader.load_image("tornado", (300, 300), ((200, 200, 255, 150), (150, 150, 200, 100)))
+    cursor_img = loader.load_image("seta", (56, 56))
     
     # Ícones de upgrades
     for upg_key, icon_name in UPGRADE_ICONS.items():
@@ -2235,6 +2337,7 @@ def reset_game(char_id=0):
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval
     global obstacle_total_placed
+    global doom_seals
     
     save_data["stats"]["games_played"] += 1
     
@@ -2279,6 +2382,7 @@ def reset_game(char_id=0):
     obstacles = pygame.sprite.Group()
     puddles = pygame.sprite.Group()
     damage_texts = pygame.sprite.Group()
+    doom_seals = pygame.sprite.Group()
     obstacle_grid_index = ObstacleGridIndex(cell_size=WORLD_GRID)
     enemy_batch_index = EnemyBatchIndex()
     last_obstacle_count = 0
@@ -2334,6 +2438,7 @@ def clear_current_run_state():
     global session_boss_kills, session_max_level, triggered_hordes
     global player_upgrades, chest_loot, chest_ui_timer, up_options, up_keys, up_rarities
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
+    global doom_seals
 
     player = None
     enemies = pygame.sprite.Group()
@@ -2345,6 +2450,7 @@ def clear_current_run_state():
     obstacles = pygame.sprite.Group()
     puddles = pygame.sprite.Group()
     damage_texts = pygame.sprite.Group()
+    doom_seals = pygame.sprite.Group()
     obstacle_grid_index = ObstacleGridIndex(cell_size=WORLD_GRID)
     enemy_batch_index = EnemyBatchIndex()
     last_obstacle_count = 0
@@ -2691,6 +2797,7 @@ def main():
     pygame.init()
     pygame.mixer.init()
     pygame.joystick.init()
+    pygame.mouse.set_visible(False)   # esconde cursor do sistema; usamos cursor_img
     if pygame.joystick.get_count() > 0:
         _gamepad_connect(0)
     settings_category = "video"  # ou "audio" ou "controls"
@@ -3622,6 +3729,27 @@ def main():
                 screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
                 play_sfx("ult")
 
+            # --- Agis — selo de invocação aparece no minuto 2 ---
+            if game_time >= AGIS_SPAWN_TIME and "agis_seal" not in triggered_hordes:
+                triggered_hordes.add("agis_seal")
+                seal_offset = pygame.Vector2(random.choice([-1, 1]) * random.randint(180, 300),
+                                             random.choice([-1, 1]) * random.randint(100, 220))
+                doom_seals.add(DoomSeal(player.pos + seal_offset, loader))
+                warn_txt = font_l.render("⚠️ AGIS ESTÁ CHEGANDO! ⚠️", True, (180, 0, 255))
+                screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
+                play_sfx("ult")
+
+            # --- Verifica se o selo do Agis terminou a animação ---
+            for seal in list(doom_seals):
+                if seal.done:
+                    agis_pos = seal.pos.copy()
+                    seal.kill()
+                    enemies.add(create_enemy("agis", agis_pos, DIFFICULTIES[selected_difficulty],
+                                             time_scale=time_scale, boss_tier=1))
+                    warn_txt = font_l.render("⚠️ AGIS SURGIU! ⚠️", True, (220, 0, 255))
+                    screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
+                    play_sfx("ult")
+
             if int(game_time) > 0 and int(game_time) % 120 == 0 and int(game_time) not in triggered_hordes:
                 event_type = random.choice(["METEORO", "OURO", "SLIME", "DARKNESS"])
                 triggered_hordes.add(int(game_time))
@@ -3682,7 +3810,7 @@ def main():
                         spawn_weights.append(20)
 
                     if selected_difficulty in ["DIFÍCIL", "HARDCORE"]:
-                        spawn_list.extend(["slime", "robot"])
+                        spawn_list.extend(["slime", "minotauro"])
                         spawn_weights.extend([15, 15])
                         # Rat — apenas nas dificuldades harder, a partir de 2 min
                         if game_time >= 120:
@@ -3710,6 +3838,33 @@ def main():
                 obstacle_grid_index,
             )
             puddles.update(dt, cam)
+            doom_seals.update(dt, cam)
+
+            # --- Projéteis do Agis ---
+            for e in list(enemies):
+                if e.kind != "agis":
+                    continue
+                agis_dmg = 1.5 * DIFFICULTIES[selected_difficulty].get("dmg_mult", 1.0)
+
+                # Ataque básico — 1 projétil direto ao jogador
+                if getattr(e, "pending_agis_shot", False):
+                    e.pending_agis_shot = False
+                    enemy_projectiles.add(
+                        AgisProjectile(e.pos, e.agis_shot_dir, agis_dmg, loader))
+
+                # Magia em área — 8 orbes em todas as direções
+                if getattr(e, "pending_agis_area", False):
+                    e.pending_agis_area = False
+                    num_orbs = 8
+                    for i in range(num_orbs):
+                        angle_rad = math.radians(i * (360 / num_orbs))
+                        area_dir  = pygame.Vector2(math.cos(angle_rad), math.sin(angle_rad))
+                        enemy_projectiles.add(
+                            AgisProjectile(e.pos, area_dir, agis_dmg * 0.8, loader))
+                    damage_texts.add(DamageText(e.pos, "MAGIA!", True, (180, 0, 255)))
+                    shake_timer    = 0.2
+                    shake_strength = 8
+
             projectiles.update(dt, cam)
             enemy_projectiles.update(dt, cam, SCREEN_W, SCREEN_H)
             gems.update(dt, cam, player.pos)
@@ -3738,10 +3893,10 @@ def main():
             SEP_FORCE = 18.0
             enemy_list = list(enemies)
             for i, ea in enumerate(enemy_list):
-                if ea.kind in ("boss",):
+                if ea.kind in ("boss", "agis"):
                     continue
                 for eb in enemy_list[i + 1:]:
-                    if eb.kind in ("boss",):
+                    if eb.kind in ("boss", "agis"):
                         continue
                     diff = ea.pos - eb.pos
                     d    = diff.length()
@@ -3807,6 +3962,7 @@ def main():
                             hit.hp -= PROJECTILE_DMG * 2
 
                         if hit.kind == "boss": knock_force *= 0.1
+                        elif hit.kind == "agis": knock_force *= 0.15
                         elif hit.kind == "mini_boss": knock_force *= 0.2
                         hit.knockback += knock_dir * knock_force
                         
@@ -3839,12 +3995,16 @@ def main():
                         if hit.hp <= 0:
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
                             # Burst de partículas na morte do inimigo para game feel.
-                            if hit.kind in ("boss", "mini_boss"):
+                            if hit.kind == "agis":
+                                kill_color  = (200, 0, 255)
+                            elif hit.kind in ("boss", "mini_boss"):
                                 kill_color  = (255, 200, 0)
                             else:
                                 kill_color  = (255, 80, 40)
                             if hit.kind == "boss":
                                 burst_count = 20
+                            elif hit.kind == "agis":
+                                burst_count = 22
                             elif hit.kind == "mini_boss":
                                 burst_count = 16
                             elif hit.kind in ("tank", "elite", "orc"):
@@ -3861,6 +4021,8 @@ def main():
                                 particles.add(Particle(hit.pos, kill_color, random.randint(4, 8), random.randint(120, 240), random.uniform(0.25, 0.55)))
                             if hit.kind == "boss":
                                 shake_timer = 0.6; shake_strength = 18
+                            elif hit.kind == "agis":
+                                shake_timer = 0.7; shake_strength = 22
                             elif hit.kind == "mini_boss":
                                 shake_timer = 0.4; shake_strength = 12
                             gems.add(Gem(hit.pos, loader)); hit.kill(); kills += 1
@@ -3871,6 +4033,16 @@ def main():
                                 save_data["stats"]["boss_kills"] += 1
                                 update_mission_progress("boss", 1)
                                 drops.add(create_drop(hit.pos, "chest"))
+                            elif hit.kind == "agis":
+                                # Agis dropa baú + várias moedas
+                                session_boss_kills += 1
+                                save_data["stats"]["boss_kills"] += 1
+                                update_mission_progress("boss", 1)
+                                drops.add(create_drop(hit.pos, "chest"))
+                                gold_count = getattr(hit, "gold_drops", 15)
+                                for gi in range(gold_count):
+                                    offset = pygame.Vector2(random.randint(-80, 80), random.randint(-80, 80))
+                                    drops.add(create_drop(hit.pos + offset, "coin"))
                             elif hit.kind == "mini_boss":
                                 # Mini boss conta como kill de boss e dropa várias moedas
                                 session_boss_kills += 1
@@ -4460,14 +4632,15 @@ def main():
                 dungeon_deco_manager.draw_floor(screen, SCREEN_W, SCREEN_H)
 
             puddles.draw(screen)
+            doom_seals.draw(screen)
             obstacles.draw(screen); gems.draw(screen); drops.draw(screen); projectiles.draw(screen); enemy_projectiles.draw(screen); enemies.draw(screen)
             
             for e in enemies:
-                if e.hp < e.max_hp or e.kind in ["boss", "mini_boss", "elite", "orc"]:
+                if e.hp < e.max_hp or e.kind in ["boss", "mini_boss", "agis", "elite", "orc"]:
                     if e.kind == "boss":
                         bar_w, bar_h = 120, 10
-                    elif e.kind == "mini_boss":
-                        bar_w, bar_h = 100, 9
+                    elif e.kind in ("mini_boss", "agis"):
+                        bar_w, bar_h = 110, 10
                     elif e.kind in ("elite", "orc"):
                         bar_w, bar_h = 60, 6
                     else:
@@ -4476,14 +4649,19 @@ def main():
                     bar_y = e.rect.top - 15
                     pygame.draw.rect(screen, (200, 0, 0), (bar_x, bar_y, bar_w, bar_h))
                     ratio = max(0, e.hp / e.max_hp)
-                    bar_color = (255, 140, 0) if e.kind == "mini_boss" else (0, 255, 0)
+                    if e.kind == "agis":
+                        bar_color = (180, 0, 255)
+                    elif e.kind == "mini_boss":
+                        bar_color = (255, 140, 0)
+                    else:
+                        bar_color = (0, 255, 0)
                     pygame.draw.rect(screen, bar_color, (bar_x, bar_y, int(bar_w * ratio), bar_h))
                     pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h), 1)
 
             show_offscreen_arrows = settings["gameplay"].get("show_offscreen_arrows", "On") == "On"
             if show_offscreen_arrows:
                 for e in enemies:
-                    if e.kind not in ("boss", "mini_boss") or screen.get_rect().colliderect(e.rect):
+                    if e.kind not in ("boss", "mini_boss", "agis") or screen.get_rect().colliderect(e.rect):
                         continue
                     center = pygame.Vector2(SCREEN_W//2, SCREEN_H//2)
                     target = pygame.Vector2(e.rect.center)
@@ -4832,6 +5010,11 @@ def main():
             _draw_debug_overlay(screen, font_s, clock)
 
         draw_state_transition_overlay(screen, transition_timer)
+
+        # Cursor personalizado — desenhado por último, sempre por cima de tudo
+        if cursor_img is not None:
+            mx, my = pygame.mouse.get_pos()
+            screen.blit(cursor_img, (mx, my))
 
         pygame.display.flip()
 

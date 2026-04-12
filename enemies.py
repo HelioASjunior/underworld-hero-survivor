@@ -46,7 +46,7 @@ SPRITESHEET_CONFIGS = {
         "attack_range": 0,
         "gold_drops": 0,
     },
-    "robot": {
+    "minotauro": {
         # Mino2.png: 582x407 → 6 colunas × 4 linhas, frame 97×101
         # Padrão do orc: usa apenas os 3 primeiros frames de caminhada por direção
         # Linhas: baixo=0, esquerda=1, direita=2, cima=3
@@ -130,6 +130,20 @@ SPRITESHEET_CONFIGS = {
         "attack_range": 145,
         "gold_drops": 2,
     },
+    "agis": {
+        # agis.png: 3360×240 → 15 frames de 224×240, linha única (sem direção)
+        #   Verificado: bordas exatas em x=224,448,...,3360 (zero pixels)
+        # Ataque a distância — projétil criado em jogo_final.py usando agis_att.png
+        "walk_sheet":  "sprite/monster/boss/agis",
+        "atk_sheet":   None,
+        "frame_w": 224, "frame_h": 240,
+        "walk_frames": 15,
+        "atk_frames":  0,
+        "dir_rows": None,
+        "size": (230, 230),
+        "attack_range": 0,
+        "gold_drops": 15,
+    },
 }
 
 
@@ -212,6 +226,7 @@ class Enemy(pygame.sprite.Sprite):
         self._atk_timer       = 0.0
         self._atk_frame_speed = 0.10
         self._atk_range       = 0
+        self._atk_overlay     = False   # True = sobreposição; False = substitui walk
 
         # --- Drop extra (mini_boss) ---
         self.gold_drops = 0
@@ -273,13 +288,14 @@ class Enemy(pygame.sprite.Sprite):
             "shooter":   (3,    90),
             "boss":      (boss_max_hp, 95),
             "slime":     (5,   110),
-            "robot":     (8,   130),
+            "minotauro": (8,   130),
             "bat":       (1,   145),
             "orc":       (12,   75),
             "mini_boss": (300,  85),
             "goblin":    (3,   160),
             "beholder":  (8,    85),
             "rat":       (6,   135),
+            "agis":      (800,  45),
         }
         base_hp, base_spd = stats.get(kind, (2, 100))
 
@@ -287,10 +303,16 @@ class Enemy(pygame.sprite.Sprite):
             self.hp = base_hp * diff_mults["hp_mult"] * time_scale * boss_tier
         elif kind == "mini_boss":
             self.hp = base_hp * diff_mults["hp_mult"] * (1.0 + time_scale * 0.3)
+        elif kind == "agis":
+            self.hp = base_hp * diff_mults["hp_mult"] * (1.0 + time_scale * 0.25)
         else:
             self.hp = base_hp * diff_mults["hp_mult"] * time_scale
 
-        self.speed  = base_spd * diff_mults["spd_mult"] * min(1.5, time_scale)
+        if kind == "agis":
+            # Agis é lento — speed quase não escala com o tempo
+            self.speed = base_spd * diff_mults["spd_mult"] * min(1.1, time_scale)
+        else:
+            self.speed = base_spd * diff_mults["spd_mult"] * min(1.5, time_scale)
         self.max_hp = self.hp
 
         # Melee do mini_boss
@@ -298,13 +320,20 @@ class Enemy(pygame.sprite.Sprite):
             self.melee_range = 155
             self.melee_dmg   = 1.5 * diff_mults.get("dmg_mult", 1.0)
 
+        # Agis — ataque a distância + magia em área (projéteis criados em jogo_final.py)
+        if kind == "agis":
+            self.agis_shot_timer   = 0.0
+            self.agis_shot_dir     = pygame.Vector2(1, 0)
+            self.pending_agis_shot = False
+            self.agis_area_timer   = 3.0   # começa com 3 s para não disparar na hora
+            self.pending_agis_area = False
+
     # ------------------------------------------------------------------
     # Inicialização interna
     # ------------------------------------------------------------------
 
     def _resolve_shot_cooldown(self, kind):
         return {
-            "robot":    1.0,
             "boss":     3.0,
         }.get(kind, 3.0)
 
@@ -315,7 +344,7 @@ class Enemy(pygame.sprite.Sprite):
             "tank":    (((50,200,50),(0,120,0)),     (100, 90), 11),
             "elite":   (((255,200,0),(150,100,0)),   (100, 90), 11),
             "slime":   (((20,20,20),(50,100,50)),    (90,  80), 10),
-            "robot":   (((100,100,150),(50,50,100)), (100,100),  4),
+            "minotauro": (((100,100,150),(50,50,100)), (100,100),  4),
         }
         color, size, frames = configs.get(kind, (((255,100,100),(150,0,0)), (100,100), 11))
 
@@ -366,20 +395,27 @@ class Enemy(pygame.sprite.Sprite):
         self.flipped_white_frames  = [pygame.transform.flip(f, True, False) for f in self.white_frames]
         self.flipped_frozen_frames = [pygame.transform.flip(f, True, False) for f in self.frozen_frames]
 
+        # Modo overlay: efeito de ataque desenhado sobre o walk (não substitui)
+        self._atk_overlay = cfg.get("atk_overlay", False)
+
         atk_sheet = cfg.get("atk_sheet")
         if atk_sheet:
+            atk_fw   = cfg.get("atk_frame_w", fw)
+            atk_fh   = cfg.get("atk_frame_h", fh)
+            atk_size = cfg.get("atk_size", size)   # tamanho de saída dos frames de ataque
             if dir_rows and cfg.get("atk_frames", 0) > 0:
                 fpd = cfg["atk_frames"]
                 atk_sheet_cols = cfg.get("atk_sheet_cols", sheet_cols)
                 for dir_name, row_idx in dir_rows.items():
                     row_start = row_idx * atk_sheet_cols
                     indices   = [row_start + i for i in range(fpd)]
-                    atk_frames = loader.load_spritesheet(atk_sheet, fw, fh,
-                                                         len(indices), size, frame_indices=indices)
+                    atk_frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh,
+                                                         len(indices), atk_size, frame_indices=indices)
                     if atk_frames:
                         self._dir_atk_frames[dir_name] = atk_frames
             elif cfg.get("atk_frames", 0) > 0:
-                atk_frames = loader.load_spritesheet(atk_sheet, fw, fh, cfg["atk_frames"], size)
+                atk_frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh,
+                                                     cfg["atk_frames"], atk_size)
                 if atk_frames:
                     self._atk_frames_flat = atk_frames
                     self._atk_frames_flat_flipped = [
@@ -491,8 +527,8 @@ class Enemy(pygame.sprite.Sprite):
         can_move = self.knockback.length() < 3.0
 
         if dist > 0 and can_move:
-            is_ranged  = self.kind in ["shooter", "robot"]
-            stop_dist  = 450 if self.kind == "shooter" else 300
+            is_ranged  = self.kind in ["shooter"]
+            stop_dist  = 450
 
             if is_ranged and dist < stop_dist:
                 move = pygame.Vector2(0, 0)
@@ -586,10 +622,26 @@ class Enemy(pygame.sprite.Sprite):
                             if not self._atk_active:
                                 self._trigger_atk_anim()
 
+                # AGIS — avanço lento com arrancada ocasional
+                elif self.kind == "agis":
+                    self._charge_timer -= dt
+                    if self._charge_timer <= 0 and not self._charging:
+                        self._charge_timer    = random.uniform(5.0, 8.0)
+                        self._charging        = True
+                        self._charge_active_t = 0.6
+                    if self._charging:
+                        self._charge_active_t -= dt
+                        if self._charge_active_t <= 0:
+                            self._charging = False
+                        else:
+                            move_speed *= 2.5
+                            if not self._atk_active:
+                                self._trigger_atk_anim()
+
                 # Pathfinding para inimigos menores
                 can_pathfind = (
                     obstacle_grid_index is not None
-                    and self.kind not in ["boss", "mini_boss", "shooter", "robot"]
+                    and self.kind not in ["boss", "mini_boss", "shooter"]
                 )
                 if can_pathfind:
                     cs   = obstacle_grid_index.cell_size
@@ -620,7 +672,7 @@ class Enemy(pygame.sprite.Sprite):
                         if obs.hitbox.collidepoint(self.pos):
                             self.pos -= move
 
-            anim_spd = 0.15 if self.kind in ["boss", "mini_boss"] else 0.10
+            anim_spd = 0.15 if self.kind in ["boss", "mini_boss", "agis"] else 0.10
             self.anim_timer += dt
             if self.anim_timer > anim_spd:
                 self.anim_timer = 0
@@ -631,9 +683,9 @@ class Enemy(pygame.sprite.Sprite):
                 self.frame_idx = (self.frame_idx + 1) % walk_len
 
         # ================================================================
-        # Disparo para shooter / robot / boss   (mini_boss agora é MELEE)
+        # Disparo para shooter / boss   (mini_boss e minotauro são MELEE)
         # ================================================================
-        if self.kind in ["shooter", "robot", "boss"]:
+        if self.kind in ["shooter", "boss"]:
             self.shot_timer += dt
             cd = self.shot_cooldown
             if self.kind == "boss":
@@ -672,6 +724,24 @@ class Enemy(pygame.sprite.Sprite):
                     if not self._atk_active:
                         self._trigger_atk_anim()
 
+        # ================================================================
+        # Agis — disparo de projétil a longa distância
+        # ================================================================
+        if self.kind == "agis":
+            # Ataque básico — projétil direto ao jogador
+            self.agis_shot_timer += dt
+            shot_cd = 2.2 if self.hp >= self.max_hp * 0.5 else 1.4
+            if self.agis_shot_timer >= shot_cd and 0 < dist <= 600:
+                self.agis_shot_timer   = 0.0
+                self.agis_shot_dir     = direction / dist
+                self.pending_agis_shot = True
+
+            # Magia em área — orbes em todas as direções a cada 5 s
+            self.agis_area_timer += dt
+            if self.agis_area_timer >= 5.0:
+                self.agis_area_timer   = 0.0
+                self.pending_agis_area = True
+
         # BAT / GOBLIN / BEHOLDER / RAT — dispara animação de ataque por proximidade
         if self.kind in ("bat", "goblin", "beholder", "rat") and self._atk_range > 0 and not self._atk_active:
             if dist < self._atk_range:
@@ -688,7 +758,23 @@ class Enemy(pygame.sprite.Sprite):
         self._advance_atk_anim(dt)
 
         # --- Seleciona frame final ---
-        if self._atk_active:
+        if self._atk_active and self._atk_overlay:
+            # Modo overlay: personagem sempre visível; efeito de ataque desenhado por cima
+            walk_frame = (self._get_white_frame() if self.flash_timer > 0
+                          else self._get_walk_frame())
+            af = self._get_atk_frame()
+            if af:
+                w_size = walk_frame.get_size()
+                composite = pygame.Surface(w_size, pygame.SRCALPHA)
+                composite.blit(walk_frame, (0, 0))
+                # Centraliza o efeito de ataque sobre o personagem
+                ox = (w_size[0] - af.get_width())  // 2
+                oy = (w_size[1] - af.get_height()) // 2
+                composite.blit(af, (ox, oy))
+                self.image = composite
+            else:
+                self.image = walk_frame
+        elif self._atk_active:
             af = self._get_atk_frame()
             self.image = af if af else self._get_walk_frame()
         elif self.flash_timer > 0:

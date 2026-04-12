@@ -54,7 +54,7 @@ The project is actively evolving and aims to balance gameplay quality with clean
 |---|---|---|---|---|
 | Warrior | 8 | 280 | Melee + mid-range projectiles | Fury: increased fire rate and damage |
 | Hunter | 5 | 340 | Fast projectiles, high crit | Burst: cone spread shot |
-| Mage | 6 | 260 | Magic orbs + area aura | Tornado: continuous area damage |
+| Mage | 6 | 260 | Magic orbs + area aura | Temporal Freeze: freezes all nearby enemies |
 | Vampire | 7 | 300 | Projectiles + life steal | Vampirism |
 | Demon | 6 | 290 | Multi-projectile burst | Abyss Flames |
 | Golem | 9 | 240 | Pure melee, highest HP | Earth Strike: 16 melee slashes in two rings |
@@ -81,7 +81,7 @@ All characters are unlocked by default.
 | Type | HP | Speed | Spawn | Description |
 |---|---|---|---|---|
 | Slime | 5 | 110 | 30s | Balanced standard enemy |
-| Robot | 8 | 130 | 30s | Mid-range projectile shooter |
+| Minotaur | 8 | 130 | 30s | Melee, direct pursuit |
 | Rat | 6 | 135 | 2 min | Large (220px), aggressive zigzag |
 
 ### Bosses
@@ -90,6 +90,9 @@ All characters are unlocked by default.
 |---|---|---|---|
 | Mini Boss | 300+ | ~10s | Own health bar, scales with time |
 | Boss | scalable | 5 min (every 5 min) | Multi-phase, grows stronger each wave |
+| Agis | 800+ | 2 min (summoning seal) | Slow boss, long-range double-orb attack + area magic every 5s |
+
+**Agis** is summoned through an animated seal (`doom_agis.png`) that appears near the player before spawning. Has a basic ranged projectile (purple double orb) and an area spell that fires 8 orbs in all directions. Drops a chest + 15 coins on death.
 
 ## Project Architecture
 
@@ -263,6 +266,7 @@ underworld-hero-survivor/
 ## Roadmap
 
 - Expand biomes and enemy variation.
+- [x] Boss Agis — summoning seal, long-range attack, and area magic.
 - Add new bosses and combat phases.
 - Refine progression and upgrade economy balancing.
 - Publish a distributable Windows build.

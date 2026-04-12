@@ -53,7 +53,7 @@ Destaques gerais:
 |---|---|---|---|---|
 | Guerreiro | 8 | 280 | Corpo a corpo + projéteis | Fúria: aumenta cadência e dano |
 | Caçador | 5 | 340 | Projéteis rápidos, alto crítico | Rajada: disparo em cone |
-| Mago | 6 | 260 | Aura + orbes mágicos | Tornado: dano em área contínuo |
+| Mago | 6 | 260 | Aura + orbes mágicos | Congelamento Temporal: congela inimigos em área |
 | Vampire | 7 | 300 | Projéteis + regen de vida | Vampirismo |
 | Demônio | 6 | 290 | Projéteis múltiplos, burst | Chamas do Abismo |
 | Golem | 9 | 240 | Melee puro, alto HP | Golpe da Terra: 16 slashes em área |
@@ -82,7 +82,7 @@ Todos os personagens estão desbloqueados por padrão. Cada personagem possui sp
 | Tipo | HP | Vel. | Aparição | Descrição |
 |---|---|---|---|---|
 | Slime | 5 | 110 | 30s | Inimigo padrão equilibrado |
-| Robô | 8 | 130 | 30s | Atira projéteis a média distância |
+| Minotauro | 8 | 130 | 30s | Corpo a corpo, perseguição direta |
 | Rat | 6 | 135 | 2 min | Grande (220px), zigzag agressivo |
 
 ### Chefes
@@ -91,6 +91,9 @@ Todos os personagens estão desbloqueados por padrão. Cada personagem possui sp
 |---|---|---|---|
 | Mini Boss | 300+ | ~10s | Barra de vida própria, escala com tempo |
 | Chefe | escalável | 5 min (a cada 5 min) | Multi-fase, fica mais forte a cada onda |
+| Agis | 800+ | 2 min (selo de invocação) | Boss lento, ataque de orbe à distância + magia em área a cada 5s |
+
+**Agis** é invocado por um selo animado (`doom_agis.png`) que aparece próximo ao herói ~30s antes do spawn. Possui ataque básico de projétil (orbe dupla roxa) e magia em área que dispara 8 orbes em todas as direções. Dropa baú + 15 moedas ao morrer.
 
 Hordas são processadas em fila assíncrona (6 inimigos/frame) eliminando travamentos de CPU. Obstáculos surgem gradualmente desde o início da run — não em massa durante hordas.
 
@@ -489,6 +492,7 @@ underworld-hero-survivor/
 ## Roadmap
 
 - [ ] Novos biomas com mecânicas exclusivas.
+- [x] Boss Agis — invocação por selo, ataque à distância e magia em área.
 - [ ] Novos chefes com fases e ataques adicionais.
 - [ ] Sistema de conquistas com recompensas visuais.
 - [ ] Balanceamento contínuo de progressão e economia.
