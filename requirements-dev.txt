@@ -1,0 +1,5 @@
+# Dependências opcionais para compilar os kernels Cython acelerados
+# Execute apenas se quiser ativar CYTHON_ACTIVE=True (requer Build Tools do Visual Studio no Windows)
+-r requirements.txt
+Cython==3.2.4
+setuptools==82.0.1
