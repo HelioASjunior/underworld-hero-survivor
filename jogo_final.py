@@ -130,9 +130,60 @@ def get_control_key_code(action_name):
 
 def is_control_pressed(keys, action_name):
     key_code = get_control_key_code(action_name)
-    if key_code == pygame.K_UNKNOWN:
+    if key_code != pygame.K_UNKNOWN and keys[key_code]:
+        return True
+    return _gamepad_action(action_name)
+
+
+# ─── Gamepad ─────────────────────────────────────────────────────────────────
+_joy = None
+GAMEPAD_DEADZONE = 0.25
+
+
+def _gamepad_connect(device_index=0):
+    global _joy
+    try:
+        j = pygame.joystick.Joystick(device_index)
+        j.init()
+        _joy = j
+    except Exception:
+        _joy = None
+
+
+def _gamepad_disconnect():
+    global _joy
+    if _joy:
+        try:
+            _joy.quit()
+        except Exception:
+            pass
+    _joy = None
+
+
+def _joy_axis(axis):
+    if _joy is None or axis >= _joy.get_numaxes():
+        return 0.0
+    v = _joy.get_axis(axis)
+    return v if abs(v) > GAMEPAD_DEADZONE else 0.0
+
+
+def _joy_hat():
+    if _joy is None or _joy.get_numhats() == 0:
+        return (0, 0)
+    return _joy.get_hat(0)
+
+
+def _gamepad_action(action):
+    """Retorna True se o gamepad está pressionando a ação de movimento indicada."""
+    if _joy is None:
         return False
-    return keys[key_code]
+    ax_x, ax_y = _joy_axis(0), _joy_axis(1)
+    hx, hy = _joy_hat()
+    if action == "left":  return ax_x < 0 or hx < 0
+    if action == "right": return ax_x > 0 or hx > 0
+    if action == "up":    return ax_y < 0 or hy > 0
+    if action == "down":  return ax_y > 0 or hy < 0
+    return False
 
 
 def apply_audio_runtime(settings_dict):
@@ -2432,6 +2483,9 @@ def main():
     # Inicialização do Pygame e Mixer (Deve vir antes de apply_settings para o mixer funcionar)
     pygame.init()
     pygame.mixer.init()
+    pygame.joystick.init()
+    if pygame.joystick.get_count() > 0:
+        _gamepad_connect(0)
     settings_category = "video"  # ou "audio" ou "controls"
 
     global settings
@@ -2696,6 +2750,18 @@ def main():
         
         # Atualiza posição do mouse
         m_pos = pygame.mouse.get_pos()
+
+        # Controle de cursor pelo analógico esquerdo / D-Pad (menus)
+        if _joy is not None and state not in ("PLAYING", "PAUSED", "UPGRADE"):
+            _cx = _joy_axis(0); _cy = _joy_axis(1)
+            _hx, _hy = _joy_hat()
+            if _cx == 0.0: _cx = _hx * 0.5
+            if _cy == 0.0: _cy = -_hy * 0.5
+            if _cx or _cy:
+                _nx = max(0, min(SCREEN_W - 1, int(m_pos[0] + _cx * 600 * dt_raw)))
+                _ny = max(0, min(SCREEN_H - 1, int(m_pos[1] + _cy * 600 * dt_raw)))
+                pygame.mouse.set_pos(_nx, _ny)
+                m_pos = (_nx, _ny)
 
         if state == "SHOP":
             update_shop_talent_button_layout()
@@ -3040,6 +3106,82 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONUP and state == "SETTINGS":
                 stop_settings_drag()
+
+            # ── Gamepad: conexão/desconexão ──────────────────────────────────
+            if event.type == pygame.JOYDEVICEADDED:
+                _gamepad_connect(event.device_index)
+
+            if event.type == pygame.JOYDEVICEREMOVED:
+                _gamepad_disconnect()
+
+            # ── Gamepad: botões ──────────────────────────────────────────────
+            if event.type == pygame.JOYBUTTONDOWN:
+                btn = event.button
+
+                # Start (7) → pausar/continuar
+                if btn == 7:
+                    if state == "PLAYING": state = "PAUSED"
+                    elif state == "PAUSED": state = "PLAYING"
+
+                # B (1) → voltar nos menus
+                elif btn == 1:
+                    if state == "PAUSED": state = "PLAYING"
+                    elif state == "SETTINGS":
+                        if settings_category == "main":
+                            state = "MENU"
+                        else:
+                            settings_category = "main"
+                            temp_settings = json.loads(json.dumps(settings))
+                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "BG_SELECT", "SAVES"]:
+                        state = "MENU"
+                    elif state == "DIFF_SELECT": state = "CHAR_SELECT"
+                    elif state == "PACT_SELECT": state = "DIFF_SELECT"
+
+                # A (0) → opção 1 de upgrade / clique nos menus
+                elif btn == 0:
+                    if state == "UPGRADE" and len(up_keys) > 0:
+                        if snd_click: snd_click.play()
+                        apply_upgrade(up_keys[0])
+                        up_options = []; up_keys = []; up_rarities = []
+                        state = "PLAYING"
+                    elif state not in ("PLAYING",):
+                        mx, my = pygame.mouse.get_pos()
+                        pygame.event.post(pygame.event.Event(
+                            pygame.MOUSEBUTTONDOWN, pos=(mx, my), button=1, touch=False))
+
+                # X (2) → opção 2 de upgrade
+                elif btn == 2:
+                    if state == "UPGRADE" and len(up_keys) > 1:
+                        if snd_click: snd_click.play()
+                        apply_upgrade(up_keys[1])
+                        up_options = []; up_keys = []; up_rarities = []
+                        state = "PLAYING"
+
+                # Y (3) → opção 3 de upgrade
+                elif btn == 3:
+                    if state == "UPGRADE" and len(up_keys) > 2:
+                        if snd_click: snd_click.play()
+                        apply_upgrade(up_keys[2])
+                        up_options = []; up_keys = []; up_rarities = []
+                        state = "PLAYING"
+
+                # RB (5) → dash
+                elif btn == 5:
+                    if state == "PLAYING" and player:
+                        dash_feedback = player.start_dash(particles)
+                        if dash_feedback.activated:
+                            play_sfx(dash_feedback.sound_name)
+                            push_skill_feed(dash_feedback.log_text, dash_feedback.log_color)
+
+                # LB (4) → ultimate
+                elif btn == 4:
+                    if state == "PLAYING" and player:
+                        ultimate_feedback = player.use_ultimate(build_character_combat_context())
+                        if ultimate_feedback.activated:
+                            damage_texts.add(DamageText(player.pos, "ULTIMATE!", True, (255, 0, 255)))
+                            shake_timer = 1.0; shake_strength = 15
+                            play_sfx("ult")
+                            push_skill_feed(ultimate_feedback.log_text, ultimate_feedback.log_color)
 
         if state != prev_state:
             if state == "MENU":
