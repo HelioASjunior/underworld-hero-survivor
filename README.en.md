@@ -1,7 +1,7 @@
 # UnderWorld Hero
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python)
-![Pygame](https://img.shields.io/badge/Pygame-2.6.1-green?style=for-the-badge)
+![Pygame-CE](https://img.shields.io/badge/Pygame--CE-2.5.7-green?style=for-the-badge)
 ![NumPy](https://img.shields.io/badge/NumPy-2.4.4-013243?style=for-the-badge&logo=numpy)
 ![Status](https://img.shields.io/badge/Status-In_Development-yellow?style=for-the-badge)
 
@@ -31,7 +31,7 @@ UnderWorld Hero combines:
 
 - Real-time combat with high enemy density on screen.
 - Level progression, upgrade picks, and evolutions.
-- Multiple playable characters with distinct playstyles.
+- 6 playable characters with distinct playstyles and ultimates.
 - Scalable difficulties and unlock systems.
 - Daily missions, meta progression, and run slots.
 
@@ -47,6 +47,49 @@ The project is actively evolving and aims to balance gameplay quality with clean
 - Persistent video/audio/controls/accessibility settings in `settings.json`.
 - Global save + run slots in `save_v2.json` and `run_slot_*.json`.
 - Real-time performance debug overlay (F3).
+
+## Playable Characters
+
+| Character | HP | Speed | Playstyle | Ultimate |
+|---|---|---|---|---|
+| Warrior | 8 | 280 | Melee + mid-range projectiles | Fury: increased fire rate and damage |
+| Hunter | 5 | 340 | Fast projectiles, high crit | Burst: cone spread shot |
+| Mage | 6 | 260 | Magic orbs + area aura | Tornado: continuous area damage |
+| Vampire | 7 | 300 | Projectiles + life steal | Vampirism |
+| Demon | 6 | 290 | Multi-projectile burst | Abyss Flames |
+| Golem | 9 | 240 | Pure melee, highest HP | Earth Strike: 16 melee slashes in two rings |
+
+All characters are unlocked by default.
+
+## Enemies and Bosses
+
+### Enemies — All difficulties
+
+| Type | HP | Speed | Spawn | Description |
+|---|---|---|---|---|
+| Bat | 1 | 145 | 0s | Fast, sinusoidal movement |
+| Runner | 2 | 150 | 0s | Fast straight-line chaser |
+| Tank | 10 | 65 | 30s | High HP, slow, melee |
+| Shooter | 3 | 90 | 30s | Ranged projectile attacker |
+| Goblin | 3 | 160 | 1 min | Fast with moderate zigzag |
+| Beholder | 8 | 85 | 1.5 min | Floating, smooth movement |
+| Orc | 12 | 75 | 3 min | Large (168px), tanky melee |
+| Elite | +50% | base | 30s+ | Reinforced variant with guaranteed gold drop |
+
+### Enemies — Hard / Hardcore only
+
+| Type | HP | Speed | Spawn | Description |
+|---|---|---|---|---|
+| Slime | 5 | 110 | 30s | Balanced standard enemy |
+| Robot | 8 | 130 | 30s | Mid-range projectile shooter |
+| Rat | 6 | 135 | 2 min | Large (220px), aggressive zigzag |
+
+### Bosses
+
+| Type | HP | Spawn | Description |
+|---|---|---|---|
+| Mini Boss | 300+ | ~10s | Own health bar, scales with time |
+| Boss | scalable | 5 min (every 5 min) | Multi-phase, grows stronger each wave |
 
 ## Project Architecture
 
@@ -72,7 +115,7 @@ The project is actively evolving and aims to balance gameplay quality with clean
 - Python 3.12
 - OS: Windows, Linux, or macOS
 - Runtime dependencies:
-  - Pygame 2.6.1
+  - Pygame-CE 2.5.7 (Community Edition)
   - NumPy 2.4.4
 
 Optional Cython build dependencies are listed in `requirements-dev.txt`.

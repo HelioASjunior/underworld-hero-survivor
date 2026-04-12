@@ -325,7 +325,7 @@ RUN_SLOT_FILES = [
 # Itens que começam desbloqueados
 DEFAULT_UNLOCKS = [
     "DANO ++", "VELOCIDADE ++", "VIDA MÁXIMA", "TIRO RÁPIDO", "CURA",
-    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "DIFF_FÁCIL", "DIFF_MÉDIO"
+    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "CHAR_4", "CHAR_5", "DIFF_FÁCIL", "DIFF_MÉDIO"
 ]
 
 save_data = {
@@ -364,6 +364,8 @@ ACHIEVEMENTS = {
     "CHAR_1": {"type": "char", "name": "CAÇADOR", "desc": "Mate 500 inimigos no total", "req": lambda s: s["total_kills"] >= 500},
     "CHAR_2": {"type": "char", "name": "MAGO", "desc": "Derrote 1 Chefão", "req": lambda s: s["boss_kills"] >= 1},
     "CHAR_3": {"type": "char", "name": "VAMPIRE", "desc": "Derrote 3 Chefões", "req": lambda s: s["boss_kills"] >= 3},
+    "CHAR_4": {"type": "char", "name": "DEMÔNIO", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
+    "CHAR_5": {"type": "char", "name": "GOLEM", "desc": "Derrote 8 Chefões", "req": lambda s: s["boss_kills"] >= 8},
     
     "DIFF_DIFÍCIL": {"type": "diff", "name": "DIFÍCIL", "desc": "Sobreviva 10 min (total)", "req": lambda s: s["total_time"] >= 600},
     "DIFF_HARDCORE": {"type": "diff", "name": "HARDCORE", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
@@ -604,21 +606,42 @@ SHOOTER_PROJ_IMAGE = "enemy_arrow"
 CHAR_DATA = {
     0: {
         "name": "GUERREIRO", "hp": 8, "speed": 280, "damage": 2,
-        "desc": "Ult: Tornado de Lâminas", "size": (384, 336), "menu_size": (420, 368),
+        "desc": "Ult: Fúria do Guerreiro", "size": (200, 200), "menu_size": (250, 250),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.26, "dash_cooldown": 2.8,
         "id": "CHAR_0",
-        # Walk: 768x84 px, 8 frames de 96x84 px.
-        "spritesheet": "sprite/guerreiro",
-        "spritesheet_frame_w": 96,
-        "spritesheet_frame_h": 84,
+        # Walk: guerreiro_run.png — 512x256, 4 rows × 8 frames de 64x64
+        # Row 0=baixo, 1=cima, 2=esquerda, 3=direita
+        "spritesheet": "sprite/monster/guerreiro_run",
+        "spritesheet_frame_w": 64,
+        "spritesheet_frame_h": 64,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
         "anim_speed": 0.10,
-        # Idle: 672x84 px, 7 frames de 96x84 px.
-        "spritesheet_idle": "sprite/guerreiroidle",
-        "spritesheet_idle_frame_w": 96,
-        "spritesheet_idle_frame_h": 84,
-        "idle_anim_frames": 7,
+        # Idle: guerreiro_idle.png — 256x256, 4 rows × 4 frames de 64x64
+        "spritesheet_idle": "sprite/monster/guerreiro_idle",
+        "spritesheet_idle_frame_w": 64,
+        "spritesheet_idle_frame_h": 64,
+        "idle_anim_frames": 4,
+        "spritesheet_idle_frame_indices": [0, 1, 2, 3],
         "idle_anim_speed": 0.13,
+        # Ataque: guerreiro_ataque.png — 512x256, 4 rows × 8 frames de 64x64
+        "spritesheet_attack": "sprite/monster/guerreiro_ataque",
+        "spritesheet_attack_frame_w": 64,
+        "spritesheet_attack_frame_h": 64,
+        "attack_anim_frames": 8,
+        "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "attack_anim_speed": 0.07,
+        # Efeito de ataque mid-range: efeito_guerreiro.png — 256x512, 4 rows × 4 frames de 64x128
+        "slash_effect_spritesheet": "sprite/monster/efeito_guerreiro",
+        "slash_effect_frame_w": 64,
+        "slash_effect_frame_h": 128,
+        "slash_effect_frames": 4,
+        # Ultimate: ultimate_guerreiro.png — 256x376, 2 cols × 4 linhas = 8 frames (fw=128, fh=94)
+        "ultimate_spritesheet": "sprite/ultimate_guerreiro",
+        "ultimate_frame_w": 128,
+        "ultimate_frame_h": 94,
+        "ultimate_frames_per_row": 2,
+        "ultimate_rows": 4,
     },
     1: {
         "name": "CAÇADOR", "hp": 5, "speed": 340, "damage": 3,
@@ -646,12 +669,18 @@ CHAR_DATA = {
         "attack_anim_frames": 10,
         "spritesheet_attack_frame_indices": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
         "attack_anim_speed": 0.07,
-        # Projétil: arrow.png — frame único, escalado para ficar visível.
+        # Projétil ataque básico: arrow.png — frame único.
         "projectile_spritesheet": "sprite/arrow",
         "projectile_frame_w": 30,
         "projectile_frame_h": 5,
         "projectile_frame_count": 1,
         "projectile_display_size": (50, 8),
+        # Projétil da Ultimate: flechafire.png — frame único (mesma estrutura de arrow.png)
+        "ultimate_projectile_spritesheet": "sprite/flechafire",
+        "ultimate_projectile_frame_w": 30,
+        "ultimate_projectile_frame_h": 5,
+        "ultimate_projectile_frame_count": 1,
+        "ultimate_projectile_display_size": (55, 9),
     },
     2: {
         "name": "MAGO", "hp": 6, "speed": 260, "damage": 2,
@@ -714,7 +743,79 @@ CHAR_DATA = {
         "projectile_frame_h": 32,
         "projectile_frame_count": 6,
         "projectile_display_size": (42, 42),
-    }
+    },
+    4: {
+        "name": "DEMÔNIO", "hp": 6, "speed": 290, "damage": 3,
+        "desc": "Ult: Chama Infernal", "size": (250, 250), "menu_size": (350, 350),
+        "anim_frames": 8, "menu_anim_frames": 8,
+        "dash_duration": 0.20, "dash_cooldown": 2.3,
+        "id": "CHAR_4",
+        # Walk: demon_run.png — 1024×512, 4 rows × 8 frames de 128×128
+        # Row 0=baixo, 1=cima, 2=esquerda, 3=direita
+        "spritesheet": "sprite/monster/demon_run",
+        "spritesheet_frame_w": 128,
+        "spritesheet_frame_h": 128,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "anim_speed": 0.09,
+        # Idle: demon_idle.png — 512×512, 4 rows × 4 frames de 128×128
+        "spritesheet_idle": "sprite/monster/demon_idle",
+        "spritesheet_idle_frame_w": 128,
+        "spritesheet_idle_frame_h": 128,
+        "idle_anim_frames": 4,
+        "spritesheet_idle_frame_indices": [0, 1, 2, 3],
+        "idle_anim_speed": 0.13,
+        # Attack: demon_ataque.png — 1280×512, 4 rows × 10 frames de 128×128
+        "spritesheet_attack": "sprite/monster/demon_ataque",
+        "spritesheet_attack_frame_w": 128,
+        "spritesheet_attack_frame_h": 128,
+        "attack_anim_frames": 10,
+        "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        "attack_anim_speed": 0.06,
+        # Projétil: demon_spell.png — 960×256, 5cols × 2rows = 10 frames (fw=192, fh=128)
+        # Animação do feitiço: cresce de pequeno→blast escuro+vermelho→disipa
+        # Frame 9 (último) está vazio; usa indices 0-8 (9 frames com conteúdo)
+        "projectile_spritesheet": "sprite/monster/demon_spell",
+        "projectile_frame_w": 192,
+        "projectile_frame_h": 128,
+        "projectile_frame_count": 9,
+        "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        "projectile_display_size": (96, 64),
+        # Ultimate: ult_demon.png — 1536×128, 12 frames de 128×128 em linha única
+        "ultimate_spritesheet": "sprite/monster/ult_demon",
+        "ultimate_frame_w": 128,
+        "ultimate_frame_h": 128,
+        "ultimate_frames_per_row": 12,
+        "ultimate_rows": 1,
+    },
+    5: {
+        "name": "GOLEM", "hp": 9, "speed": 240, "damage": 4,
+        "desc": "Ult: Golpe da Terra", "size": (220, 220), "menu_size": (320, 320),
+        "anim_frames": 8, "menu_anim_frames": 8,
+        "dash_duration": 0.18, "dash_cooldown": 2.5,
+        "id": "CHAR_5",
+        # Walk: golem_run.png — 1024×512, 4 rows × 8 frames de 128×128
+        # Row 0=baixo, 1=cima, 2=esquerda, 3=direita
+        "spritesheet": "sprite/monster/new hero/golem_run",
+        "spritesheet_frame_w": 128,
+        "spritesheet_frame_h": 128,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "anim_speed": 0.10,
+        # Idle: golem_idle.png — 512×512, 4 rows × 4 frames de 128×128
+        "spritesheet_idle": "sprite/monster/new hero/golem_idle",
+        "spritesheet_idle_frame_w": 128,
+        "spritesheet_idle_frame_h": 128,
+        "idle_anim_frames": 4,
+        "spritesheet_idle_frame_indices": [0, 1, 2, 3],
+        "idle_anim_speed": 0.15,
+        # Efeito melee: basic_golem.png — 256×512, 2 cols × 4 rows = 8 frames de 128×128
+        # Animação sequencial do impacto: lido de cima-baixo, esquerda-direita
+        "projectile_spritesheet": "sprite/monster/new hero/basic_golem",
+        "projectile_frame_w": 128,
+        "projectile_frame_h": 128,
+        "projectile_frame_count": 8,
+        "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "projectile_display_size": (96, 96),
+    },
 }
 
 # Constantes
@@ -2039,7 +2140,20 @@ def load_all_assets():
             hd_th = int(hd_tw * raw_hd.get_height() / raw_hd.get_width())
             diff_screen_imgs["HARDCORE_UNLOCK"] = pygame.transform.smoothscale(raw_hd, (hd_tw, hd_th))
 
-    aura_frames = loader.load_animation("aura", 4, (400, 400), fallback_colors=((100, 0, 200, 80), (80, 0, 160, 60)))
+    # aura2.png — 576x72, 1 linha × 8 frames de 72x72 px
+    # Carregado diretamente via subsurface para garantir sequência esq→dir.
+    try:
+        _aura_path = os.path.join(ASSET_DIR, "sprite", "aura2.png")
+        _aura_surf = pygame.image.load(_aura_path).convert_alpha()
+        _aura_fw = 72
+        aura_frames = [
+            _aura_surf.subsurface(pygame.Rect(i * _aura_fw, 0, _aura_fw, _aura_surf.get_height())).copy()
+            for i in range(_aura_surf.get_width() // _aura_fw)
+        ]
+        print(f"[ASSETS] aura2.png OK: {len(aura_frames)} frames de {_aura_fw}x{_aura_surf.get_height()}")
+    except Exception as _e:
+        print(f"[ASSETS] aura2.png fallback: {_e}")
+        aura_frames = loader.load_animation("aura", 4, (400, 400), fallback_colors=((100, 0, 200, 80), (80, 0, 160, 60)))
     ExplosionAnimation._frame_cache.clear()   # invalida cache ao recarregar assets
     explosion_frames_raw = load_explosion_frames(loader, (128, 128))
     projectile_frames_raw = loader.load_animation("projectile", 4, (40, 20), fallback_colors=((255, 255, 100), (200, 200, 0)))
@@ -2075,7 +2189,7 @@ def load_all_assets():
 
     # Animações IDLE para a tela de seleção (mesmo sprite usado no jogo parado)
     # Tamanhos maiores para Guerreiro e Mago na seleção
-    _IDLE_SIZES = {0: (520, 455), 1: (220, 220), 2: (560, 560), 3: (220, 220)}
+    _IDLE_SIZES = {0: (280, 280), 1: (220, 220), 2: (560, 560), 3: (220, 220), 4: (360, 360), 5: (340, 340)}
     menu_idle_anims = []
     for char_id, char_data in CHAR_DATA.items():
         idle_sheet = char_data.get("spritesheet_idle")
@@ -3552,6 +3666,16 @@ def main():
                     spawn_list    = ["runner", "bat", "tank", "shooter"]
                     spawn_weights = [35,       25,    25,     15]
 
+                    # Goblin entra no pool a partir de 60 segundos — rápido e ágil
+                    if game_time >= 60:
+                        spawn_list.append("goblin")
+                        spawn_weights.append(22)
+
+                    # Beholder entra no pool a partir de 90 segundos — todas as dificuldades
+                    if game_time >= 90:
+                        spawn_list.append("beholder")
+                        spawn_weights.append(18)
+
                     # Orc entra no pool a partir do minuto 3 (180 s)
                     if game_time >= 180:
                         spawn_list.append("orc")
@@ -3560,6 +3684,10 @@ def main():
                     if selected_difficulty in ["DIFÍCIL", "HARDCORE"]:
                         spawn_list.extend(["slime", "robot"])
                         spawn_weights.extend([15, 15])
+                        # Rat — apenas nas dificuldades harder, a partir de 2 min
+                        if game_time >= 120:
+                            spawn_list.append("rat")
+                            spawn_weights.append(20)
 
                     chosen_enemy = random.choices(spawn_list, weights=spawn_weights, k=1)[0]
                     elite_chance = min(0.15, 0.03 + (game_time / 480.0) * 0.05)
@@ -3721,6 +3849,12 @@ def main():
                                 burst_count = 16
                             elif hit.kind in ("tank", "elite", "orc"):
                                 burst_count = 12
+                            elif hit.kind == "goblin":
+                                burst_count = 6
+                            elif hit.kind == "beholder":
+                                burst_count = 10
+                            elif hit.kind == "rat":
+                                burst_count = 10
                             else:
                                 burst_count = 8
                             for _ in range(burst_count):
@@ -4060,7 +4194,7 @@ def main():
             chw = max(int(CHALF * pscale), 32)
 
             # Multiplicadores de tamanho por personagem (guerreiro e mago maiores)
-            _SIZE_MULT = {0: 2.20, 1: 1.85, 2: 2.45, 3: 2.00}   # 0=guerreiro 1=caçador 2=mago 3=vampire
+            _SIZE_MULT = {0: 2.20, 1: 1.85, 2: 2.45, 3: 2.00, 4: 2.30, 5: 2.40}   # 0=guerreiro 1=caçador 2=mago 3=vampire 4=demônio 5=golem
 
             for i in range(len(char_ids)):
                 btn   = char_btns[i]
@@ -4394,14 +4528,34 @@ def main():
             
             if AURA_DMG > 0:
                 current_aura_range = AURA_RANGE * 2 if has_buraco_negro else AURA_RANGE
-                if not hasattr(main, "_last_aura_range") or main._last_aura_range != current_aura_range:
+                _aura_stale = (
+                    not hasattr(main, "_last_aura_range")
+                    or main._last_aura_range != current_aura_range
+                    or not hasattr(main, "_aura_cache")
+                    or len(main._aura_cache) != len(aura_frames)
+                )
+                if _aura_stale:
                     main._last_aura_range = current_aura_range
-                    main._aura_cache = [pygame.transform.scale(f, (current_aura_range*2, current_aura_range*2)) for f in aura_frames]
+                    _asize = current_aura_range * 2
+                    _scaled = []
+                    for f in aura_frames:
+                        # Usa surface SRCALPHA para premultiplicar alpha e evitar
+                        # quadrados brancos causados por pixels transparentes com RGB != 0
+                        _tmp = pygame.Surface((_asize, _asize), pygame.SRCALPHA)
+                        _tmp.fill((0, 0, 0, 0))
+                        _tmp.blit(pygame.transform.scale(f, (_asize, _asize)), (0, 0))
+                        _scaled.append(_tmp)
+                    main._aura_cache = _scaled
                     if has_buraco_negro:
                         for f in main._aura_cache: f.fill((100, 0, 150), special_flags=pygame.BLEND_RGB_MULT)
-                
-                img = main._aura_cache[aura_frame_idx]
-                screen.blit(img, img.get_rect(center=(SCREEN_W//2, SCREEN_H//2)), special_flags=pygame.BLEND_RGBA_ADD)
+
+                img = main._aura_cache[aura_frame_idx % len(main._aura_cache)]
+                # Overlay intermediário para blending aditivo correto (sem quadrados brancos)
+                if not hasattr(main, "_aura_overlay") or main._aura_overlay.get_size() != (SCREEN_W, SCREEN_H):
+                    main._aura_overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                main._aura_overlay.fill((0, 0, 0, 0))
+                main._aura_overlay.blit(img, img.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
+                screen.blit(main._aura_overlay, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
                 
             if ORB_COUNT > 0:
                 if not hasattr(main, "_orb_img_cache") or main._orb_img_cache[0] != has_serras:
@@ -4414,9 +4568,14 @@ def main():
                     _orb_blits.append((_orb_img, _orb_img.get_rect(center=orb_p + cam)))
                 screen.blits(_orb_blits)
 
-            if player.ult_active and player.should_draw_tornado_effect():
-                img = pygame.transform.rotate(tornado_img, (pygame.time.get_ticks() / 5) % 360)
-                screen.blit(img, img.get_rect(center=(SCREEN_W//2, SCREEN_H//2)), special_flags=pygame.BLEND_RGBA_ADD)
+            if player.ult_active:
+                _ult_frame = player.get_ult_anim_frame() if hasattr(player, 'get_ult_anim_frame') else None
+                if _ult_frame is not None:
+                    # Exibe no tamanho carregado, centralizado no jogador
+                    screen.blit(_ult_frame, _ult_frame.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
+                elif player.should_draw_tornado_effect():
+                    img = pygame.transform.rotate(tornado_img, (pygame.time.get_ticks() / 5) % 360)
+                    screen.blit(img, img.get_rect(center=(SCREEN_W//2, SCREEN_H//2)), special_flags=pygame.BLEND_RGBA_ADD)
 
             for exp in active_explosions:
                 exp.draw(screen, cam)

@@ -39,7 +39,7 @@ Destaques gerais:
 
 - Combate em tempo real com alto volume de inimigos em tela.
 - Progressão por nível com seleção de upgrades e evoluções sinérgicas.
-- 3 personagens jogáveis com estilos e ultimates próprios.
+- 6 personagens jogáveis com estilos e ultimates próprios.
 - 4 níveis de dificuldade e 4 pactos com modificadores de risco/recompensa.
 - Missões diárias, meta-progresso e árvore de talentos permanente.
 - 3 slots de run independentes com estado completo salvo.
@@ -49,29 +49,48 @@ Destaques gerais:
 
 ## Personagens
 
-| Personagem | HP | Estilo | Ultimate |
-|---|---|---|---|
-| Guerreiro | 8 | Corpo a corpo + projéteis | Fúria: aumenta cadência e dano |
-| Caçador | 5 | Projéteis rápidos, alto crítico | Rajada: disparo em cone |
-| Mago | 6 | Aura + orbes mágicos | Tornado: dano em área contínuo |
+| Personagem | HP | Velocidade | Estilo | Ultimate |
+|---|---|---|---|---|
+| Guerreiro | 8 | 280 | Corpo a corpo + projéteis | Fúria: aumenta cadência e dano |
+| Caçador | 5 | 340 | Projéteis rápidos, alto crítico | Rajada: disparo em cone |
+| Mago | 6 | 260 | Aura + orbes mágicos | Tornado: dano em área contínuo |
+| Vampire | 7 | 300 | Projéteis + regen de vida | Vampirismo |
+| Demônio | 6 | 290 | Projéteis múltiplos, burst | Chamas do Abismo |
+| Golem | 9 | 240 | Melee puro, alto HP | Golpe da Terra: 16 slashes em área |
 
-Cada personagem possui spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar e atacar carregadas via `characters.py`.
+Todos os personagens estão desbloqueados por padrão. Cada personagem possui spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar e atacar carregadas via `characters.py`.
 
 ---
 
 ## Inimigos e Chefes
 
-| Tipo | Descrição |
-|---|---|
-| Slime | Inimigo básico, baixo HP, rápido |
-| Robô | Inimigo padrão equilibrado |
-| Shooter | Atira projéteis a distância |
-| Tank | Alto HP e dano corpo a corpo |
-| Bat | Morcego rápido com movimento senoidal |
-| Orc | Grande (168px), tanque corpo a corpo com barra de vida visível |
-| Elite | Versão reforçada dos comuns com drop de ouro garantido |
-| Mini Boss | Inimigo intermediário com barra de vida própria |
-| Chefe | Multi-fase com ataques especiais, aparece a cada 5 minutos |
+### Inimigos — Todas as dificuldades
+
+| Tipo | HP | Vel. | Aparição | Descrição |
+|---|---|---|---|---|
+| Bat | 1 | 145 | 0s | Morcego com movimento senoidal |
+| Runner | 2 | 150 | 0s | Corredor rápido em linha reta |
+| Tank | 10 | 65 | 30s | Alto HP, lento, corpo a corpo |
+| Shooter | 3 | 90 | 30s | Atira projéteis à distância |
+| Goblin | 3 | 160 | 1 min | Rápido com zigzag moderado |
+| Beholder | 8 | 85 | 1.5 min | Flutuante, movimento suave |
+| Orc | 12 | 75 | 3 min | Grande (168px), corpo a corpo tanque |
+| Elite | +50% | base | 30s+ | Versão reforçada com drop de ouro garantido |
+
+### Inimigos — Somente Difícil / Hardcore
+
+| Tipo | HP | Vel. | Aparição | Descrição |
+|---|---|---|---|---|
+| Slime | 5 | 110 | 30s | Inimigo padrão equilibrado |
+| Robô | 8 | 130 | 30s | Atira projéteis a média distância |
+| Rat | 6 | 135 | 2 min | Grande (220px), zigzag agressivo |
+
+### Chefes
+
+| Tipo | HP | Aparição | Descrição |
+|---|---|---|---|
+| Mini Boss | 300+ | ~10s | Barra de vida própria, escala com tempo |
+| Chefe | escalável | 5 min (a cada 5 min) | Multi-fase, fica mais forte a cada onda |
 
 Hordas são processadas em fila assíncrona (6 inimigos/frame) eliminando travamentos de CPU. Obstáculos surgem gradualmente desde o início da run — não em massa durante hordas.
 

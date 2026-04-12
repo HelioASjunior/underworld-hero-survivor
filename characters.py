@@ -68,6 +68,7 @@ class CharacterCombatContext:
     projectile_count: int = 1
     fury_multiplier: float = 1.0
     bazooka_active: bool = False
+    dt: float = 0.016
 
 
 @dataclass
@@ -483,23 +484,119 @@ class Player(ABC, pygame.sprite.Sprite):
 class Warrior(Player):
     """Personagem corpo a corpo focado em pressão próxima e área persistente."""
 
+    # Mesma ordem de linhas do Vampire: baixo=0, cima=1, esquerda=2, direita=3
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (200, 200))
+
+        fw = data.get("spritesheet_frame_w", 64)
+        fh = data.get("spritesheet_frame_h", 64)
+
+        # Walk direcional — guerreiro_run.png 4 rows × 8 frames
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 8)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        # Idle direcional — guerreiro_idle.png 4 rows × 4 frames
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+        # Ataque direcional — guerreiro_ataque.png 4 rows × 8 frames
+        atk_sheet = data.get("spritesheet_attack")
+        atk_n = data.get("attack_anim_frames", 8)
+        atk_fw = data.get("spritesheet_attack_frame_w", fw)
+        atk_fh = data.get("spritesheet_attack_frame_h", fh)
+        if atk_sheet:
+            for dir_name, row in self._SPRITE_DIR_ROWS.items():
+                indices = list(range(row * atk_n, (row + 1) * atk_n))
+                frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh, atk_n, char_size, frame_indices=indices)
+                if frames:
+                    self._dir_attack_frames[dir_name] = frames
+            if self._dir_attack_frames and not self.attack_frames:
+                self.attack_frames = next(iter(self._dir_attack_frames.values()))
+
+        # Efeito de ataque mid-range — efeito_guerreiro.png 4 rows × 4 frames de 64x128
+        # Row "right" (linha 3) está vazia no sprite — usa flip horizontal da direção "left"
+        eff_sheet = data.get("slash_effect_spritesheet")
+        eff_n     = data.get("slash_effect_frames", 4)
+        eff_fw    = data.get("slash_effect_frame_w", 64)
+        eff_fh    = data.get("slash_effect_frame_h", 128)
+        eff_size  = (int(char_size[0] * 1.5), int(char_size[1] * 1.5))
+        self._slash_dir_frames = {}
+        if eff_sheet:
+            for dir_name, row in self._SPRITE_DIR_ROWS.items():
+                if dir_name == "right":
+                    continue  # gerado por flip abaixo
+                indices = list(range(row * eff_n, (row + 1) * eff_n))
+                frames = loader.load_spritesheet(eff_sheet, eff_fw, eff_fh, eff_n, eff_size, frame_indices=indices)
+                if frames:
+                    self._slash_dir_frames[dir_name] = frames
+            # "right" = flip horizontal de "left"
+            if "left" in self._slash_dir_frames:
+                self._slash_dir_frames["right"] = [
+                    pygame.transform.flip(f, True, False) for f in self._slash_dir_frames["left"]
+                ]
+
+        # Ultimate — ultimate_guerreiro.png 256x640, animação linear:
+        # 2 colunas × 4 linhas = 8 frames, lidos esq→dir, linha por linha (não direcional)
+        ult_sheet = data.get("ultimate_spritesheet")
+        ult_fw    = data.get("ultimate_frame_w", 128)
+        ult_fh    = data.get("ultimate_frame_h", 160)
+        ult_n     = data.get("ultimate_frames_per_row", 2)
+        ult_rows  = data.get("ultimate_rows", 4)
+        # Tamanho de exibição: 4× o frame natural, mantendo proporção
+        ult_size  = (ult_fw * 4, ult_fh * 4)
+        self._ult_display_frames = []
+        if ult_sheet and hasattr(loader, "load_spritesheet"):
+            for row in range(ult_rows):
+                indices = list(range(row * ult_n, (row + 1) * ult_n))
+                frames = loader.load_spritesheet(
+                    ult_sheet, ult_fw, ult_fh, ult_n, ult_size, frame_indices=indices
+                )
+                if frames:
+                    self._ult_display_frames.extend(frames)
+        self._ult_frame_idx   = 0
+        self._ult_frame_timer = 0.0
+        self._ult_frame_speed = 0.10   # segundos por frame — faz loop enquanto ult ativa
+
     def get_attack_name(self):
-        return "Corte Giratório"
+        return "Corte Direcional"
 
     def get_dash_name(self):
         return "Investida Guardiã"
 
     def get_ultimate_name(self):
-        return "Tornado de Lâminas"
+        return "Fúria do Guerreiro"
 
     def get_attack_sound(self):
         return "slash"
 
     def should_draw_tornado_effect(self):
-        return True
+        return False
+
+    def get_ult_anim_frame(self):
+        """Retorna o frame atual da animação linear da ultimate, ou None."""
+        if not self._ult_display_frames:
+            return None
+        idx = self._ult_frame_idx % len(self._ult_display_frames)
+        return self._ult_display_frames[idx]
 
     def atacar(self, target, combat_context):
-        """Sobrescreve o ataque básico para gerar golpes melee em arco."""
+        """Ataque mid-range usando efeito_guerreiro.png como projétil de curto alcance."""
 
         if target is None:
             return CharacterActionFeedback()
@@ -509,11 +606,35 @@ class Warrior(Player):
             return CharacterActionFeedback()
 
         base_direction = base_direction.normalize()
+
+        # Seleciona frames do efeito de acordo com a direção atual
+        eff_frames = (
+            self._slash_dir_frames.get(self._facing_dir)
+            or (next(iter(self._slash_dir_frames.values())) if self._slash_dir_frames else None)
+        )
+
         for direction in self._attack_vectors(base_direction, combat_context.projectile_count):
             melee_damage = int((combat_context.projectile_damage + 2) * combat_context.fury_multiplier)
-            combat_context.projectiles.add(
-                self.deps.melee_slash_cls(self, direction, melee_damage, combat_context.slash_frames_raw)
-            )
+
+            if eff_frames:
+                # Mid-range: projétil com alcance limitado usando efeito direcional
+                shoot_angle = math.degrees(math.atan2(-direction.y, direction.x))
+                rotated = [pygame.transform.rotate(f, shoot_angle) for f in eff_frames]
+                proj = self.deps.projectile_cls(
+                    self.pos,
+                    direction * 480,
+                    melee_damage,
+                    rotated,
+                )
+                proj.max_range  = 220
+                proj._spawn_pos = pygame.Vector2(self.pos)
+                proj.pierce     = 2
+                combat_context.projectiles.add(proj)
+            else:
+                slash = self.deps.melee_slash_cls(self, direction, melee_damage, combat_context.slash_frames_raw)
+                slash.distance = 180
+                slash.pos = self.pos + direction * 180
+                combat_context.projectiles.add(slash)
 
         self.trigger_attack_anim()
         return self._build_action_feedback(sound_name=self.get_attack_sound())
@@ -525,35 +646,42 @@ class Warrior(Player):
         self.ult_charge = 0
         self.ult_active = True
         self.ult_active_timer = 3.0
+        self._ult_frame_idx   = 0
+        self._ult_frame_timer = 0.0
         return self._build_action_feedback(
             log_text=f"Ultimate: {self.get_ultimate_name()}",
             log_color=(255, 90, 90),
         )
 
     def update_ultimate_effects(self, combat_context):
-        """Enquanto o tornado estiver ativo, ele causa dano e gera feedback visual."""
+        """Avança a animação da ultimate e aplica dano em área enquanto ativa."""
 
         if not self.ult_active:
             return CharacterActionFeedback()
 
-        kills_gained = 0
+        # Avança frame da animação linear em loop enquanto a ultimate estiver ativa
+        self._ult_frame_timer += combat_context.dt
+        if self._ult_frame_timer >= self._ult_frame_speed:
+            self._ult_frame_timer = 0.0
+            if self._ult_display_frames:
+                self._ult_frame_idx = (self._ult_frame_idx + 1) % len(self._ult_display_frames)
+
         if random.random() < 0.8:
             combat_context.particles.add(
                 self.deps.particle_cls(
-                    self.pos + pygame.Vector2(random.randint(-100, 100), random.randint(-100, 100)),
-                    (200, 200, 255),
-                    6,
-                    200,
-                    0.4,
+                    self.pos + pygame.Vector2(random.randint(-120, 120), random.randint(-120, 120)),
+                    (255, 180, 60),
+                    6, 220, 0.4,
                 )
             )
 
+        kills_gained = 0
         for enemy in combat_context.enemies:
             if self.pos.distance_to(enemy.pos) < 250:
                 enemy.hp -= 2
                 if random.random() < 0.2:
                     combat_context.damage_texts.add(
-                        self.deps.damage_text_cls(enemy.pos, 2, False, (255, 255, 0))
+                        self.deps.damage_text_cls(enemy.pos, 2, False, (255, 200, 0))
                     )
                 if enemy.hp <= 0:
                     if self.ult_charge < self.ult_max:
@@ -566,11 +694,24 @@ class Warrior(Player):
 
 
 class Assassin(Player):
-    """Personagem móvel e agressivo, com dash ofensivo e explosão radial."""
+    """Personagem móvel e agressivo, com dash ofensivo e chuva de flechas de fogo."""
 
     def __init__(self, loader, char_id, dependencies):
         super().__init__(loader, char_id, dependencies)
         self._dash_hit_targets = set()
+
+        # Projétil exclusivo da ultimate: flechafire.png
+        data = dependencies.char_data_map[char_id]
+        ult_sheet = data.get("ultimate_projectile_spritesheet")
+        self._ult_projectile_frames = None
+        if ult_sheet and hasattr(loader, "load_spritesheet"):
+            self._ult_projectile_frames = loader.load_spritesheet(
+                ult_sheet,
+                data.get("ultimate_projectile_frame_w", 30),
+                data.get("ultimate_projectile_frame_h", 5),
+                data.get("ultimate_projectile_frame_count", 1),
+                data.get("ultimate_projectile_display_size", (55, 9)),
+            )
 
     def get_attack_name(self):
         return "Rajada Precisa"
@@ -610,7 +751,8 @@ class Assassin(Player):
             return CharacterActionFeedback()
 
         self.ult_charge = 0
-        base_frames = self.char_projectile_frames or combat_context.projectile_frames_raw
+        # Usa flechafire para a ultimate, com fallback para o projétil padrão do personagem
+        base_frames = self._ult_projectile_frames or self.char_projectile_frames or combat_context.projectile_frames_raw
         for index in range(36):
             angle = index * 10
             direction = pygame.Vector2(1, 0).rotate(angle)
@@ -747,11 +889,220 @@ class Vampire(Player):
         )
 
 
+class Demon(Player):
+    """Personagem de alta ofensiva: projéteis de fogo e rajada infernal em todas as direções."""
+
+    # Mesma ordem de linhas que Vampire/Warrior: baixo=0, cima=1, esquerda=2, direita=3
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (200, 200))
+
+        fw = data.get("spritesheet_frame_w", 128)
+        fh = data.get("spritesheet_frame_h", 128)
+
+        # Walk direcional — demon_run.png 4 rows × 8 frames de 128×128
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 8)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        # Idle direcional — demon_idle.png 4 rows × 4 frames de 128×128
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+        # Ataque direcional — demon_ataque.png 4 rows × 10 frames de 128×128
+        # Sequência invertida: sprite foi desenhado da direita para a esquerda
+        atk_sheet = data.get("spritesheet_attack")
+        atk_n = data.get("attack_anim_frames", 10)
+        atk_fw = data.get("spritesheet_attack_frame_w", fw)
+        atk_fh = data.get("spritesheet_attack_frame_h", fh)
+        if atk_sheet:
+            for dir_name, row in self._SPRITE_DIR_ROWS.items():
+                indices = list(range(row * atk_n, (row + 1) * atk_n))[::-1]
+                frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh, atk_n, char_size, frame_indices=indices)
+                if frames:
+                    self._dir_attack_frames[dir_name] = frames
+            if self._dir_attack_frames and not self.attack_frames:
+                self.attack_frames = next(iter(self._dir_attack_frames.values()))
+
+    def get_attack_name(self):
+        return "Fogo Infernal"
+
+    def get_dash_name(self):
+        return "Teletransporte"
+
+    def get_ultimate_name(self):
+        return "Chama Infernal"
+
+    def get_attack_sound(self):
+        return "shoot"
+
+    def get_projectile_damage_multiplier(self):
+        return 1.25
+
+    def use_ultimate(self, combat_context):
+        """Dispara 6 projéteis de fogo em todas as direções (60° cada), igual ao Vampire mas menor."""
+        if self.ult_charge < self.ult_max:
+            return CharacterActionFeedback()
+
+        self.ult_charge = 0
+        base_frames = self.char_projectile_frames or combat_context.projectile_frames_raw
+        # 6 projéteis a cada 60° — Vampire usa 8 a cada 45°; Demônio é "um pouco menor"
+        for i in range(6):
+            angle = i * 60
+            direction = pygame.Vector2(1, 0).rotate(angle)
+            shoot_angle = math.degrees(math.atan2(-direction.y, direction.x))
+            rotated_frames = [pygame.transform.rotate(frame, shoot_angle) for frame in base_frames]
+            proj = self.deps.projectile_cls(
+                self.pos,
+                direction * combat_context.projectile_speed,
+                int(combat_context.projectile_damage * 3.5 * self.get_projectile_damage_multiplier()),
+                rotated_frames,
+            )
+            proj.pierce = 3
+            combat_context.projectiles.add(proj)
+
+        return self._build_action_feedback(
+            log_text=f"Ultimate: {self.get_ultimate_name()}",
+            log_color=(255, 80, 0),
+        )
+
+
+class Golem(Player):
+    """Herói tanque corpo a corpo — alto HP, soco de pedra e terremoto em área."""
+
+    # Mesma ordem que Vampire/Warrior: baixo=0, cima=1, esquerda=2, direita=3
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (220, 220))
+
+        fw = data.get("spritesheet_frame_w", 128)
+        fh = data.get("spritesheet_frame_h", 128)
+
+        # Walk direcional — golem_run.png: 1024×512, 4 rows × 8 frames de 128×128
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 8)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        # Idle direcional — golem_idle.png: 512×512, 4 rows × 4 frames de 128×128
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+    def get_attack_name(self):
+        return "Soco de Pedra"
+
+    def get_dash_name(self):
+        return "Investida Granítica"
+
+    def get_ultimate_name(self):
+        return "Golpe da Terra"
+
+    def get_attack_sound(self):
+        return "slash"
+
+    def get_projectile_damage_multiplier(self):
+        return 1.3
+
+    def atacar(self, target, combat_context):
+        """Ataque melee corpo a corpo: usa efeito basic_golem.png como slash de impacto."""
+        if target is None:
+            return CharacterActionFeedback()
+
+        base_direction = target.pos - self.pos
+        if base_direction.length_squared() <= 0:
+            return CharacterActionFeedback()
+
+        base_direction = base_direction.normalize()
+        melee_frames = self.char_projectile_frames or combat_context.slash_frames_raw
+
+        for direction in self._attack_vectors(base_direction, combat_context.projectile_count):
+            melee_damage = int(
+                (combat_context.projectile_damage + 3)
+                * self.get_projectile_damage_multiplier()
+                * combat_context.fury_multiplier
+            )
+            slash = self.deps.melee_slash_cls(self, direction, melee_damage, melee_frames)
+            slash.distance = 110
+            combat_context.projectiles.add(slash)
+
+        self.trigger_attack_anim()
+        return self._build_action_feedback(sound_name=self.get_attack_sound())
+
+    def use_ultimate(self, combat_context):
+        """Golpe da Terra: estouro de slashes em todas as direções ao redor do Golem."""
+        if self.ult_charge < self.ult_max:
+            return CharacterActionFeedback()
+
+        self.ult_charge = 0
+        melee_frames = self.char_projectile_frames or combat_context.slash_frames_raw
+        ult_damage = int(
+            (combat_context.projectile_damage + 5)
+            * self.get_projectile_damage_multiplier()
+            * 2.5
+            * combat_context.fury_multiplier
+        )
+
+        # 8 slashes em todas as direções (a cada 45°) — dois anéis de distância
+        for ring_dist in (100, 190):
+            for i in range(8):
+                angle = i * 45
+                direction = pygame.Vector2(1, 0).rotate(angle)
+                slash = self.deps.melee_slash_cls(self, direction, ult_damage, melee_frames)
+                slash.distance = ring_dist
+                combat_context.projectiles.add(slash)
+
+        # Partículas de impacto
+        for _ in range(24):
+            angle = random.uniform(0, math.pi * 2)
+            offset = pygame.Vector2(math.cos(angle), math.sin(angle)) * random.uniform(60, 200)
+            combat_context.particles.add(
+                self.deps.particle_cls(
+                    self.pos + offset,
+                    random.choice([(220, 140, 50), (255, 80, 30), (200, 60, 20)]),
+                    random.randint(5, 9), random.randint(150, 280), 0.45,
+                )
+            )
+
+        return self._build_action_feedback(
+            log_text=f"Ultimate: {self.get_ultimate_name()}",
+            log_color=(200, 130, 50),
+        )
+
+
 PLAYER_CLASS_FACTORY = {
     0: Warrior,
     1: Assassin,
     2: Mage,
     3: Vampire,
+    4: Demon,
+    5: Golem,
 }
 
 

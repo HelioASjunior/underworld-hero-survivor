@@ -36,6 +36,12 @@ class Projectile(pygame.sprite.Sprite):
         self.hitbox = self.rect.inflate(-max(4, self.rect.width // 6), -max(4, self.rect.height // 6))
         self.hitbox.center = self.rect.center
 
+        # Suporte a alcance máximo (usado por ataques mid-range como o Guerreiro)
+        if hasattr(self, 'max_range') and hasattr(self, '_spawn_pos'):
+            if (self.pos - self._spawn_pos).length_squared() > self.max_range ** 2:
+                self.kill()
+                return
+
         screen_w, screen_h = self._screen_size_getter()
         if not pygame.Rect(-1000, -1000, screen_w + 2000, screen_h + 2000).collidepoint(self.rect.center):
             self.kill()

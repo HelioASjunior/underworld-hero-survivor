@@ -15,8 +15,8 @@ SPRITESHEET_CONFIGS = {
         "walk_frames": 8,
         "atk_frames":  8,
         "dir_rows": None,
-        "size": (110, 110),
-        "attack_range": 110,
+        "size": (140, 140),
+        "attack_range": 140,
         "gold_drops": 0,
     },
     "orc": {
@@ -86,6 +86,49 @@ SPRITESHEET_CONFIGS = {
         "size": (168, 168),
         "attack_range": 0,
         "gold_drops": 0,
+    },
+    "goblin": {
+        # goblin_move.png: 512×256 → 8 cols × 4 rows, frame 64×64
+        # goblin_att.png:  512×256 → 8 cols × 4 rows, frame 64×64
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3
+        "walk_sheet":  "sprite/monster/New Monster/goblin_move",
+        "atk_sheet":   "sprite/monster/New Monster/goblin_att",
+        "frame_w": 64, "frame_h": 64,
+        "walk_frames": 8,
+        "atk_frames":  8,
+        "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
+        "size": (130, 130),
+        "attack_range": 110,
+        "gold_drops": 1,
+    },
+    "beholder": {
+        # bh_run.png: 512×256 → 8 cols × 4 rows, frame 64×64
+        # Rows 0-1 contêm o Beholder; rows 2-3 são criaturas diferentes no mesmo sheet.
+        # Tratado como não-direcional: usa só o row 0 (8 frames de animação).
+        # bh_ataque.png: 768×256 → 12 cols × 4 rows, frame 64×64 (row 0 = 12 frames)
+        "walk_sheet":  "sprite/monster/New Monster/bh_run",
+        "atk_sheet":   "sprite/monster/New Monster/bh_ataque",
+        "frame_w": 64, "frame_h": 64,
+        "walk_frames": 8,
+        "atk_frames":  12,
+        "dir_rows": None,
+        "size": (145, 145),
+        "attack_range": 140,
+        "gold_drops": 2,
+    },
+    "rat": {
+        # rat_run.png: 768×512 → 6 cols × 4 rows, frame 128×128
+        # rat_att.png: 1024×512 → 8 cols × 4 rows, frame 128×128
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3
+        "walk_sheet":  "sprite/monster/New Monster/rat_run",
+        "atk_sheet":   "sprite/monster/New Monster/rat_att",
+        "frame_w": 128, "frame_h": 128,
+        "walk_frames": 6,
+        "atk_frames":  8,
+        "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
+        "size": (220, 220),
+        "attack_range": 145,
+        "gold_drops": 2,
     },
 }
 
@@ -234,6 +277,9 @@ class Enemy(pygame.sprite.Sprite):
             "bat":       (1,   145),
             "orc":       (12,   75),
             "mini_boss": (300,  85),
+            "goblin":    (3,   160),
+            "beholder":  (8,    85),
+            "rat":       (6,   135),
         }
         base_hp, base_spd = stats.get(kind, (2, 100))
 
@@ -475,6 +521,33 @@ class Enemy(pygame.sprite.Sprite):
                     if move_dir.length_squared() > 0:
                         move_dir = move_dir.normalize()
 
+                # GOBLIN — zigzag rápido e agressivo, perseguição frenética
+                elif self.kind == "goblin":
+                    self._bat_phase += dt * 4.5
+                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
+                    amplitude = 0.55 if dist > 150 else 0.22
+                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
+                    if move_dir.length_squared() > 0:
+                        move_dir = move_dir.normalize()
+
+                # BEHOLDER — flutuação suave e oscilação lenta ao redor do alvo
+                elif self.kind == "beholder":
+                    self._bat_phase += dt * 1.8
+                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
+                    amplitude = 0.40 if dist > 180 else 0.15
+                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
+                    if move_dir.length_squared() > 0:
+                        move_dir = move_dir.normalize()
+
+                # RAT — perseguição direta com pequeno zigzag nervoso
+                elif self.kind == "rat":
+                    self._bat_phase += dt * 3.0
+                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
+                    amplitude = 0.30 if dist > 200 else 0.12
+                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
+                    if move_dir.length_squared() > 0:
+                        move_dir = move_dir.normalize()
+
                 # ORC — flanqueamento periódico
                 elif self.kind == "orc":
                     self._flank_timer -= dt
@@ -599,8 +672,8 @@ class Enemy(pygame.sprite.Sprite):
                     if not self._atk_active:
                         self._trigger_atk_anim()
 
-        # BAT — dispara animação de ataque por proximidade
-        if self.kind == "bat" and self._atk_range > 0 and not self._atk_active:
+        # BAT / GOBLIN / BEHOLDER / RAT — dispara animação de ataque por proximidade
+        if self.kind in ("bat", "goblin", "beholder", "rat") and self._atk_range > 0 and not self._atk_active:
             if dist < self._atk_range:
                 self._trigger_atk_anim()
 
