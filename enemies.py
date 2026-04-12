@@ -33,6 +33,34 @@ SPRITESHEET_CONFIGS = {
         "attack_range": 0,
         "gold_drops": 0,
     },
+    "runner": {
+        # runner.png: 384x512 → 3 frames × 4 linhas, frame 128×128
+        # Linhas: baixo=0, esquerda=1, direita=2, cima=3
+        "walk_sheet":  "sprite/monster/runner",
+        "atk_sheet":   None,
+        "frame_w": 128, "frame_h": 128,
+        "walk_frames": 3,
+        "atk_frames":  0,
+        "dir_rows": {"down": 0, "left": 1, "right": 2, "up": 3},
+        "size": (96, 96),
+        "attack_range": 0,
+        "gold_drops": 0,
+    },
+    "robot": {
+        # Mino2.png: 582x407 → 6 colunas × 4 linhas, frame 97×101
+        # Padrão do orc: usa apenas os 3 primeiros frames de caminhada por direção
+        # Linhas: baixo=0, esquerda=1, direita=2, cima=3
+        "walk_sheet":  "sprite/monster/Mino2",
+        "atk_sheet":   None,
+        "frame_w": 97, "frame_h": 101,
+        "sheet_cols": 6,
+        "walk_frames": 3,
+        "atk_frames":  0,
+        "dir_rows": {"down": 0, "left": 1, "right": 2, "up": 3},
+        "size": (100, 100),
+        "attack_range": 0,
+        "gold_drops": 0,
+    },
     "mini_boss": {
         # boss.png / boss_attack.png: 640x256 → 10 frames × 4 linhas, frame 64×64
         # Linhas: cima=0, esquerda=1, direita=2, baixo=3
@@ -45,6 +73,19 @@ SPRITESHEET_CONFIGS = {
         "size": (192, 192),
         "attack_range": 0,
         "gold_drops": 5,
+    },
+    "tank": {
+        # Mino1.png: 437x395 → 3 frames × 4 linhas, frame 145×98
+        # Linhas: baixo=0, esquerda=1, direita=2, cima=3
+        "walk_sheet":  "sprite/monster/Mino1",
+        "atk_sheet":   None,
+        "frame_w": 145, "frame_h": 98,
+        "walk_frames": 3,
+        "atk_frames":  0,
+        "dir_rows": {"down": 0, "left": 1, "right": 2, "up": 3},
+        "size": (168, 168),
+        "attack_range": 0,
+        "gold_drops": 0,
     },
 }
 
@@ -242,6 +283,7 @@ class Enemy(pygame.sprite.Sprite):
         size     = cfg["size"]
         fw, fh   = cfg["frame_w"], cfg["frame_h"]
         dir_rows = cfg.get("dir_rows")
+        sheet_cols = cfg.get("sheet_cols", cfg.get("walk_frames", 1))
         self.gold_drops = cfg.get("gold_drops", 0)
         self._atk_range = cfg.get("attack_range", 0)
 
@@ -249,7 +291,8 @@ class Enemy(pygame.sprite.Sprite):
             self.use_directional = True
             fpd = cfg["walk_frames"]
             for dir_name, row_idx in dir_rows.items():
-                indices = list(range(row_idx * fpd, (row_idx + 1) * fpd))
+                row_start = row_idx * sheet_cols
+                indices = [row_start + i for i in range(fpd)]
                 frames  = loader.load_spritesheet(cfg["walk_sheet"], fw, fh,
                                                   len(indices), size, frame_indices=indices)
                 if frames:
@@ -281,8 +324,10 @@ class Enemy(pygame.sprite.Sprite):
         if atk_sheet:
             if dir_rows and cfg.get("atk_frames", 0) > 0:
                 fpd = cfg["atk_frames"]
+                atk_sheet_cols = cfg.get("atk_sheet_cols", sheet_cols)
                 for dir_name, row_idx in dir_rows.items():
-                    indices   = list(range(row_idx * fpd, (row_idx + 1) * fpd))
+                    row_start = row_idx * atk_sheet_cols
+                    indices   = [row_start + i for i in range(fpd)]
                     atk_frames = loader.load_spritesheet(atk_sheet, fw, fh,
                                                          len(indices), size, frame_indices=indices)
                     if atk_frames:

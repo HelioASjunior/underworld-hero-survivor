@@ -325,7 +325,7 @@ RUN_SLOT_FILES = [
 # Itens que começam desbloqueados
 DEFAULT_UNLOCKS = [
     "DANO ++", "VELOCIDADE ++", "VIDA MÁXIMA", "TIRO RÁPIDO", "CURA",
-    "CHAR_0", "CHAR_1", "CHAR_2", "DIFF_FÁCIL", "DIFF_MÉDIO"
+    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "DIFF_FÁCIL", "DIFF_MÉDIO"
 ]
 
 save_data = {
@@ -363,6 +363,7 @@ DAILY_MISSIONS_POOL = [
 ACHIEVEMENTS = {
     "CHAR_1": {"type": "char", "name": "CAÇADOR", "desc": "Mate 500 inimigos no total", "req": lambda s: s["total_kills"] >= 500},
     "CHAR_2": {"type": "char", "name": "MAGO", "desc": "Derrote 1 Chefão", "req": lambda s: s["boss_kills"] >= 1},
+    "CHAR_3": {"type": "char", "name": "VAMPIRE", "desc": "Derrote 3 Chefões", "req": lambda s: s["boss_kills"] >= 3},
     
     "DIFF_DIFÍCIL": {"type": "diff", "name": "DIFÍCIL", "desc": "Sobreviva 10 min (total)", "req": lambda s: s["total_time"] >= 600},
     "DIFF_HARDCORE": {"type": "diff", "name": "HARDCORE", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
@@ -677,6 +678,42 @@ CHAR_DATA = {
         "projectile_frame_count": 4,
         "projectile_display_size": (80, 52),
         "projectile_flip_x": True,
+    },
+    3: {
+        "name": "VAMPIRE", "hp": 7, "speed": 300, "damage": 3,
+        "desc": "Ult: Tempestade Sombria", "size": (150, 150), "menu_size": (200, 200),
+        "anim_frames": 8, "menu_anim_frames": 8,
+        "dash_duration": 0.22, "dash_cooldown": 2.5,
+        "id": "CHAR_3",
+        # Walk: vampire_run.png - 512×256, 4 rows × 8 frames de 64×64
+        # Row 0=baixo, Row 1=cima, Row 2=esquerda, Row 3=direita
+        "spritesheet": "sprite/monster/vampire_run",
+        "spritesheet_frame_w": 64,
+        "spritesheet_frame_h": 64,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "anim_speed": 0.10,
+        # Idle: vampire_idle.png - 256×256, 4 rows × 4 frames de 64×64
+        # Row 0=baixo, Row 1=cima, Row 2=esquerda, Row 3=direita
+        "spritesheet_idle": "sprite/monster/vampire_idle",
+        "spritesheet_idle_frame_w": 64,
+        "spritesheet_idle_frame_h": 64,
+        "idle_anim_frames": 4,
+        "spritesheet_idle_frame_indices": [0, 1, 2, 3],
+        "idle_anim_speed": 0.13,
+        # Attack: vampire_ataque.png - 768×256, 4 rows × 12 frames de 64×64
+        # Row 0=baixo, Row 1=cima, Row 2=esquerda, Row 3=direita
+        "spritesheet_attack": "sprite/monster/vampire_ataque",
+        "spritesheet_attack_frame_w": 64,
+        "spritesheet_attack_frame_h": 64,
+        "attack_anim_frames": 12,
+        "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "attack_anim_speed": 0.06,
+        # Projétil: ataque_vampire.png - 192×32, 6 frames de 32×32
+        "projectile_spritesheet": "sprite/ataque_vampire",
+        "projectile_frame_w": 32,
+        "projectile_frame_h": 32,
+        "projectile_frame_count": 6,
+        "projectile_display_size": (42, 42),
     }
 }
 
@@ -1357,6 +1394,7 @@ snd_hover = None
 snd_click = None
 upg_images = {}
 menu_char_anims = []
+menu_idle_anims = []
 screen = None
 obstacle_grid_index = None
 enemy_batch_index = None
@@ -1420,6 +1458,9 @@ config_title_spr  = None     # barra grande de config.png (título)
 config_tag_spr    = None     # barra pequena de config.png (subtítulo/seção)
 menu_logo_img = None         # logo do jogo (logouwh.png)
 char_panel_imgs = {}         # painéis da tela de seleção: {char_id: Surface}
+char_select_panel_img  = None  # selecionarpersonagem.png já escalada
+char_select_panel_meta = {}    # {panel_w, panel_h, panel_ox, panel_oy, panel_scale}
+char_select_title_frame = None # faixa ornamental do topo do painelguerreiro.png
 select_title_img = None      # imagem do título "Selecionar Herói"
 diff_screen_imgs = {}        # sprites da tela de seleção de dificuldade
 aura_frames = []
@@ -1879,8 +1920,9 @@ def load_all_assets():
     """Carrega (ou recarrega) todos os assets gráficos e de áudio do jogo."""
     global ground_img, menu_bg_img, aura_frames, explosion_frames_raw
     global projectile_frames_raw, slash_frames_raw, orb_img, tornado_img
-    global upg_images, menu_char_anims, loader, current_bg_name
+    global upg_images, menu_char_anims, menu_idle_anims, loader, current_bg_name
     global menu_btn_sprites, menu_btn_sprites_hover, menu_logo_img, char_panel_imgs, select_title_img, diff_screen_imgs
+    global char_select_panel_img, char_select_panel_meta, char_select_title_frame
     global skill_card_sprites, skill_card_sprites_hover
     global config_title_spr, config_tag_spr
     global forest_deco_manager, dungeon_deco_manager
@@ -1917,18 +1959,46 @@ def load_all_assets():
         logo_h = int(logo_w * raw_logo.get_height() / raw_logo.get_width())
         menu_logo_img = pygame.transform.smoothscale(raw_logo, (logo_w, logo_h))
 
-    # Painéis de seleção dos personagens
-    CARD_W, CARD_H = 300, 440
-    _panel_files = {0: "ui/panels/painelguerreiro.png", 1: "ui/panels/painelcaçador.png", 2: "ui/panels/painelmago.png"}
-    char_panel_imgs = {}
-    for cid, fname in _panel_files.items():
-        p = os.path.join(ASSET_DIR, fname)
-        if os.path.exists(p):
-            raw = pygame.image.load(p).convert_alpha()
-            scale = min(CARD_W / raw.get_width(), CARD_H / raw.get_height())
-            pw = int(raw.get_width() * scale)
-            ph = int(raw.get_height() * scale)
-            char_panel_imgs[cid] = pygame.transform.smoothscale(raw, (pw, ph))
+    # Painel grade estilo Vampire Survivors (selecionarpersonagem.png)
+    char_panel_imgs = {}   # mantido por compatibilidade, não mais usado no draw
+    _sp_path = os.path.join(ASSET_DIR, "ui", "panels", "selecionarpersonagem.png")
+    char_select_panel_img  = None
+    char_select_panel_meta = {}
+    if os.path.exists(_sp_path):
+        _sp_raw = pygame.image.load(_sp_path).convert_alpha()
+        # Margem superior para o título (50 px) + margem inferior (15 px)
+        _SP_TOP    = 50
+        _SP_BOT    = 15
+        _sp_target_h = SCREEN_H - _SP_TOP - _SP_BOT
+        _sp_scale    = _sp_target_h / _sp_raw.get_height()
+        _sp_w        = int(_sp_raw.get_width()  * _sp_scale)
+        _sp_h        = _sp_target_h
+        char_select_panel_img  = pygame.transform.smoothscale(_sp_raw, (_sp_w, _sp_h))
+        char_select_panel_meta = {
+            "w": _sp_w, "h": _sp_h,
+            "ox": (SCREEN_W - _sp_w) // 2,
+            "oy": _SP_TOP,
+            "scale": _sp_scale,
+            # Grade confirmada (imagem original 1510×1041, células 122×122 px, pitch 179 px)
+            # Centros das colunas e linhas no original:
+            "col_cx": [215, 394, 574, 754, 934, 1113, 1293],
+            "row_cy": [215, 394, 574, 752],
+            "cell_half": 61,
+        }
+
+    # Frame ornamental para o título da seleção — topo do painelguerreiro.png
+    # O painel mede 1024×1536; os ~110 px superiores contêm a borda dourada.
+    char_select_title_frame = None
+    _pnl_path = os.path.join(ASSET_DIR, "ui", "panels", "painelguerreiro.png")
+    if os.path.exists(_pnl_path):
+        _pnl_raw = pygame.image.load(_pnl_path).convert_alpha()
+        _pnl_crop_h = int(_pnl_raw.get_height() * 0.085)   # ~130 px dos 1536 px
+        _pnl_strip  = _pnl_raw.subsurface(
+            pygame.Rect(0, 0, _pnl_raw.get_width(), _pnl_crop_h))
+        _frame_w    = 480
+        _frame_h    = int(_frame_w * _pnl_crop_h / _pnl_raw.get_width())
+        char_select_title_frame = pygame.transform.smoothscale(
+            _pnl_strip, (_frame_w, _frame_h))
 
     # Título da tela de seleção de herói
     sel_path = os.path.join(ASSET_DIR, "ui", "select.png")
@@ -2000,9 +2070,32 @@ def load_all_assets():
             )
         if not frames:
             frames = loader.load_animation(f"char{char_id}", menu_anim_frames, menu_size)
-        # Recentralizar conteúdo: remove padding transparente desigual dos frames
         frames = [trim_sprite_to_content(f) for f in frames]
         menu_char_anims.append(frames)
+
+    # Animações IDLE para a tela de seleção (mesmo sprite usado no jogo parado)
+    # Tamanhos maiores para Guerreiro e Mago na seleção
+    _IDLE_SIZES = {0: (520, 455), 1: (220, 220), 2: (560, 560), 3: (220, 220)}
+    menu_idle_anims = []
+    for char_id, char_data in CHAR_DATA.items():
+        idle_sheet = char_data.get("spritesheet_idle")
+        idle_size  = _IDLE_SIZES.get(char_id, char_data.get("menu_size", (220, 220)))
+        idle_frames_n = char_data.get("idle_anim_frames", 7)
+        idle_indices  = char_data.get("spritesheet_idle_frame_indices")
+        iframes = None
+        if idle_sheet:
+            iframes = loader.load_spritesheet(
+                idle_sheet,
+                char_data.get("spritesheet_idle_frame_w", 96),
+                char_data.get("spritesheet_idle_frame_h", 84),
+                idle_frames_n,
+                idle_size,
+                frame_indices=idle_indices,
+            )
+        if not iframes:
+            iframes = menu_char_anims[char_id]   # fallback para walk
+        iframes = [trim_sprite_to_content(f) for f in iframes]
+        menu_idle_anims.append(iframes)
     
     # Música do bioma
     music_name = BG_DATA.get(selected_bg, BG_DATA["dungeon"])["music"]
@@ -3925,121 +4018,189 @@ def main():
         elif state == "CHAR_SELECT":
             draw_menu_background(screen, m_pos, dt)
 
-            # Título com imagem select.png — margem superior confortável
-            title_cy = int(SCREEN_H * 0.10)
-            if select_title_img is not None:
-                screen.blit(select_title_img, select_title_img.get_rect(center=(SCREEN_W // 2, title_cy)))
-                cards_top = title_cy + select_title_img.get_height() // 2 + 24
+            # ----------------------------------------------------------------
+            # Painel grade — selecionarpersonagem.png
+            # ----------------------------------------------------------------
+            meta    = char_select_panel_meta
+            ox      = meta.get("ox", 0)
+            oy      = meta.get("oy", 50)
+            pscale  = meta.get("scale", 1.0)
+            COL_CX  = meta.get("col_cx", [215, 394, 574, 754, 934, 1113, 1293])
+            ROW_CY  = meta.get("row_cy", [215, 394, 574, 752])
+            CHALF   = meta.get("cell_half", 61)
+
+            if char_select_panel_img:
+                screen.blit(char_select_panel_img, (ox, oy))
+
+            # --- Título com moldura ornamental ---
+            _tit_text = "SELECIONAR HERÓI"
+            _tit_sf   = load_dark_font(19, bold=True).render(
+                _tit_text, True, UI_THEME["old_gold"])
+            _tit_cy   = oy // 2          # centro vertical da margem superior
+            if char_select_title_frame is not None:
+                _fw = char_select_title_frame.get_width()
+                _fh = char_select_title_frame.get_height()
+                _fx = SCREEN_W // 2 - _fw // 2
+                _fy = _tit_cy - _fh // 2
+                screen.blit(char_select_title_frame, (_fx, _fy))
+                screen.blit(_tit_sf, _tit_sf.get_rect(center=(SCREEN_W // 2, _tit_cy)))
             else:
-                draw_screen_title(screen, font_l, "SELECIONAR HERÓI", SCREEN_W // 2, title_cy)
-                cards_top = title_cy + 46
+                draw_dark_panel(screen,
+                    pygame.Rect(SCREEN_W // 2 - 200, _tit_cy - 16, 400, 32),
+                    alpha=200, border_color=UI_THEME["old_gold"])
+                screen.blit(_tit_sf, _tit_sf.get_rect(center=(SCREEN_W // 2, _tit_cy)))
 
-            time_ms = pygame.time.get_ticks()
-            frame_idx = int((time_ms / 100) % 10)
+            # ----------------------------------------------------------------
+            char_ids  = list(CHAR_DATA.keys())
+            time_ms   = pygame.time.get_ticks()
+            frame_idx = int(time_ms / 130)   # cadência da idle
 
-            char_ids = list(CHAR_DATA.keys())
-            card_w = 300
-            # Altura do card: ocupa o espaço entre o título e o botão voltar, com margens
-            back_btn_top = int(SCREEN_H * 0.92) - 25   # topo aproximado do btn voltar
-            card_h = min(460, back_btn_top - cards_top - 16)
+            hovered_char_idx = -1
+            # chw igual para todos — calculado uma vez
+            chw = max(int(CHALF * pscale), 32)
 
-            for i, anim in enumerate(menu_char_anims):
-                btn = char_btns[i]
+            # Multiplicadores de tamanho por personagem (guerreiro e mago maiores)
+            _SIZE_MULT = {0: 2.20, 1: 1.85, 2: 2.45, 3: 2.00}   # 0=guerreiro 1=caçador 2=mago 3=vampire
+
+            for i in range(len(char_ids)):
+                btn   = char_btns[i]
                 cdata = CHAR_DATA[char_ids[i]]
-                x_pos = int(SCREEN_W * btn.x_ratio)
-                float_offset = math.sin((time_ms + i * 500) / 300.0) * 6
 
-                card_rect = pygame.Rect(x_pos - card_w // 2, cards_top, card_w, card_h)
+                # Idle animation — mesmo sprite do jogo parado
+                idle = menu_idle_anims[i] if i < len(menu_idle_anims) else menu_char_anims[i]
 
-                # Info section starts at 62% down the card; sprite lives above that
-                info_top = card_rect.top + int(card_h * 0.60)
-                sprite_y = card_rect.top + int(card_h * 0.30) + int(float_offset)
+                cx = ox + int(COL_CX[i] * pscale)
+                # Descer +50% do raio da célula para enquadrar personagem no quadrado
+                cy = oy + int(ROW_CY[0] * pscale) + int(chw * 0.50)
 
-                # Glow / hover highlight behind card
+                cell_rect = pygame.Rect(cx - chw, cy - chw, chw * 2, chw * 2)
+                btn.rect  = cell_rect
+
                 btn.check_hover(m_pos, snd_hover)
-                if btn.is_hovered and not btn.locked:
-                    glow_rect = card_rect.inflate(10, 10)
-                    glow_surf = pygame.Surface((glow_rect.w, glow_rect.h), pygame.SRCALPHA)
-                    glow_alpha = int(55 + 45 * math.sin(time_ms / 200.0))
-                    glow_surf.fill((0, 180, 220, glow_alpha))
-                    screen.blit(glow_surf, glow_rect.topleft)
+                is_hovered = btn.is_hovered and not btn.locked
 
-                border_col = UI_THEME["blood_red"] if btn.locked else (
-                    UI_THEME["old_gold"] if btn.is_hovered else UI_THEME["iron"])
+                if is_hovered:
+                    hovered_char_idx = i
+                    glow_a = int(55 + 45 * math.sin(time_ms / 180.0))
+                    glow_s = pygame.Surface((chw * 2 + 12, chw * 2 + 12), pygame.SRCALPHA)
+                    glow_s.fill((220, 180, 60, glow_a))
+                    screen.blit(glow_s, (cx - chw - 6, cy - chw - 6))
+                    pygame.draw.rect(screen, UI_THEME["old_gold"], cell_rect, 2, border_radius=3)
+                elif btn.locked:
+                    pygame.draw.rect(screen, UI_THEME["blood_red"], cell_rect, 1, border_radius=3)
 
-                panel_surf = char_panel_imgs.get(char_ids[i])
-                use_panel = panel_surf is not None
-
-                if use_panel:
-                    pg_rect = panel_surf.get_rect(center=card_rect.center)
-                    screen.blit(panel_surf, pg_rect.topleft)
-                    if btn.is_hovered and not btn.locked:
-                        pygame.draw.rect(screen, border_col, card_rect, 2, border_radius=6)
-                else:
-                    draw_dark_panel(screen, card_rect, alpha=215, border_color=border_col)
-
-                # Sprite — centralizado na área do personagem dentro do painel
-                # O painel tem: título (~0–17%), área do personagem (~17–67%), stats/ult (~67–100%)
-                if use_panel:
-                    sprite_area_top = card_rect.top + int(card_h * 0.17)
-                    sprite_area_bot = card_rect.top + int(card_h * 0.67)
-                    sprite_center_y = (sprite_area_top + sprite_area_bot) // 2 + int(float_offset)
-                    max_sprite_w = card_w - 24
-                    max_sprite_h = sprite_area_bot - sprite_area_top
-                else:
-                    sprite_center_y = sprite_y
-                    max_sprite_w = card_w - 24
-                    max_sprite_h = int(card_h * 0.50)
-
-                img = anim[frame_idx % len(anim)]
-                # Escalar respeitando largura E altura da área disponível
-                scale_by_w = max_sprite_w / img.get_width() if img.get_width() > max_sprite_w else 1.0
-                scale_by_h = max_sprite_h / img.get_height() if img.get_height() > max_sprite_h else 1.0
-                scale = min(scale_by_w, scale_by_h)
-                if scale < 1.0:
+                # Sprite idle animado — escala por personagem
+                img = idle[frame_idx % len(idle)]
+                fw_i, fh_i = img.get_width(), img.get_height()
+                if fw_i > 0 and fh_i > 0:
+                    mult     = _SIZE_MULT.get(i, 1.85)
+                    target   = int(chw * mult)          # alvo = mult × raio
+                    sc       = max(target / fw_i, target / fh_i)
                     img = pygame.transform.smoothscale(
-                        img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+                        img, (max(1, int(fw_i * sc)), max(1, int(fh_i * sc))))
+
                 if btn.locked:
                     img = img.copy()
-                    img.fill((0, 0, 0, 200), special_flags=pygame.BLEND_RGBA_MULT)
-                screen.blit(img, img.get_rect(center=(x_pos, sprite_center_y)))
+                    img.fill((0, 0, 0, 160), special_flags=pygame.BLEND_RGBA_MULT)
 
-                if not use_panel:
-                    # Inner divider
-                    pygame.draw.line(screen, UI_THEME["iron"],
-                                     (card_rect.left + 14, info_top), (card_rect.right - 14, info_top), 1)
+                # Flutuação suave + ancoragem
+                float_off = int(math.sin((time_ms + i * 600) / 400.0) * 3)
+                screen.blit(img, img.get_rect(center=(cx, cy + float_off)))
 
-                    # Character name
-                    name_col = UI_THEME["iron"] if btn.locked else UI_THEME["old_gold"]
-                    name_surf = font_m.render(cdata["name"], True, name_col)
-                    screen.blit(name_surf, name_surf.get_rect(center=(x_pos, info_top + 20)))
-
-                    # Stats row: HP / VEL / DMG
-                    stat_defs = [
-                        ("HP",  cdata["hp"],            UI_THEME["blood_red"]),
-                        ("VEL", cdata["speed"] // 10,   (80, 200, 255)),
-                        ("DMG", cdata["damage"],         UI_THEME["faded_gold"]),
-                    ]
-                    stat_cell_w = card_w // 3
-                    for si, (s_lbl, s_val, s_col) in enumerate(stat_defs):
-                        sx = card_rect.left + si * stat_cell_w + stat_cell_w // 2
-                        sy = info_top + 52
-                        lbl_s = font_s.render(s_lbl, True, UI_THEME["mist"])
-                        val_s = font_s.render(str(s_val), True, s_col if not btn.locked else UI_THEME["iron"])
-                        screen.blit(lbl_s, lbl_s.get_rect(center=(sx, sy)))
-                        screen.blit(val_s, val_s.get_rect(center=(sx, sy + 22)))
-
-                    # Ult / description
-                    ult_col = UI_THEME["mana_blue"] if not btn.locked else UI_THEME["iron"]
-                    ult_surf = font_s.render(cdata["desc"], True, ult_col)
-                    screen.blit(ult_surf, ult_surf.get_rect(center=(x_pos, card_rect.bottom - 40)))
-
-                # LOCKED badge
                 if btn.locked:
-                    lock_surf = font_s.render("🔒 BLOQUEADO", True, UI_THEME["blood_red"])
-                    screen.blit(lock_surf, lock_surf.get_rect(center=(x_pos, card_rect.top + 22)))
+                    lk = load_dark_font(14, bold=True).render(
+                        "🔒", True, UI_THEME["blood_red"])
+                    screen.blit(lk, lk.get_rect(center=(cx, cy)))
 
-                btn.draw(screen)
+            # ----------------------------------------------------------------
+            # Painel de status (hover) — lado DIREITO, fora da grade
+            # ----------------------------------------------------------------
+            if hovered_char_idx >= 0:
+                h_idx  = hovered_char_idx
+                cdata  = CHAR_DATA[char_ids[h_idx]]
+                btn    = char_btns[h_idx]
+                anim   = menu_char_anims[h_idx]
+
+                SP_W, SP_H = 280, 400
+                sp_x = SCREEN_W - SP_W - 20
+                sp_y = max(oy, (SCREEN_H - SP_H) // 2)
+
+                # Fundo
+                bg_s = pygame.Surface((SP_W, SP_H), pygame.SRCALPHA)
+                bg_s.fill((8, 5, 3, 235))
+                screen.blit(bg_s, (sp_x, sp_y))
+                sp_rect = pygame.Rect(sp_x, sp_y, SP_W, SP_H)
+                pygame.draw.rect(screen, UI_THEME["old_gold"], sp_rect, 2, border_radius=7)
+
+                pad   = 14
+                cur_y = sp_y + pad
+
+                # Nome
+                col_name = UI_THEME["blood_red"] if btn.locked else UI_THEME["old_gold"]
+                nm = load_dark_font(22, bold=True).render(cdata["name"], True, col_name)
+                screen.blit(nm, nm.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
+                cur_y += nm.get_height() + 8
+
+                # Sprite animado grande (aqui mantemos animação no painel de status)
+                big = anim[int((time_ms / 100) % len(anim))]
+                mbw, mbh = SP_W - pad * 2, 140
+                if big.get_width() > 0 and big.get_height() > 0:
+                    bsc = min(mbw / big.get_width(), mbh / big.get_height())
+                    big = pygame.transform.smoothscale(
+                        big, (max(1, int(big.get_width() * bsc)),
+                              max(1, int(big.get_height() * bsc))))
+                if btn.locked:
+                    big = big.copy()
+                    big.fill((0, 0, 0, 160), special_flags=pygame.BLEND_RGBA_MULT)
+                screen.blit(big, big.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
+                cur_y += mbh + 10
+
+                # Linha separadora
+                pygame.draw.line(screen, UI_THEME["iron"],
+                                 (sp_x + pad, cur_y), (sp_x + SP_W - pad, cur_y), 1)
+                cur_y += 8
+
+                # Barras de stats
+                BW = SP_W - pad * 2
+                BH = 12
+
+                def _bar(label, val, max_v, color, yy):
+                    ls = load_dark_font(13).render(label, True, UI_THEME["mist"])
+                    screen.blit(ls, (sp_x + pad, yy))
+                    bx, by = sp_x + pad, yy + ls.get_height() + 1
+                    filled  = int(BW * min(val / max_v, 1.0))
+                    pygame.draw.rect(screen, (25, 25, 25), (bx, by, BW, BH), border_radius=3)
+                    if filled > 0:
+                        pygame.draw.rect(screen, color, (bx, by, filled, BH), border_radius=3)
+                    pygame.draw.rect(screen, UI_THEME["iron"], (bx, by, BW, BH), 1, border_radius=3)
+                    return by + BH + 6
+
+                cur_y = _bar("HP",         cdata["hp"],    10,  UI_THEME["blood_red"],  cur_y)
+                cur_y = _bar("VELOCIDADE", cdata["speed"], 400, (80, 200, 255),          cur_y)
+                cur_y = _bar("DANO",       cdata["damage"], 5,  UI_THEME["faded_gold"],  cur_y)
+                cur_y += 6
+
+                # Linha separadora
+                pygame.draw.line(screen, UI_THEME["iron"],
+                                 (sp_x + pad, cur_y), (sp_x + SP_W - pad, cur_y), 1)
+                cur_y += 6
+
+                # Ultimate
+                ult = load_dark_font(13).render(cdata["desc"], True, UI_THEME["mana_blue"])
+                screen.blit(ult, ult.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
+                cur_y += ult.get_height() + 6
+
+                if btn.locked:
+                    lk2 = load_dark_font(13, bold=True).render(
+                        "🔒 BLOQUEADO", True, UI_THEME["blood_red"])
+                    screen.blit(lk2, lk2.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
+                    if btn.lock_req:
+                        rq = load_dark_font(11).render(btn.lock_req, True, (170, 130, 110))
+                        screen.blit(rq, rq.get_rect(centerx=sp_x + SP_W // 2, top=cur_y + 18))
+                else:
+                    ht = load_dark_font(12).render("Clique para selecionar", True, (150, 150, 120))
+                    screen.blit(ht, ht.get_rect(centerx=sp_x + SP_W // 2,
+                                                 top=sp_y + SP_H - 22))
 
             char_back_btn.check_hover(m_pos, snd_hover)
             char_back_btn.draw(screen)

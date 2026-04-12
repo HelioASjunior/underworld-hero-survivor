@@ -191,6 +191,12 @@ class Player(ABC, pygame.sprite.Sprite):
                     for f in self.char_projectile_frames
                 ]
         self.facing_right = True
+        self._facing_dir = "down"   # up/down/left/right — usado por subclasses com 4 direções
+        # Dicts de frames direcionais (populados por subclasses como Vampire).
+        # Quando vazios, o sistema cai no comportamento padrão de flip horizontal.
+        self._dir_walk_frames   = {}
+        self._dir_idle_frames   = {}
+        self._dir_attack_frames = {}
         self.image = self.anim_frames[0]
         self.rect = self.image.get_rect()
         self.pos = pygame.Vector2(0, 0)
@@ -349,8 +355,14 @@ class Player(ABC, pygame.sprite.Sprite):
 
             if movement.x > 0:
                 self.facing_right = True
+                self._facing_dir = "right"
             elif movement.x < 0:
                 self.facing_right = False
+                self._facing_dir = "left"
+            elif movement.y > 0:
+                self._facing_dir = "down"
+            elif movement.y < 0:
+                self._facing_dir = "up"
 
             move = self.vel * dt
             self.pos.x += move.x
@@ -379,11 +391,19 @@ class Player(ABC, pygame.sprite.Sprite):
 
         is_moving = movement.length_squared() > 0
         if is_moving:
-            frame_set = self.anim_frames if self.facing_right else self.flipped_frames
-            self.image = frame_set[self.frame_idx]
+            if self._dir_walk_frames:
+                dir_frames = self._dir_walk_frames.get(self._facing_dir) or next(iter(self._dir_walk_frames.values()))
+                self.image = dir_frames[self.frame_idx % len(dir_frames)]
+            else:
+                frame_set = self.anim_frames if self.facing_right else self.flipped_frames
+                self.image = frame_set[self.frame_idx]
         else:
-            frame_set = self.idle_frames if self.facing_right else self.idle_flipped_frames
-            self.image = frame_set[self.idle_frame_idx]
+            if self._dir_idle_frames:
+                dir_frames = self._dir_idle_frames.get(self._facing_dir) or next(iter(self._dir_idle_frames.values()))
+                self.image = dir_frames[self.idle_frame_idx % len(dir_frames)]
+            else:
+                frame_set = self.idle_frames if self.facing_right else self.idle_flipped_frames
+                self.image = frame_set[self.idle_frame_idx]
 
         # Animação de ataque sobrescreve walk/idle enquanto estiver ativa
         if self._atk_anim_active and self.attack_frames:
@@ -395,8 +415,12 @@ class Player(ABC, pygame.sprite.Sprite):
                     self._atk_anim_active = False
                     self._atk_frame_idx = 0
             if self._atk_anim_active:
-                atk_set = self.attack_frames if self.facing_right else self.attack_flipped_frames
-                self.image = atk_set[self._atk_frame_idx]
+                if self._dir_attack_frames:
+                    dir_frames = self._dir_attack_frames.get(self._facing_dir) or next(iter(self._dir_attack_frames.values()))
+                    self.image = dir_frames[self._atk_frame_idx % len(dir_frames)]
+                else:
+                    atk_set = self.attack_frames if self.facing_right else self.attack_flipped_frames
+                    self.image = atk_set[self._atk_frame_idx]
 
         self.iframes = max(0, self.iframes - dt)
 
@@ -636,10 +660,98 @@ class Mage(Player):
         )
 
 
+class Vampire(Player):
+    """Personagem sombrio de média distância, com projéteis sombrios e drenar de vida."""
+
+    # Ordem das linhas no spritesheet do Vampire: baixo=0, cima=1, esquerda=2, direita=3
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (150, 150))
+
+        fw = data.get("spritesheet_frame_w", 64)
+        fh = data.get("spritesheet_frame_h", 64)
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 8)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+        atk_fw = data.get("spritesheet_attack_frame_w", fw)
+        atk_fh = data.get("spritesheet_attack_frame_h", fh)
+        atk_sheet = data.get("spritesheet_attack")
+        atk_n = data.get("attack_anim_frames", 12)
+        if atk_sheet and atk_n:
+            for dir_name, row in self._SPRITE_DIR_ROWS.items():
+                indices = list(range(row * atk_n, (row + 1) * atk_n))
+                frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh, atk_n, char_size, frame_indices=indices)
+                if frames:
+                    self._dir_attack_frames[dir_name] = frames
+            # Garante que attack_frames (usado como flag de habilitação) está preenchido
+            if self._dir_attack_frames and not self.attack_frames:
+                self.attack_frames = next(iter(self._dir_attack_frames.values()))
+
+    def get_attack_name(self):
+        return "Lança Sombria"
+
+    def get_dash_name(self):
+        return "Voo Sombrio"
+
+    def get_ultimate_name(self):
+        return "Tempestade Sombria"
+
+    def get_projectile_damage_multiplier(self):
+        return 1.2
+
+    def use_ultimate(self, combat_context):
+        if self.ult_charge < self.ult_max:
+            return CharacterActionFeedback()
+
+        self.ult_charge = 0
+        base_frames = self.char_projectile_frames or combat_context.projectile_frames_raw
+        # Dispara 8 projéteis em todas as direções
+        for i in range(8):
+            angle = i * 45
+            direction = pygame.Vector2(1, 0).rotate(angle)
+            shoot_angle = math.degrees(math.atan2(-direction.y, direction.x))
+            rotated_frames = [
+                pygame.transform.rotate(frame, shoot_angle)
+                for frame in base_frames
+            ]
+            projectile = self.deps.projectile_cls(
+                self.pos,
+                direction * combat_context.projectile_speed * 1.4,
+                int(combat_context.projectile_damage * 4 * self.get_projectile_damage_multiplier()),
+                rotated_frames,
+            )
+            projectile.pierce = 3
+            combat_context.projectiles.add(projectile)
+
+        return self._build_action_feedback(
+            log_text=f"Ultimate: {self.get_ultimate_name()}",
+            log_color=(180, 0, 255),
+        )
+
+
 PLAYER_CLASS_FACTORY = {
     0: Warrior,
     1: Assassin,
     2: Mage,
+    3: Vampire,
 }
 
 
