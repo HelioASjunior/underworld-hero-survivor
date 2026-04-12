@@ -82,8 +82,8 @@ Optional Cython build dependencies are listed in `requirements-dev.txt`.
 ### 1) Clone repository
 
 ```bash
-git clone https://github.com/HelioASjunior/UnderWorldHero-Game.git
-cd UnderWorldHero-Game
+git clone https://github.com/HelioASjunior/underworld-hero-survivor.git
+cd underworld-hero-survivor
 ```
 
 ### 2) Create virtual environment
@@ -196,7 +196,7 @@ On Windows, without activating the venv:
 ## Folder Structure
 
 ```text
-UnderWorldHero-Game/
+underworld-hero-survivor/
 |- jogo_final.py
 |- characters.py
 |- enemies.py

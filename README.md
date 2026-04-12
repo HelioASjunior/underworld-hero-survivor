@@ -198,8 +198,8 @@ No contexto deste jogo (survivor com 100+ inimigos + UI animada), o Pygame-CE pr
 ### 1) Clonar repositorio
 
 ```bash
-git clone https://github.com/HelioASjunior/UnderWorldHero-Game.git
-cd UnderWorldHero-Game
+git clone https://github.com/HelioASjunior/underworld-hero-survivor.git
+cd underworld-hero-survivor
 ```
 
 ### 2) Criar ambiente virtual
@@ -426,7 +426,7 @@ python benchmark_spatial.py
 ## Estrutura de pastas
 
 ```text
-UnderWorldHero-Game/
+underworld-hero-survivor/
 ├── jogo_final.py            # Loop principal e estados de jogo
 ├── characters.py            # Personagens jogaveis
 ├── enemies.py               # Inimigos, IA e animacoes
