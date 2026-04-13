@@ -568,10 +568,10 @@ DIFFICULTIES = {
 
 # Atributos Modificáveis (Base)
 PLAYER_SPEED = 280.0
-PLAYER_MAX_HP = 8
+PLAYER_MAX_HP = 100
 SHOT_COOLDOWN = 0.35
 HAS_FURY = False
-PROJECTILE_DMG = 2
+PROJECTILE_DMG = 25
 PROJECTILE_SPEED = 560.0
 PICKUP_RANGE = 50.0 
 AURA_DMG = 0        
@@ -598,7 +598,7 @@ ULTIMATE_MAX_CHARGE = 25
 # Configuração de Drops e Boss
 DROP_CHANCE = 0.025
 BOSS_SPAWN_TIME = 300.0  # 5 Minutos para cada boss
-BOSS_MAX_HP = 500
+BOSS_MAX_HP = 6250
 MINI_BOSS_SPAWN_TIME = 10.0  # TESTE: mini boss aparece logo no início
 AGIS_SPAWN_TIME = 120.0       # Agis nasce no minuto 2
 SHOOTER_PROJ_IMAGE = "enemy_arrow" 
@@ -606,7 +606,7 @@ SHOOTER_PROJ_IMAGE = "enemy_arrow"
 # Dados dos Personagens - MENU DE ANIME FRAMES - QUANTIDADE DE IMAGENS
 CHAR_DATA = {
     0: {
-        "name": "GUERREIRO", "hp": 8, "speed": 280, "damage": 2,
+        "name": "GUERREIRO", "hp": 100, "speed": 280, "damage": 25, "mana": 50,
         "desc": "Ult: Fúria do Guerreiro", "size": (200, 200), "menu_size": (250, 250),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.26, "dash_cooldown": 2.8,
@@ -645,7 +645,7 @@ CHAR_DATA = {
         "ultimate_rows": 4,
     },
     1: {
-        "name": "CAÇADOR", "hp": 5, "speed": 340, "damage": 3,
+        "name": "CAÇADOR", "hp": 63, "speed": 340, "damage": 38, "mana": 75,
         "desc": "Ult: Chuva de Flechas", "size": (150, 150), "menu_size": (200, 200),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.18, "dash_cooldown": 2.2,
@@ -684,7 +684,7 @@ CHAR_DATA = {
         "ultimate_projectile_display_size": (55, 9),
     },
     2: {
-        "name": "MAGO", "hp": 6, "speed": 260, "damage": 2,
+        "name": "MAGO", "hp": 75, "speed": 260, "damage": 25, "mana": 200,
         "desc": "Ult: Congelamento Temporal", "size": (300, 300), "menu_size": (350, 350),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.20, "dash_cooldown": 2.5,
@@ -710,7 +710,7 @@ CHAR_DATA = {
         "projectile_flip_x": True,
     },
     3: {
-        "name": "VAMPIRE", "hp": 7, "speed": 300, "damage": 3,
+        "name": "VAMPIRE", "hp": 88, "speed": 300, "damage": 38, "mana": 100,
         "desc": "Ult: Tempestade Sombria", "size": (150, 150), "menu_size": (200, 200),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.22, "dash_cooldown": 2.5,
@@ -746,7 +746,7 @@ CHAR_DATA = {
         "projectile_display_size": (42, 42),
     },
     4: {
-        "name": "DEMÔNIO", "hp": 6, "speed": 290, "damage": 3,
+        "name": "DEMÔNIO", "hp": 75, "speed": 290, "damage": 38, "mana": 100,
         "desc": "Ult: Chama Infernal", "size": (250, 250), "menu_size": (350, 350),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.20, "dash_cooldown": 2.3,
@@ -789,7 +789,7 @@ CHAR_DATA = {
         "ultimate_rows": 1,
     },
     5: {
-        "name": "GOLEM", "hp": 9, "speed": 240, "damage": 4,
+        "name": "GOLEM", "hp": 113, "speed": 240, "damage": 50, "mana": 50,
         "desc": "Ult: Golpe da Terra", "size": (220, 220), "menu_size": (320, 320),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.18, "dash_cooldown": 2.5,
@@ -933,6 +933,21 @@ BG_DATA = {
     "volcano":  {"name": "bg_volcano",  "music": "music_volcano",  "type": "volcano"},
     "ice":      {"name": "bg_ice",      "music": "music_ice",      "type": "ice"},
 }
+
+# Biomas disponíveis (apenas dungeon por enquanto; demais bloqueados)
+BG_LOCKED = {"forest", "volcano", "ice"}
+
+# Loja de Itens — categorias e seus assets (nome do prefixo e quantidade de arquivos)
+ITEM_SHOP_CATEGORIES = {
+    "Espadas":   {"prefix": "Espadas",   "count": 20, "price": 0, "desc": ""},
+    "Machados":  {"prefix": "Machados",  "count": 10, "price": 0, "desc": ""},
+    "Hammers":   {"prefix": "Hammer",    "count": 10, "price": 0, "desc": ""},
+    "Escudos":   {"prefix": "Escudos",   "count": 10, "price": 0, "desc": ""},
+    "Bows":      {"prefix": "Bow",       "count": 10, "price": 0, "desc": ""},
+    "Crossbows": {"prefix": "Crossbows", "count": 10, "price": 0, "desc": ""},
+    "Cajados":   {"prefix": "Cajados",   "count": 10, "price": 0, "desc": ""},
+}
+ITEM_SHOP_TABS = ["ARMAS/ESCUDOS", "ARMADURAS", "UTILITÁRIOS"]
 
 # Multiplicadores permanentes (serão sobrescritos em reset_game)
 CRIT_DMG_MULT = 2.0
@@ -2865,23 +2880,25 @@ def main():
     # Criar todos os botões da interface
     # Menu reposicionado para o canto inferior esquerdo conforme imagem
     menu_btns = [
-        Button(0.15, 0.52, BTN_W, BTN_H, "JOGAR",         font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
-        Button(0.15, 0.59, BTN_W, BTN_H, "MISSÕES",       font_m),
-        Button(0.15, 0.66, BTN_W, BTN_H, "TALENTOS",      font_m),
-        Button(0.15, 0.73, BTN_W, BTN_H, "SAVES",         font_m),
-        Button(0.15, 0.80, BTN_W, BTN_H, "BIOMA",         font_m),
-        Button(0.15, 0.87, BTN_W, BTN_H, "CONFIGURAÇÕES", font_m),
-        Button(0.15, 0.94, BTN_W, BTN_H, "SAIR",          font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.49, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
+        Button(0.15, 0.55, BTN_W, BTN_H, "MISSÕES",        font_m),
+        Button(0.15, 0.61, BTN_W, BTN_H, "TALENTOS",       font_m),
+        Button(0.15, 0.67, BTN_W, BTN_H, "LOJA DE ITENS",  font_m),
+        Button(0.15, 0.73, BTN_W, BTN_H, "SAVES",          font_m),
+        Button(0.15, 0.79, BTN_W, BTN_H, "BIOMA",          font_m),
+        Button(0.15, 0.85, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.91, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
-    menu_icons = ["play", "missions", "talents", "saves", "biome", "settings", "exit"]
+    menu_icons = ["play", "missions", "talents", "saves", "saves", "biome", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
         btn.icon = load_menu_icon_surface(loader, icon, size=(20, 20))
-        btn.sprite_idx = idx
+        btn.sprite_idx = idx % 7
 
     menu_preview_map = {
         "JOGAR": ("Iniciar Jornada", "Selecione heroi, dificuldade e pacto para começar uma nova run de sobrevivencia."),
         "MISSÕES": ("Rotina Diaria", "Acompanhe objetivos diarios, resgate recompensas e acelere sua progressao."),
         "TALENTOS": ("Arvore de Talentos", "Invista ouro em melhorias permanentes e desbloqueie builds mais fortes."),
+        "LOJA DE ITENS": ("Loja de Itens", "Compre armas, escudos e equipamentos para potencializar sua proxima run."),
         "SAVES": ("Gerenciar Saves", "Carregue e acompanhe slots de progresso para alternar entre campanhas."),
         "BIOMA": ("Escolher Bioma", "Troque o tema visual e o clima da arena para variar o estilo da partida."),
         "CONFIGURAÇÕES": ("Ajustes do Jogo", "Video, audio, controles e acessibilidade com aplicacao imediata."),
@@ -2919,6 +2936,22 @@ def main():
 
     shop_back_btn = Button(0.5, 0.93, BTN_SM_W, BTN_SM_H, "VOLTAR", font_m, color=(80, 30, 30))
     shop_back_btn.sprite_idx = 6
+
+    # Loja de Itens
+    item_shop_back_btn = Button(0.5, 0.93, BTN_SM_W, BTN_SM_H, "VOLTAR", font_m, color=(80, 30, 30))
+    item_shop_back_btn.sprite_idx = 6
+    item_shop_tab_btns = []
+    _tab_w = max(180, SCREEN_W // (len(ITEM_SHOP_TABS) + 1))
+    for _ti, _tlabel in enumerate(ITEM_SHOP_TABS):
+        _tx = int(SCREEN_W * 0.15) + _ti * (_tab_w + 10)
+        _btn = Button(0, 0, _tab_w, 42, _tlabel, font_s,
+                      color=(40, 35, 30), hover_color=(70, 60, 40))
+        _btn.rect.topleft = (_tx, int(SCREEN_H * 0.13))
+        _btn.sprite_idx = _ti % 7
+        item_shop_tab_btns.append(_btn)
+    item_shop_active_tab = 0
+    item_shop_scroll_y   = 0   # posição de scroll em pixels
+    _item_shop_img_cache = {}  # cache de imagens da loja
     shop_talent_btns = []
     shop_talent_btn_map = {}
     path_names = list(TALENT_TREE.keys())
@@ -3001,7 +3034,10 @@ def main():
     bg_back_btn.sprite_idx = 6
     bg_choices = list(BG_DATA.keys())
     for i, bg_key in enumerate(bg_choices):
-        btn = Button(0.5, 0.28 + i * 0.14, BTN_W, BTN_H, bg_key.upper(), font_m)
+        is_locked = bg_key in BG_LOCKED
+        label = bg_key.upper() + (" 🔒 EM BREVE" if is_locked else "")
+        btn = Button(0.5, 0.28 + i * 0.14, BTN_W, BTN_H, label, font_m,
+                     locked=is_locked, lock_req="Em breve!" if is_locked else "")
         btn.sprite_idx = i % 7
         bg_btns.append(btn)
 
@@ -3164,7 +3200,7 @@ def main():
                         else:
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
-                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "BG_SELECT", "SAVES"]:
+                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "ITEM_SHOP", "BG_SELECT", "SAVES"]:
                         state = "MENU"
                     elif state == "DIFF_SELECT":
                         state = "CHAR_SELECT"
@@ -3207,12 +3243,14 @@ def main():
                             elif menu_btns[2].rect.collidepoint(click_pos):
                                 menu_pending_action = "SHOP"
                             elif menu_btns[3].rect.collidepoint(click_pos):
-                                menu_pending_action = "SAVES"
+                                menu_pending_action = "ITEM_SHOP"
                             elif menu_btns[4].rect.collidepoint(click_pos):
-                                menu_pending_action = "BG_SELECT"
+                                menu_pending_action = "SAVES"
                             elif menu_btns[5].rect.collidepoint(click_pos):
-                                menu_pending_action = "SETTINGS"
+                                menu_pending_action = "BG_SELECT"
                             elif menu_btns[6].rect.collidepoint(click_pos):
+                                menu_pending_action = "SETTINGS"
+                            elif menu_btns[7].rect.collidepoint(click_pos):
                                 menu_pending_action = "QUIT"
 
                             if menu_pending_action is not None:
@@ -3259,8 +3297,21 @@ def main():
                                             save_data["perm_upgrades"][s_key] = lvl + 1
                                             if snd_click: snd_click.play()
 
+                    elif state == "ITEM_SHOP":
+                        if item_shop_back_btn.rect.collidepoint(click_pos):
+                            state = "MENU"
+                        else:
+                            for _ti, _tbtn in enumerate(item_shop_tab_btns):
+                                if _tbtn.rect.collidepoint(click_pos):
+                                    if _ti == 0:
+                                        item_shop_active_tab = 0
+                                        item_shop_scroll_y   = 0
+                                        if snd_click: snd_click.play()
+                                    else:
+                                        push_skill_feed("Em breve!", (180, 180, 180))
+
                     elif state == "CHAR_SELECT":
-                        if char_back_btn.rect.collidepoint(click_pos): 
+                        if char_back_btn.rect.collidepoint(click_pos):
                             state = "MENU"
                         for i, btn in enumerate(char_btns):
                             if btn.rect.collidepoint(click_pos):
@@ -3299,9 +3350,12 @@ def main():
                         else:
                             for i, btn in enumerate(bg_btns):
                                 if btn.rect.collidepoint(click_pos):
-                                    selected_bg = bg_choices[i]
-                                    load_all_assets()
-                                    if snd_click: snd_click.play()
+                                    if btn.locked:
+                                        push_skill_feed("Em breve!", (180, 180, 180))
+                                    else:
+                                        selected_bg = bg_choices[i]
+                                        load_all_assets()
+                                        if snd_click: snd_click.play()
                                     break
 
                     elif state == "SETTINGS":
@@ -3415,6 +3469,11 @@ def main():
                                         pause_save_feedback_timer = 2.0
                                     break
 
+            # Scroll da Loja de Itens (roda do mouse)
+            if event.type == pygame.MOUSEWHEEL and state == "ITEM_SHOP":
+                item_shop_scroll_y -= event.y * 40
+                item_shop_scroll_y  = max(0, item_shop_scroll_y)
+
             if event.type == pygame.MOUSEMOTION and state == "SETTINGS":
                 update_settings_drag(event.pos)
 
@@ -3446,7 +3505,7 @@ def main():
                         else:
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
-                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "BG_SELECT", "SAVES"]:
+                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "ITEM_SHOP", "BG_SELECT", "SAVES"]:
                         state = "MENU"
                     elif state == "DIFF_SELECT": state = "CHAR_SELECT"
                     elif state == "PACT_SELECT": state = "DIFF_SELECT"
@@ -4320,7 +4379,136 @@ def main():
                     btn_found.draw(screen)
 
             shop_back_btn.check_hover(m_pos, snd_hover); shop_back_btn.draw(screen)
-        
+
+        elif state == "ITEM_SHOP":
+            draw_menu_background(screen, m_pos, dt)
+            _ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            _ov.fill((UI_THEME["void_black"][0], UI_THEME["void_black"][1], UI_THEME["void_black"][2], 185))
+            screen.blit(_ov, (0, 0))
+
+            # Título (sem painel/retângulo de fundo)
+            draw_screen_title(screen, font_l, "LOJA DE ITENS", SCREEN_W // 2, int(SCREEN_H * 0.075))
+
+            # Abas (tabs) — desenhadas manualmente para controle total de cor
+            _tab_w_actual = max(180, SCREEN_W // (len(ITEM_SHOP_TABS) + 1))
+            for _ti, _tlabel in enumerate(ITEM_SHOP_TABS):
+                _tbtn = item_shop_tab_btns[_ti]
+                _tbtn.rect.width   = _tab_w_actual
+                _tbtn.rect.height  = 42
+                _tbtn.rect.topleft = (int(SCREEN_W * 0.05) + _ti * (_tab_w_actual + 8), int(SCREEN_H * 0.135))
+                _is_active   = (_ti == item_shop_active_tab)
+                _is_tab_lock = (_ti > 0)
+
+                # Fundo da aba
+                _tab_bg = (50, 40, 28) if _is_active else (28, 22, 16)
+                pygame.draw.rect(screen, _tab_bg, _tbtn.rect, border_radius=6)
+                # Borda: branca fina se ativa, cinza escuro se bloqueada
+                _tab_border = (180, 160, 100) if _is_active else (60, 50, 40)
+                pygame.draw.rect(screen, _tab_border, _tbtn.rect, 1, border_radius=6)
+
+                # Texto da aba
+                _tab_color = (220, 200, 140) if _is_active else (200, 60, 60)
+                _tab_surf  = font_s.render(_tlabel, True, _tab_color)
+                screen.blit(_tab_surf, _tab_surf.get_rect(center=_tbtn.rect.center))
+
+            # Painel de conteúdo (área clipeada)
+            _cx0     = int(SCREEN_W * 0.05)
+            _cy0     = int(SCREEN_H * 0.21)
+            _cw      = int(SCREEN_W * 0.90)
+            _ch      = int(SCREEN_H * 0.67)
+            _SB_W    = 14          # largura da scrollbar
+            _grid_w  = _cw - _SB_W - 8  # largura usável para o grid
+            _cpanel  = pygame.Rect(_cx0, _cy0, _cw, _ch)
+            draw_dark_panel(screen, _cpanel, alpha=160, border_color=UI_THEME["iron"])
+
+            if item_shop_active_tab == 0:
+                _SLOT = 72
+                _PAD  = 8
+                _COLS = max(1, (_grid_w - 16) // (_SLOT + _PAD))
+                _itens_dir = os.path.join("assets", "ui", "itens")
+
+                # ── 1ª passagem: calcular altura total do conteúdo ─────────────
+                _total_h = 0
+                for _cdat in ITEM_SHOP_CATEGORIES.values():
+                    _rows = math.ceil(_cdat["count"] / _COLS)
+                    _total_h += 30 + _rows * (_SLOT + _PAD) + 10
+
+                # Limite de scroll
+                _max_scroll = max(0, _total_h - _ch + 16)
+                item_shop_scroll_y = max(0, min(item_shop_scroll_y, _max_scroll))
+
+                # ── 2ª passagem: desenhar itens com clip ───────────────────────
+                _clip_rect = pygame.Rect(_cx0 + 4, _cy0 + 4, _grid_w, _ch - 8)
+                screen.set_clip(_clip_rect)
+
+                _draw_x = _cx0 + 12
+                _draw_y = _cy0 + 12 - item_shop_scroll_y
+
+                for _cname, _cdat in ITEM_SHOP_CATEGORIES.items():
+                    # Rótulo da subcategoria
+                    _cat_lbl = font_s.render(f"— {_cname} —", True, UI_THEME["old_gold"])
+                    screen.blit(_cat_lbl, (_draw_x, _draw_y))
+                    _draw_y += 30
+                    _col = 0
+                    _draw_x = _cx0 + 12
+
+                    for _n in range(1, _cdat["count"] + 1):
+                        _fname = f"{_cdat['prefix']} ({_n}).png"
+
+                        # Carrega e faz cache da imagem
+                        if _fname not in _item_shop_img_cache:
+                            _fp = os.path.join(_itens_dir, _fname)
+                            if os.path.exists(_fp):
+                                try:
+                                    _raw = pygame.image.load(_fp).convert_alpha()
+                                    _item_shop_img_cache[_fname] = pygame.transform.smoothscale(
+                                        _raw, (_SLOT - 10, _SLOT - 10))
+                                except Exception:
+                                    _item_shop_img_cache[_fname] = None
+                            else:
+                                _item_shop_img_cache[_fname] = None
+
+                        _sr   = pygame.Rect(_draw_x, _draw_y, _SLOT, _SLOT)
+                        _shov = _sr.collidepoint(m_pos) and _clip_rect.collidepoint(m_pos)
+                        _scol = (65, 52, 32) if _shov else (35, 28, 20)
+                        pygame.draw.rect(screen, _scol, _sr, border_radius=5)
+                        pygame.draw.rect(screen,
+                                         UI_THEME["old_gold"] if _shov else UI_THEME["iron"],
+                                         _sr, 2 if _shov else 1, border_radius=5)
+
+                        _img = _item_shop_img_cache.get(_fname)
+                        if _img:
+                            screen.blit(_img, _img.get_rect(center=_sr.center))
+
+                        _col += 1
+                        if _col >= _COLS:
+                            _col = 0
+                            _draw_x  = _cx0 + 12
+                            _draw_y += _SLOT + _PAD
+                        else:
+                            _draw_x += _SLOT + _PAD
+
+                    if _col > 0:
+                        _draw_x  = _cx0 + 12
+                        _draw_y += _SLOT + _PAD
+                    _draw_y += 10  # espaço entre subcategorias
+
+                screen.set_clip(None)
+
+                # ── Scrollbar vertical ─────────────────────────────────────────
+                _sb_x    = _cx0 + _cw - _SB_W - 4
+                _sb_rect = pygame.Rect(_sb_x, _cy0 + 4, _SB_W, _ch - 8)
+                pygame.draw.rect(screen, (30, 25, 18), _sb_rect, border_radius=6)
+                if _max_scroll > 0:
+                    _th = max(30, int(_sb_rect.height * _ch / _total_h))
+                    _ty = _sb_rect.top + int((_sb_rect.height - _th) * item_shop_scroll_y / _max_scroll)
+                    _thumb = pygame.Rect(_sb_x + 2, _ty, _SB_W - 4, _th)
+                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _thumb, border_radius=5)
+                    pygame.draw.rect(screen, UI_THEME["old_gold"], _thumb, 1, border_radius=5)
+
+            item_shop_back_btn.check_hover(m_pos, snd_hover)
+            item_shop_back_btn.draw(screen)
+
         elif state == "CHAR_SELECT":
             draw_menu_background(screen, m_pos, dt)
 

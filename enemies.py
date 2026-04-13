@@ -282,20 +282,20 @@ class Enemy(pygame.sprite.Sprite):
 
         # --- Stats base ---
         stats = {
-            "runner":    (2,   150),
-            "tank":      (10,   65),
-            "elite":     (60,   85),
-            "shooter":   (3,    90),
+            "runner":    (25,   150),
+            "tank":      (125,   65),
+            "elite":     (750,   85),
+            "shooter":   (38,    90),
             "boss":      (boss_max_hp, 95),
-            "slime":     (5,   110),
-            "minotauro": (8,   130),
-            "bat":       (1,   145),
-            "orc":       (12,   75),
-            "mini_boss": (300,  85),
-            "goblin":    (3,   160),
-            "beholder":  (8,    85),
-            "rat":       (6,   135),
-            "agis":      (800,  45),
+            "slime":     (63,   110),
+            "minotauro": (100,  130),
+            "bat":       (13,   145),
+            "orc":       (150,   75),
+            "mini_boss": (3750,  85),
+            "goblin":    (38,   160),
+            "beholder":  (100,   85),
+            "rat":       (75,   135),
+            "agis":      (10000,  45),
         }
         base_hp, base_spd = stats.get(kind, (2, 100))
 
@@ -318,7 +318,7 @@ class Enemy(pygame.sprite.Sprite):
         # Melee do mini_boss
         if kind == "mini_boss":
             self.melee_range = 155
-            self.melee_dmg   = 1.5 * diff_mults.get("dmg_mult", 1.0)
+            self.melee_dmg   = 19 * diff_mults.get("dmg_mult", 1.0)
 
         # Agis — ataque a distância + magia em área (projéteis criados em jogo_final.py)
         if kind == "agis":

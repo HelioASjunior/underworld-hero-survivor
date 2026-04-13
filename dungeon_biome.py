@@ -5,6 +5,9 @@ Objetos:
   pentagrama  — efeito de chão animado (pentagrama1 ↔ pentagrama2), sem colisão
   bds         — obstáculo de chão animado (BDS1 ↔ BDS2), COM colisão
   dinosaur    — fóssil de chão estático, sem colisão
+  statue      — estátua estática, COM colisão
+  espinhos    — espinhos no chão, COM colisão
+  ghost       — fantasma flutuante, apenas enfeite, sem colisão
 
 Uso:
     mgr = DungeonDecoManager(asset_dir)
@@ -29,15 +32,22 @@ import pygame
 # grid         → espaçamento em px entre células da grade
 # prob         → probabilidade de spawn por célula
 # spd          → segundos por frame de animação (0 = estático)
-# display_size → (w, h) de exibição
-# files        → lista de arquivos (1 arquivo = estático, 2+ = animado ciclicamente)
+# size         → (w, h) de exibição de cada frame
+# files        → lista de arquivos PNG
 # collide      → True se bloqueia movimento do jogador
+#
+# Para spritesheets horizontais (uma tira com N frames lado a lado):
+#   sheet      → nome do arquivo (string única, em vez de "files")
+#   frame_w    → largura de cada frame no PNG original
+#   frame_h    → altura de cada frame no PNG original
+#   frame_count→ número de frames na tira
 
 _DUNGEON_DECO_CFGS = [
+    # ── arquivos de frame único / multi-arquivo (sistema antigo) ────────────
     dict(
         kind    = "pentagrama",
-        grid    = 750,
-        prob    = 0.45,
+        grid    = 640,
+        prob    = 0.52,
         spd     = 0.55,
         size    = (160, 160),
         files   = ["pentagrama1.png", "pentagrama2.png"],
@@ -45,8 +55,8 @@ _DUNGEON_DECO_CFGS = [
     ),
     dict(
         kind    = "bds",
-        grid    = 1100,
-        prob    = 0.22,
+        grid    = 950,
+        prob    = 0.28,
         spd     = 0.80,
         size    = (140, 140),
         files   = ["BDS1.png", "BDS2.png"],
@@ -54,11 +64,45 @@ _DUNGEON_DECO_CFGS = [
     ),
     dict(
         kind    = "dinosaur",
-        grid    = 1400,
-        prob    = 0.20,
-        spd     = 0.0,   # estático
+        grid    = 1200,
+        prob    = 0.26,
+        spd     = 0.0,
         size    = (220, 220),
         files   = ["dinosaur.png"],
+        collide = False,
+    ),
+    # ── spritesheets horizontais (tira única com N frames) ──────────────────
+    dict(
+        kind        = "statue",
+        grid        = 1100,
+        prob        = 0.22,
+        spd         = 0.18,          # animado (6 frames)
+        size        = (160, 160),
+        sheet       = "statue.png",
+        frame_w     = 80,
+        frame_h     = 80,
+        frame_count = 6,
+        collide     = True,
+    ),
+    dict(
+        kind        = "espinhos",
+        grid        = 850,
+        prob        = 0.28,
+        spd         = 0.16,          # animado (6 frames: base → espinhos surgindo)
+        size        = (120, 100),
+        sheet       = "espinhos.png",
+        frame_w     = 48,            # 288px ÷ 6 frames = 48px cada
+        frame_h     = 64,
+        frame_count = 6,
+        collide     = True,
+    ),
+    dict(
+        kind    = "ghost",
+        grid    = 750,
+        prob    = 0.32,
+        spd     = 0.0,   # imagem única — tira completa de espíritos (sem frame splitting)
+        size    = (320, 40),
+        files   = ["ghost.png"],
         collide = False,
     ),
 ]
@@ -71,14 +115,15 @@ _DUNGEON_DECO_CFGS = [
 class _DungeonDeco:
     """Decoração animada (ou estática) em posição fixa no mundo dungeon."""
 
-    def __init__(self, world_pos, frames, anim_speed, collide):
+    def __init__(self, world_pos, frames, anim_speed, collide, start_frame=0):
         self.world_pos  = pygame.Vector2(world_pos)
         self.frames     = frames
         self.anim_speed = anim_speed
         self.collide    = collide
-        self.frame_idx  = 0
+        # Frame inicial aleatório por instância: evita que todas sincronizem
+        self.frame_idx  = start_frame % len(frames) if frames else 0
         self.timer      = 0.0
-        self.image      = frames[0]
+        self.image      = frames[self.frame_idx]
         self.rect       = self.image.get_rect()
         self.world_rect = pygame.Rect(0, 0,
                                       self.image.get_width() // 2,
@@ -117,18 +162,43 @@ class _DungeonDeco:
 # ---------------------------------------------------------------------------
 
 def _load_image(path, display_size):
-    """Carrega uma imagem única e escala para display_size."""
+    """Carrega imagem única e escala — mesmo padrão dos sprites de herói/monstro."""
     if not os.path.exists(path):
         print(f"[DungeonBiome] Arquivo não encontrado: {path}")
         return None
     try:
-        raw = pygame.image.load(path)
-        has_alpha = raw.get_bitsize() == 32 and raw.get_masks()[3] != 0
-        raw = raw.convert_alpha() if has_alpha else raw.convert()
-        return pygame.transform.scale(raw, display_size)
+        raw = pygame.image.load(path).convert_alpha()
+        return pygame.transform.smoothscale(raw, display_size)
     except Exception as e:
         print(f"[DungeonBiome] Erro ao carregar {path}: {e}")
         return None
+
+
+def _load_sheet_frames(path, frame_w, frame_h, frame_count, display_size):
+    """Extrai frames individuais de um spritesheet horizontal e os escala.
+
+    O spritesheet é uma tira horizontal:  [frame0][frame1]...[frameN-1]
+    Cada frame tem dimensão frame_w × frame_h no arquivo original.
+    Retorna lista de superfícies prontas para exibição.
+    """
+    if not os.path.exists(path):
+        print(f"[DungeonBiome] Spritesheet não encontrado: {path}")
+        return []
+    try:
+        sheet = pygame.image.load(path).convert_alpha()
+        frames = []
+        for i in range(frame_count):
+            # Recorta o frame i da tira horizontal
+            src_rect = pygame.Rect(i * frame_w, 0, frame_w, frame_h)
+            frame_surf = pygame.Surface((frame_w, frame_h), pygame.SRCALPHA)
+            frame_surf.blit(sheet, (0, 0), src_rect)
+            # Escala para o tamanho de exibição
+            scaled = pygame.transform.smoothscale(frame_surf, display_size)
+            frames.append(scaled)
+        return frames
+    except Exception as e:
+        print(f"[DungeonBiome] Erro ao processar spritesheet {path}: {e}")
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -156,11 +226,24 @@ class DungeonDecoManager:
         for cfg in _DUNGEON_DECO_CFGS:
             kind   = cfg["kind"]
             frames = []
-            for fname in cfg["files"]:
-                path = os.path.join(chao_dir, fname)
-                img  = _load_image(path, cfg["size"])
-                if img:
-                    frames.append(img)
+
+            if "sheet" in cfg:
+                # ── Spritesheet horizontal: extrai frames individuais ──────────
+                path   = os.path.join(chao_dir, cfg["sheet"])
+                frames = _load_sheet_frames(
+                    path,
+                    cfg["frame_w"],
+                    cfg["frame_h"],
+                    cfg["frame_count"],
+                    cfg["size"],
+                )
+            else:
+                # ── Sistema multi-arquivo (um PNG por frame) ──────────────────
+                for fname in cfg.get("files", []):
+                    path = os.path.join(chao_dir, fname)
+                    img  = _load_image(path, cfg["size"])
+                    if img:
+                        frames.append(img)
 
             self._frames[kind]  = frames
             self._cfg_map[kind] = cfg
@@ -180,6 +263,11 @@ class DungeonDecoManager:
         jit  = grid // 3
         base = pygame.Vector2(gx * grid, gy * grid)
         return base + pygame.Vector2(rng.randint(-jit, jit), rng.randint(-jit, jit))
+
+    def _cell_start_frame(self, gx, gy, kind, frame_count):
+        """Frame inicial aleatório determinístico por célula (seed diferente do pos)."""
+        rng = random.Random((gx * 47291863) ^ (gy * 93841729) ^ hash(kind) ^ 0xF00D)
+        return rng.randint(0, max(0, frame_count - 1))
 
     # ------------------------------------------------------------------ #
 
@@ -211,8 +299,9 @@ class DungeonDecoManager:
                     key = (gx, gy, kind)
                     active_keys.add(key)
                     if key not in self._active:
-                        wp = self._cell_world_pos(gx, gy, grid, kind)
-                        self._active[key] = _DungeonDeco(wp, frames, spd, col)
+                        wp      = self._cell_world_pos(gx, gy, grid, kind)
+                        start_f = self._cell_start_frame(gx, gy, kind, len(frames))
+                        self._active[key] = _DungeonDeco(wp, frames, spd, col, start_f)
 
         # Remove decos fora de alcance
         for key in list(self._active.keys()):
