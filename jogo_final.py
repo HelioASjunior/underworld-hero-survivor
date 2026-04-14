@@ -10,6 +10,7 @@ from characters import CharacterCombatContext, CharacterDependencies, create_pla
 import hud as dark_hud
 from forest_biome import build_forest_ground, ForestDecoManager
 from dungeon_biome import DungeonDecoManager
+from hub_room import HubScene
 from drops import Drop as ModularDrop
 from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile
 from upgrades import (
@@ -3082,6 +3083,14 @@ def main():
     menu_intro_timer = MENU_ENTER_DURATION
     menu_exit_timer = 0.0
     menu_pending_action = None
+
+    # Hub Room state
+    hub_scene: HubScene | None = None
+    hub_countdown_active = False
+    hub_countdown_timer  = 0.0
+    hub_pronto_btn = Button(0.920, 0.50, 200, BTN_H, "PRONTO", font_m, color=(30, 80, 30))
+    hub_return = False   # True when SHOP/ITEM_SHOP was opened from HUB
+
     # Fila de horda e obstáculos graduais (inicializados aqui para o caso
     # de o loop começar antes de reset_game ser chamado)
     pending_horde_queue    = []
@@ -3135,6 +3144,7 @@ def main():
             pact_back_btn.update_rect()
             for b in bg_btns: b.update_rect()
             bg_back_btn.update_rect()
+            hub_pronto_btn.update_rect()
             for b in pause_btns: b.update_rect()
             for b in pause_save_btns: b.update_rect()
             game_over_btn.update_rect()
@@ -3192,7 +3202,11 @@ def main():
                         continue
 
                 if event.key == pygame.K_ESCAPE:
-                    if state == "PLAYING": state = "PAUSED"
+                    if state == "HUB":
+                        hub_countdown_active = False
+                        hub_countdown_timer  = 0.0
+                        state = "PACT_SELECT"
+                    elif state == "PLAYING": state = "PAUSED"
                     elif state == "PAUSED": state = "PLAYING"
                     elif state == "SETTINGS":
                         if settings_category == "main":
@@ -3200,8 +3214,14 @@ def main():
                         else:
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
-                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "ITEM_SHOP", "BG_SELECT", "SAVES"]:
+                    elif state in ["CHAR_SELECT", "MISSIONS", "BG_SELECT", "SAVES"]:
                         state = "MENU"
+                    elif state in ["SHOP", "ITEM_SHOP"]:
+                        if hub_return and hub_scene is not None:
+                            hub_return = False
+                            state = "HUB"
+                        else:
+                            state = "MENU"
                     elif state == "DIFF_SELECT":
                         state = "CHAR_SELECT"
                     elif state == "PACT_SELECT":
@@ -3258,6 +3278,24 @@ def main():
                                     snd_click.play()
                                 menu_exit_timer = MENU_EXIT_DURATION
 
+                    elif state == "HUB":
+                        # Botões do painel lateral direito
+                        if hub_pronto_btn.rect.collidepoint(click_pos) and not hub_countdown_active:
+                            hub_countdown_active = True
+                            hub_countdown_timer  = 5.0
+                            if snd_click: snd_click.play()
+                        # Botões de atalho: Talentos e Loja
+                        _hub_panel_x = int(SCREEN_W * 0.84)
+                        _hub_panel_w = SCREEN_W - _hub_panel_x
+                        _hub_shop_rect   = pygame.Rect(_hub_panel_x + 10, int(SCREEN_H * 0.28), _hub_panel_w - 20, 46)
+                        _hub_talent_rect = pygame.Rect(_hub_panel_x + 10, int(SCREEN_H * 0.36), _hub_panel_w - 20, 46)
+                        if _hub_shop_rect.collidepoint(click_pos):
+                            hub_return = True
+                            state = "ITEM_SHOP"
+                        elif _hub_talent_rect.collidepoint(click_pos):
+                            hub_return = True
+                            state = "SHOP"
+
                     elif state == "SAVES":
                         if saves_back_btn.rect.collidepoint(click_pos):
                             state = "MENU"
@@ -3284,7 +3322,11 @@ def main():
                     elif state == "SHOP":
                         if shop_back_btn.rect.collidepoint(click_pos):
                             save_game()
-                            state = "MENU"
+                            if hub_return and hub_scene is not None:
+                                hub_return = False
+                                state = "HUB"
+                            else:
+                                state = "MENU"
                         else:
                             for p_name, s_key, btn in shop_talent_btns:
                                 if btn.rect.collidepoint(click_pos):
@@ -3299,7 +3341,11 @@ def main():
 
                     elif state == "ITEM_SHOP":
                         if item_shop_back_btn.rect.collidepoint(click_pos):
-                            state = "MENU"
+                            if hub_return and hub_scene is not None:
+                                hub_return = False
+                                state = "HUB"
+                            else:
+                                state = "MENU"
                         else:
                             for _ti, _tbtn in enumerate(item_shop_tab_btns):
                                 if _tbtn.rect.collidepoint(click_pos):
@@ -3330,7 +3376,7 @@ def main():
                                 state = "PACT_SELECT"
 
                     elif state == "PACT_SELECT":
-                        if pact_back_btn.rect.collidepoint(click_pos): 
+                        if pact_back_btn.rect.collidepoint(click_pos):
                             state = "DIFF_SELECT"
                         pact_names = list(PACTOS.keys())
                         for i, btn in enumerate(pact_btns):
@@ -3342,7 +3388,29 @@ def main():
                                 run_gold_collected = 0.0
                                 autosave_timer = 0.0
                                 if p_data["hp"] > 0: player.hp = p_data["hp"]
-                                state = "PLAYING"
+                                # Carrega o Hub Room multi-mapa antes de começar a partida
+                                _tmx_dir = os.path.join(BASE_DIR, "assets", "Teste", "Tiled_files")
+                                if os.path.isdir(_tmx_dir):
+                                    hub_scene = HubScene(_tmx_dir)
+                                    hub_scene.load_all()
+                                    hub_scene.load_surfaces_and_bake()
+                                    hub_scene.setup_player("interior_1_default")
+                                    if player is not None:
+                                        _cid   = player.char_id
+                                        _cdata = CHAR_DATA.get(_cid, {})
+                                        hub_scene.apply_char_frames(
+                                            dir_walk      = dict(player._dir_walk_frames),
+                                            dir_idle      = dict(player._dir_idle_frames),
+                                            walk_fallback = list(player.anim_frames),
+                                            idle_fallback = list(player.idle_frames),
+                                            anim_spd      = _cdata.get("anim_speed", 0.10),
+                                            idle_anim_spd = _cdata.get("idle_anim_speed", 0.13),
+                                        )
+                                    hub_countdown_active = False
+                                    hub_countdown_timer  = 0.0
+                                    state = "HUB"
+                                else:
+                                    state = "PLAYING"
 
                     elif state == "BG_SELECT":
                         if bg_back_btn.rect.collidepoint(click_pos):
@@ -3505,8 +3573,14 @@ def main():
                         else:
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
-                    elif state in ["CHAR_SELECT", "MISSIONS", "SHOP", "ITEM_SHOP", "BG_SELECT", "SAVES"]:
+                    elif state in ["CHAR_SELECT", "MISSIONS", "BG_SELECT", "SAVES"]:
                         state = "MENU"
+                    elif state in ["SHOP", "ITEM_SHOP"]:
+                        if hub_return and hub_scene is not None:
+                            hub_return = False
+                            state = "HUB"
+                        else:
+                            state = "MENU"
                     elif state == "DIFF_SELECT": state = "CHAR_SELECT"
                     elif state == "PACT_SELECT": state = "DIFF_SELECT"
 
@@ -3584,6 +3658,16 @@ def main():
                     else:
                         state = menu_pending_action
                     menu_pending_action = None
+
+        # 3a. Lógica do Hub Room
+        if state == "HUB" and hub_scene is not None:
+            keys = pygame.key.get_pressed()
+            hub_scene.update(dt, keys, SCREEN_W, SCREEN_H)
+            if hub_countdown_active:
+                hub_countdown_timer -= dt
+                if hub_countdown_timer <= 0.0:
+                    hub_countdown_active = False
+                    state = "PLAYING"
 
         # 3. Atualização da Lógica do Jogo
         if state == "PLAYING" and player and player.hp > 0:
@@ -4757,6 +4841,69 @@ def main():
                     btn.draw(screen)
                 diff_back_btn.check_hover(m_pos, snd_hover)
                 diff_back_btn.draw(screen)
+
+        elif state == "HUB" and hub_scene is not None:
+            # ── Mapa + jogador ─────────────────────────────────────────────
+            hub_scene.draw(screen)
+
+            # ── Painel lateral direito (compacto) ───────────────────────────
+            _hp_x = int(SCREEN_W * 0.84)
+            _hp_w = SCREEN_W - _hp_x
+            _cx   = _hp_x + _hp_w // 2
+            _panel = pygame.Surface((_hp_w, SCREEN_H), pygame.SRCALPHA)
+            _panel.fill((10, 8, 6, 215))
+            screen.blit(_panel, (_hp_x, 0))
+            pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_hp_x, 0), (_hp_x, SCREEN_H), 2)
+
+            # Título
+            _title_s = font_s.render("Sala do Herói", True, UI_THEME.get("old_gold", (220, 180, 80)))
+            screen.blit(_title_s, _title_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.03)))
+
+            # Área atual
+            _area_names = {"exterior": "Exterior", "interior_1": "1º Andar", "interior_2": "2º Andar"}
+            _area_key   = hub_scene.current_map_name if hub_scene else "exterior"
+            _area_s = font_s.render(_area_names.get(_area_key, _area_key), True, (160, 150, 120))
+            screen.blit(_area_s, _area_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.08)))
+
+            # Nome + HP
+            if player is not None:
+                _char_name = CHAR_DATA.get(player.char_id, {}).get("name", "")
+                _name_s = font_s.render(_char_name, True, (220, 210, 180))
+                screen.blit(_name_s, _name_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.13)))
+                _hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
+                screen.blit(_hp_s, _hp_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.19)))
+
+            # Separador
+            pygame.draw.line(screen, (80, 70, 50), (_hp_x + 6, int(SCREEN_H * 0.25)), (SCREEN_W - 6, int(SCREEN_H * 0.25)), 1)
+
+            # Botões Loja / Talentos
+            _btn_w = _hp_w - 20
+            _shop_rect   = pygame.Rect(_hp_x + 10, int(SCREEN_H * 0.28), _btn_w, 46)
+            _talent_rect = pygame.Rect(_hp_x + 10, int(SCREEN_H * 0.36), _btn_w, 46)
+            for _r, _lbl in [(_shop_rect, "Loja de Itens"), (_talent_rect, "Talentos")]:
+                _hov = _r.collidepoint(m_pos)
+                _col = (70, 58, 35) if _hov else (45, 35, 20)
+                pygame.draw.rect(screen, _col, _r, border_radius=6)
+                pygame.draw.rect(screen, UI_THEME.get("old_gold", (160, 130, 60)), _r, 1, border_radius=6)
+                _ls = font_s.render(_lbl, True, (220, 200, 140) if _hov else (170, 150, 100))
+                screen.blit(_ls, _ls.get_rect(center=_r.center))
+
+            # Separador
+            pygame.draw.line(screen, (80, 70, 50), (_hp_x + 6, int(SCREEN_H * 0.44)), (SCREEN_W - 6, int(SCREEN_H * 0.44)), 1)
+
+            # Botão PRONTO
+            hub_pronto_btn.check_hover(m_pos, snd_hover)
+            hub_pronto_btn.draw(screen)
+
+            # Countdown
+            if hub_countdown_active:
+                _cd_text = f"Em {int(hub_countdown_timer) + 1}..."
+                _cd_s = font_s.render(_cd_text, True, (255, 220, 60))
+                screen.blit(_cd_s, _cd_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.57)))
+
+            # Dica ESC
+            _esc_s = font_s.render("ESC → Voltar", True, (120, 110, 90))
+            screen.blit(_esc_s, _esc_s.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.97)))
 
         elif state == "PACT_SELECT":
             draw_menu_background(screen, m_pos, dt)
