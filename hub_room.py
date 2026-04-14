@@ -108,6 +108,9 @@ class HubMap:
         self._content_center: pygame.Vector2 | None = None
         self._content_rect:   pygame.Rect    | None = None
 
+        # Obstáculos customizados (móveis, mesas, etc.)
+        self.custom_obstacles: list[pygame.Rect] = []
+
     # ------------------------------------------------------------------ #
     # Carregamento                                                          #
     # ------------------------------------------------------------------ #
@@ -375,7 +378,12 @@ class HubMap:
     def is_wall(self, world_x: float, world_y: float) -> bool:
         tx = int(world_x / (self.tile_w * SCALE))
         ty = int(world_y / (self.tile_h * SCALE))
-        return (tx, ty) in self.wall_grid
+        if (tx, ty) in self.wall_grid:
+            return True
+        for rect in self.custom_obstacles:
+            if rect.collidepoint(world_x, world_y):
+                return True
+        return False
 
     @property
     def pixel_width(self) -> int:
@@ -601,6 +609,27 @@ def compute_camera_fixed(
 # Interior 1st floor — Floor: x=[256,1472] y=[704,1344]  Ladder: x=[384,640] y=[1088,1280]
 # Exterior           — House: x=[768,1408] y=[704,1216]  Sign:   x=[896,1280] y=[960,1088]
 
+# ---------------------------------------------------------------------------
+# Obstáculos customizados por mapa (móveis sem colisão no TMX)
+# Rects em coordenadas de pixel do mundo (SCALE=4, tile=16px → 64px)
+# ---------------------------------------------------------------------------
+
+# Interior 1º andar — sem obstáculos customizados (spawn em (896,864) fica na área da mesa)
+INTERIOR_1_TABLE_RECTS: list[pygame.Rect] = []
+
+# Interior 2º andar — balcão central (Objects2, linha y=832)
+# Spawn do 2º andar é em (512,1050), fora do rect abaixo.
+# Bloqueia a faixa y=896-928 no centro, impedindo o jogador de atravessar o balcão.
+INTERIOR_2_TABLE_RECTS: list[pygame.Rect] = [
+    pygame.Rect(440, 896, 544, 32),    # borda inferior do balcão x=440-984, y=896-928
+]
+
+# Baú no 1º andar — perto da porta de cima (abs tile x=-1,0 / y=-6 a -4 → world x=960-1088)
+# Ponto de interação = centro-x do baú (1024), primeiro y walkable abaixo (abs y=-2, world y=896)
+INTERIOR_1_CHEST_POS    = pygame.Vector2(1024, 896)  # ponto de interação do baú em px
+CHEST_INTERACT_RADIUS   = 150                         # raio de interação em px
+
+
 _ZONES: dict[str, list[dict]] = {
     # Zona no exterior: entrar no prédio (frente da casa)
     "exterior": [
@@ -692,9 +721,14 @@ class HubScene:
 
     def load_surfaces_and_bake(self):
         """Carrega imagens e bake de todos os mapas. Requer pygame inicializado."""
-        for m in self._maps.values():
+        for key, m in self._maps.items():
             m.load_surfaces()
             m.bake()
+            # Registra obstáculos customizados por mapa
+            if key == "interior_1":
+                m.custom_obstacles = list(INTERIOR_1_TABLE_RECTS)
+            elif key == "interior_2":
+                m.custom_obstacles = list(INTERIOR_2_TABLE_RECTS)
 
     def setup_player(self, spawn_key: str = "exterior_default"):
         """Cria o jogador no mapa e posição de spawn indicados."""
@@ -746,11 +780,27 @@ class HubScene:
     def current_map_name(self) -> str:
         return self._cur_key
 
+    @property
+    def player_near_chest(self) -> bool:
+        """True quando o jogador está perto do baú no 1º andar interior."""
+        if self._cur_key != "interior_1" or self._player is None:
+            return False
+        return self._player.pos.distance_to(INTERIOR_1_CHEST_POS) <= CHEST_INTERACT_RADIUS
+
+    @property
+    def chest_screen_pos(self) -> "pygame.Vector2":
+        """Posição do baú em coordenadas de tela (para desenhar o texto 'Press F')."""
+        return pygame.Vector2(
+            INTERIOR_1_CHEST_POS.x + self._cam.x,
+            INTERIOR_1_CHEST_POS.y + self._cam.y,
+        )
+
     # ------------------------------------------------------------------ #
     # Update                                                                #
     # ------------------------------------------------------------------ #
 
-    def update(self, dt: float, keys, screen_w: int, screen_h: int):
+    def update(self, dt: float, keys, screen_w: int, screen_h: int,
+               suppress_transitions: bool = False):
         m = self.current_map
         if m is None or self._player is None:
             return
@@ -769,6 +819,10 @@ class HubScene:
         # Cooldown de transição (evita re-trigger imediato)
         if self._cooldown > 0:
             self._cooldown -= dt
+            return
+
+        # Não verifica transições quando o inventário está aberto
+        if suppress_transitions:
             return
 
         # Verifica zonas de transição

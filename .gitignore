@@ -18,3 +18,5 @@ run_slot_1.json
 *.json
 !settings.json
 MONSTROS.txt
+
+_debug_frames/

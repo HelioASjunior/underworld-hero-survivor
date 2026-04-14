@@ -348,7 +348,15 @@ save_data = {
     "daily_missions": {
         "last_reset": "", # Data do último reset (YYYY-MM-DD)
         "active": []      # Lista de missões ativas hoje
-    }
+    },
+    # Itens comprados na loja (rastreamento de propriedade para a loja)
+    "purchased_items": [],
+    # Itens no baú (movidos para cá ao comprar; podem ser transferidos ao inventário do personagem)
+    "chest_items": [],
+    # Inventário por personagem — {str(char_id): [{category, idx}]}
+    "char_inventories": {},
+    # Equipamentos por personagem — {str(char_id): {slot: {category,idx}|None}}
+    "char_equipped": {},
 }
 
 # Definição das Missões Diárias
@@ -393,11 +401,29 @@ def load_save():
                 if "gold" in loaded: save_data["gold"] = loaded["gold"]
                 if "perm_upgrades" in loaded: save_data["perm_upgrades"].update(loaded["perm_upgrades"])
                 if "stats" in loaded: save_data["stats"].update(loaded["stats"])
-                if "unlocks" in loaded: 
+                if "unlocks" in loaded:
                     for u in loaded["unlocks"]:
                         if u not in save_data["unlocks"]: save_data["unlocks"].append(u)
                 if "daily_missions" in loaded:
                     save_data["daily_missions"].update(loaded["daily_missions"])
+                if "purchased_items" in loaded:
+                    save_data["purchased_items"] = loaded["purchased_items"]
+                # chest_items: migrar de purchased_items se não existir ainda
+                if "chest_items" in loaded:
+                    save_data["chest_items"] = loaded["chest_items"]
+                elif save_data["chest_items"] == []:
+                    save_data["chest_items"] = list(save_data["purchased_items"])
+                if "char_inventories" in loaded:
+                    save_data["char_inventories"] = loaded["char_inventories"]
+                if "char_equipped" in loaded:
+                    save_data["char_equipped"] = loaded["char_equipped"]
+                elif "equipped_items" in loaded:
+                    # Migrar formato antigo (equipped_items global) → char 0
+                    ei = loaded["equipped_items"]
+                    save_data["char_equipped"]["0"] = {
+                        "helmet": None, "armor": None, "legs": None, "boots": None,
+                        "weapon": ei.get("weapon"), "shield": ei.get("shield"),
+                    }
         except: pass
     check_daily_reset()
 
@@ -416,6 +442,34 @@ def check_daily_reset():
             m_copy["claimed"] = False
             save_data["daily_missions"]["active"].append(m_copy)
         save_game()
+
+_EMPTY_EQUIPPED = lambda: {
+    "helmet": None, "armor": None, "legs": None,
+    "boots": None, "weapon": None, "shield": None,
+}
+
+def get_char_inventory(cid: int) -> list:
+    """Retorna (e garante existência de) o inventário do personagem cid."""
+    k = str(cid)
+    if k not in save_data["char_inventories"]:
+        save_data["char_inventories"][k] = []
+    return save_data["char_inventories"][k]
+
+def get_char_equipped(cid: int) -> dict:
+    """Retorna (e garante existência de) o dict de equipamentos do personagem cid."""
+    k = str(cid)
+    if k not in save_data["char_equipped"]:
+        save_data["char_equipped"][k] = _EMPTY_EQUIPPED()
+    return save_data["char_equipped"][k]
+
+# Categorias que vão para slot de arma
+_WEAPON_CATEGORIES = {"Espadas", "Machados", "Hammers", "Bows", "Crossbows", "Cajados"}
+
+def item_slot(category: str) -> str | None:
+    """Retorna o slot correto para uma categoria de item, ou None se não equipável."""
+    if category == "Escudos": return "shield"
+    if category in _WEAPON_CATEGORIES: return "weapon"
+    return None
 
 def update_mission_progress(m_type, amount, is_absolute=False):
     global save_data
@@ -939,6 +993,106 @@ BG_DATA = {
 BG_LOCKED = {"forest", "volcano", "ice"}
 
 # Loja de Itens — categorias e seus assets (nome do prefixo e quantidade de arquivos)
+# Estatísticas de cada item por categoria — ordem crescente de poder (estilo Diablo)
+# Cada lista corresponde aos itens 1..N da categoria.
+# "atk": bônus de ataque  |  "def": bônus de defesa  |  "price": custo em ouro
+ITEM_SHOP_STATS: dict[str, list[dict]] = {
+    "Espadas": [
+        {"name": "Espada Enferrujada",    "atk":  15, "def":  0, "price":  100},
+        {"name": "Espada de Ferro",        "atk":  22, "def":  0, "price":  150},
+        {"name": "Espada de Aço",          "atk":  30, "def":  1, "price":  200},
+        {"name": "Espada Curta",           "atk":  35, "def":  0, "price":  260},
+        {"name": "Espada de Bronze",       "atk":  42, "def":  0, "price":  320},
+        {"name": "Espada da Guarda",       "atk":  50, "def":  2, "price":  390},
+        {"name": "Espada Afiada",          "atk":  60, "def":  0, "price":  470},
+        {"name": "Espada de Prata",        "atk":  70, "def":  1, "price":  550},
+        {"name": "Espada de Brilho",       "atk":  80, "def":  2, "price":  640},
+        {"name": "Espadão",                "atk":  95, "def":  0, "price":  740},
+        {"name": "Espada da Tempestade",   "atk": 108, "def":  3, "price":  840},
+        {"name": "Espada do Cavaleiro",    "atk": 120, "def":  4, "price":  950},
+        {"name": "Espada de Flama",        "atk": 133, "def":  2, "price": 1060},
+        {"name": "Espada Negra",           "atk": 147, "def":  0, "price": 1180},
+        {"name": "Espada de Sombra",       "atk": 160, "def":  5, "price": 1300},
+        {"name": "Espada Encantada",       "atk": 172, "def":  6, "price": 1430},
+        {"name": "Espada do Caos",         "atk": 185, "def":  4, "price": 1560},
+        {"name": "Espada das Trevas",      "atk": 198, "def":  8, "price": 1700},
+        {"name": "Espada do Inferno",      "atk": 215, "def": 10, "price": 1850},
+        {"name": "Espada do Apocalipse",   "atk": 250, "def": 15, "price": 2100},
+    ],
+    "Machados": [
+        {"name": "Machado de Pedra",       "atk":  18, "def":  0, "price":  120},
+        {"name": "Machado de Osso",        "atk":  30, "def":  0, "price":  190},
+        {"name": "Machado Rústico",        "atk":  45, "def":  0, "price":  270},
+        {"name": "Machado de Ferro",       "atk":  62, "def":  0, "price":  360},
+        {"name": "Machado Afiado",         "atk":  80, "def":  0, "price":  460},
+        {"name": "Machado de Guerra",      "atk": 100, "def":  0, "price":  580},
+        {"name": "Machado Rúnico",         "atk": 125, "def":  0, "price":  710},
+        {"name": "Machado Sanguinário",    "atk": 150, "def":  0, "price":  860},
+        {"name": "Machado do Berserker",   "atk": 180, "def":  0, "price": 1020},
+        {"name": "Machado do Destruidor",  "atk": 220, "def":  0, "price": 1200},
+    ],
+    "Hammers": [
+        {"name": "Martelo de Madeira",     "atk":  20, "def":  0, "price":  130},
+        {"name": "Martelo Tosco",          "atk":  35, "def":  0, "price":  210},
+        {"name": "Martelo de Ferreiro",    "atk":  52, "def":  0, "price":  300},
+        {"name": "Martelo de Ferro",       "atk":  70, "def":  0, "price":  400},
+        {"name": "Martelo Sólido",         "atk":  90, "def":  0, "price":  510},
+        {"name": "Martelo de Guerra",      "atk": 115, "def":  0, "price":  640},
+        {"name": "Martelo Rúnico",         "atk": 140, "def":  0, "price":  780},
+        {"name": "Martelo do Ogro",        "atk": 170, "def":  0, "price":  930},
+        {"name": "Martelo do Caos",        "atk": 200, "def":  0, "price": 1100},
+        {"name": "Martelo do Titã",        "atk": 240, "def":  0, "price": 1300},
+    ],
+    "Escudos": [
+        {"name": "Escudo de Madeira",      "atk":   0, "def":  10, "price":   90},
+        {"name": "Escudo de Couro",        "atk":   0, "def":  18, "price":  160},
+        {"name": "Escudo de Bronze",       "atk":   0, "def":  28, "price":  240},
+        {"name": "Escudo de Ferro",        "atk":   0, "def":  40, "price":  330},
+        {"name": "Escudo do Guerreiro",    "atk":   0, "def":  55, "price":  430},
+        {"name": "Escudo de Prata",        "atk":   0, "def":  72, "price":  550},
+        {"name": "Escudo Rúnico",          "atk":   0, "def":  90, "price":  680},
+        {"name": "Escudo de Mithril",      "atk":   0, "def": 110, "price":  830},
+        {"name": "Escudo Abençoado",       "atk":   0, "def": 135, "price": 1000},
+        {"name": "Escudo do Arcanjo",      "atk":   0, "def": 165, "price": 1200},
+    ],
+    "Bows": [
+        {"name": "Arco Primitivo",         "atk":  10, "def":  0, "price":   80},
+        {"name": "Arco Simples",           "atk":  18, "def":  0, "price":  140},
+        {"name": "Arco de Caçador",        "atk":  28, "def":  0, "price":  200},
+        {"name": "Arco Recurvo",           "atk":  40, "def":  0, "price":  270},
+        {"name": "Arco de Madeira Nobre",  "atk":  55, "def":  0, "price":  350},
+        {"name": "Arco do Explorador",     "atk":  72, "def":  0, "price":  440},
+        {"name": "Arco Élfico",            "atk":  92, "def":  0, "price":  540},
+        {"name": "Arco da Tempestade",     "atk": 115, "def":  0, "price":  650},
+        {"name": "Arco Sombrio",           "atk": 142, "def":  0, "price":  770},
+        {"name": "Arco do Destino",        "atk": 175, "def":  0, "price":  910},
+    ],
+    "Crossbows": [
+        {"name": "Besta Simples",          "atk":  13, "def":  0, "price":   90},
+        {"name": "Besta de Madeira",       "atk":  22, "def":  0, "price":  155},
+        {"name": "Besta de Ferro",         "atk":  33, "def":  0, "price":  220},
+        {"name": "Besta Mecanizada",       "atk":  46, "def":  0, "price":  295},
+        {"name": "Besta de Precisão",      "atk":  62, "def":  0, "price":  380},
+        {"name": "Besta do Caçador",       "atk":  80, "def":  0, "price":  475},
+        {"name": "Besta Rúnica",           "atk": 102, "def":  0, "price":  580},
+        {"name": "Besta das Sombras",      "atk": 128, "def":  0, "price":  700},
+        {"name": "Besta Infernal",         "atk": 158, "def":  0, "price":  830},
+        {"name": "Besta do Apocalipse",    "atk": 195, "def":  0, "price":  980},
+    ],
+    "Cajados": [
+        {"name": "Cajado de Aprendiz",     "atk":   8, "def":  2, "price":  100},
+        {"name": "Cajado de Madeira",      "atk":  14, "def":  3, "price":  160},
+        {"name": "Cajado do Viajante",     "atk":  22, "def":  4, "price":  230},
+        {"name": "Cajado de Cristal",      "atk":  32, "def":  6, "price":  310},
+        {"name": "Cajado de Lava",         "atk":  45, "def":  8, "price":  400},
+        {"name": "Cajado das Trevas",      "atk":  60, "def": 10, "price":  500},
+        {"name": "Cajado Arcano",          "atk":  78, "def": 12, "price":  610},
+        {"name": "Cajado de Pedra Rúnica", "atk": 100, "def": 15, "price":  730},
+        {"name": "Cajado do Abismo",       "atk": 128, "def": 18, "price":  860},
+        {"name": "Cajado do Lich",         "atk": 160, "def": 22, "price": 1000},
+    ],
+}
+
 ITEM_SHOP_CATEGORIES = {
     "Espadas":   {"prefix": "Espadas",   "count": 20, "price": 0, "desc": ""},
     "Machados":  {"prefix": "Machados",  "count": 10, "price": 0, "desc": ""},
@@ -948,7 +1102,8 @@ ITEM_SHOP_CATEGORIES = {
     "Crossbows": {"prefix": "Crossbows", "count": 10, "price": 0, "desc": ""},
     "Cajados":   {"prefix": "Cajados",   "count": 10, "price": 0, "desc": ""},
 }
-ITEM_SHOP_TABS = ["ARMAS/ESCUDOS", "ARMADURAS", "UTILITÁRIOS"]
+ITEM_SHOP_TABS = ["ARMAS/ESCUDOS", "ARMADURAS", "UTILITÁRIOS", "VENDER"]
+_ITEM_SHOP_SELL_TAB = 3   # índice da aba de venda
 
 # Multiplicadores permanentes (serão sobrescritos em reset_game)
 CRIT_DMG_MULT = 2.0
@@ -2363,6 +2518,17 @@ def reset_game(char_id=0):
     PLAYER_SPEED = char_data["speed"]
     PROJECTILE_DMG = char_data.get("damage", 2)
     SHOT_COOLDOWN = 0.35
+
+    # Aplicar bônus de equipamento (arma e escudo da loja de itens)
+    _eq        = get_char_equipped(char_id)
+    _eq_weapon = _eq.get("weapon")
+    _eq_shield = _eq.get("shield")
+    if _eq_weapon:
+        _wcat   = _eq_weapon.get("category", "")
+        _widx   = _eq_weapon.get("idx", 0)
+        _wstats = ITEM_SHOP_STATS.get(_wcat, [])
+        if _widx < len(_wstats):
+            PROJECTILE_DMG += _wstats[_widx].get("atk", 0)
     PROJECTILE_SPEED = 560.0
     PICKUP_RANGE = 50.0
     AURA_DMG = 0
@@ -2383,6 +2549,12 @@ def reset_game(char_id=0):
     HAS_CHAOS_BOLT = pu.get("chaos_bolt", 0) >= 1
     REGEN_RATE = pu.get("regen", 0) * 0.1
     DAMAGE_RES = pu.get("aura_res", 0) * 0.10
+    if _eq_shield:
+        _scat   = _eq_shield.get("category", "Escudos")
+        _sidx   = _eq_shield.get("idx", 0)
+        _sstats = ITEM_SHOP_STATS.get(_scat, [])
+        if _sidx < len(_sstats):
+            DAMAGE_RES = min(0.80, DAMAGE_RES + _sstats[_sidx].get("def", 0) / 300.0)
     THORNS_PERCENT = 0.20 if pu.get("thorns", 0) >= 1 else 0.0
     FIRE_DMG_MULT = 1.0 + pu.get("fire_dmg", 0) * 0.15
     BURN_AURA_MULT = 1.0 + pu.get("burn_area", 0) * 0.20
@@ -2950,9 +3122,11 @@ def main():
         _btn.rect.topleft = (_tx, int(SCREEN_H * 0.13))
         _btn.sprite_idx = _ti % 7
         item_shop_tab_btns.append(_btn)
-    item_shop_active_tab = 0
-    item_shop_scroll_y   = 0   # posição de scroll em pixels
-    _item_shop_img_cache = {}  # cache de imagens da loja
+    item_shop_active_tab    = 0
+    item_shop_scroll_y      = 0       # posição de scroll em pixels
+    item_shop_sell_selected = None    # item selecionado para vender: {"item":{cat,idx},"source","cid"}
+    item_shop_confirm       = None    # item aguardando confirmação de compra: {category,idx,price,name,st}
+    _item_shop_img_cache    = {}      # cache de imagens da loja
     shop_talent_btns = []
     shop_talent_btn_map = {}
     path_names = list(TALENT_TREE.keys())
@@ -3089,7 +3263,12 @@ def main():
     hub_countdown_active = False
     hub_countdown_timer  = 0.0
     hub_pronto_btn = Button(0.920, 0.50, 200, BTN_H, "PRONTO", font_m, color=(30, 80, 30))
-    hub_return = False   # True when SHOP/ITEM_SHOP was opened from HUB
+    hub_return         = False   # True when SHOP/ITEM_SHOP was opened from HUB
+    hub_chest_open     = False   # Janela do Baú (F key — abre baú + inventário)
+    hub_equip_open     = False   # Janela de Equipamento (I key — layout Diablo)
+    hub_status_open    = False   # Janela de Status (C key)
+    # Item sendo arrastado/movido: {"cat": str, "idx": int, "from": "chest"|"inventory"}
+    _drag_item: dict | None = None
 
     # Fila de horda e obstáculos graduais (inicializados aqui para o caso
     # de o loop começar antes de reset_game ser chamado)
@@ -3201,11 +3380,36 @@ def main():
                         state = "PLAYING"
                         continue
 
+                if state == "HUB" and event.key == pygame.K_f:
+                    if hub_chest_open:
+                        hub_chest_open = False
+                        _drag_item     = None
+                        if snd_click: snd_click.play()
+                    elif hub_scene is not None and hub_scene.player_near_chest:
+                        hub_chest_open = True
+                        _drag_item     = None
+                        if snd_click: snd_click.play()
+
+                if state == "HUB" and event.key == pygame.K_i:
+                    hub_equip_open = not hub_equip_open
+                    _drag_item     = None
+                    if snd_click: snd_click.play()
+
+                if state == "HUB" and event.key == pygame.K_c:
+                    hub_status_open = not hub_status_open
+                    if snd_click: snd_click.play()
+
                 if event.key == pygame.K_ESCAPE:
                     if state == "HUB":
-                        hub_countdown_active = False
-                        hub_countdown_timer  = 0.0
-                        state = "PACT_SELECT"
+                        if hub_chest_open or hub_equip_open or hub_status_open:
+                            hub_chest_open  = False
+                            hub_equip_open  = False
+                            hub_status_open = False
+                            _drag_item      = None
+                        else:
+                            hub_countdown_active = False
+                            hub_countdown_timer  = 0.0
+                            state = "PACT_SELECT"
                     elif state == "PLAYING": state = "PAUSED"
                     elif state == "PAUSED": state = "PLAYING"
                     elif state == "SETTINGS":
@@ -3248,8 +3452,28 @@ def main():
                             play_sfx("ult")
                             push_skill_feed(ultimate_feedback.log_text, ultimate_feedback.log_color)
             
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     click_pos = event.pos
+
+                    # Diálogo de confirmação de compra (prioridade máxima)
+                    if item_shop_confirm is not None and state == "ITEM_SHOP":
+                        _cfd_w = 420; _cfd_h = 220
+                        _cfd_x = (SCREEN_W - _cfd_w) // 2; _cfd_y = (SCREEN_H - _cfd_h) // 2
+                        _cfd_sim = pygame.Rect(_cfd_x + 40,  _cfd_y + 150, 140, 44)
+                        _cfd_nao = pygame.Rect(_cfd_x + 240, _cfd_y + 150, 140, 44)
+                        if _cfd_sim.collidepoint(click_pos):
+                            _cf = item_shop_confirm
+                            save_data["gold"] -= _cf["price"]
+                            save_data["purchased_items"].append({"category": _cf["category"], "idx": _cf["idx"]})
+                            save_data["chest_items"].append({"category": _cf["category"], "idx": _cf["idx"]})
+                            item_shop_confirm = None
+                            save_game()
+                            if snd_click: snd_click.play()
+                        elif _cfd_nao.collidepoint(click_pos):
+                            item_shop_confirm = None
+                            if snd_click: snd_click.play()
+                        # Bloqueia qualquer outro clique enquanto o diálogo está aberto
+                        continue
 
                     if state == "SETTINGS":
                         start_settings_drag(click_pos)
@@ -3279,6 +3503,121 @@ def main():
                                 menu_exit_timer = MENU_EXIT_DURATION
 
                     elif state == "HUB":
+                        # ── Clique nas janelas Baú / Equipamento ──────────────
+                        if hub_chest_open or hub_equip_open:
+                            _cid2        = player.char_id if player else 0
+                            _chest_list2 = save_data["chest_items"]
+                            _inv_list2   = get_char_inventory(_cid2)
+                            _equipped2   = get_char_equipped(_cid2)
+                            _SL2 = 52; _PD2 = 6; _PW2 = 190; _DW2 = 280
+                            _sc2 = hub_chest_open; _se2 = hub_equip_open
+                            _tot2 = (_PW2 if _sc2 else 0) + (_DW2 if _se2 else 0) + _PW2 + 10
+                            _ww2 = max(400, min(_tot2 + 20, int(SCREEN_W * 0.95)))
+                            _wh2 = min(540, int(SCREEN_H * 0.82))
+                            _wx2 = (SCREEN_W - _ww2) // 2
+                            _wy2 = (SCREEN_H - _wh2) // 2
+                            _cx2 = _wx2 + 10
+                            _cox2 = _cx2 if _sc2 else None
+                            if _sc2: _cx2 += _PW2 + 4
+                            _dox2 = _cx2 if _se2 else None
+                            if _se2: _cx2 += _DW2 + 4
+                            _iox2 = _cx2
+                            _iy02 = _wy2 + 66
+
+                            def _ghit2(items, ox, oy):
+                                _cols2 = max(1, (_PW2 - 4) // (_SL2 + _PD2))
+                                _ix2, _iy2 = ox, oy
+                                for _i2, _itm2 in enumerate(items):
+                                    if pygame.Rect(_ix2, _iy2, _SL2, _SL2).collidepoint(click_pos):
+                                        return _i2
+                                    _c2 = (_i2 + 1) % _cols2
+                                    if _c2 == 0: _ix2 = ox; _iy2 += _SL2 + _PD2
+                                    else: _ix2 += _SL2 + _PD2
+                                return -1
+
+                            _hc2 = _ghit2(_chest_list2, _cox2 or 0, _iy02) if _cox2 is not None else -1
+                            _hi2 = _ghit2(_inv_list2, _iox2, _iy02)
+
+                            # Diablo slot hit (weapon/shield only)
+                            _dslot_hit2 = None
+                            if _dox2 is not None:
+                                _DS2 = 56; _dc2c = _dox2 + _DW2 // 2
+                                _dlayout2 = {
+                                    "weapon": pygame.Rect(_dox2 + 16,                  _wy2 + 136, _DS2, _DS2),
+                                    "shield": pygame.Rect(_dox2 + _DW2 - _DS2 - 16,   _wy2 + 136, _DS2, _DS2),
+                                }
+                                for _sk2c, _sr2c in _dlayout2.items():
+                                    if _sr2c.collidepoint(click_pos):
+                                        _dslot_hit2 = _sk2c; break
+
+                            if _hc2 >= 0 and _hc2 < len(_chest_list2):
+                                _item2 = _chest_list2[_hc2]
+                                if _drag_item and _drag_item.get("from") == "chest" and _drag_item.get("_idx") == _hc2:
+                                    _drag_item = None
+                                elif _drag_item and _drag_item.get("from") == "inventory":
+                                    _moved2 = _inv_list2.pop(_drag_item["_idx"])
+                                    _chest_list2.insert(_hc2, _moved2)
+                                    _drag_item = None; save_game()
+                                else:
+                                    _drag_item = {"item": _item2, "from": "chest", "_idx": _hc2}
+                                if snd_click: snd_click.play()
+
+                            elif _hi2 >= 0 and _hi2 < len(_inv_list2):
+                                _item2 = _inv_list2[_hi2]
+                                _islot2 = item_slot(_item2.get("category", ""))
+                                if _drag_item and _drag_item.get("from") == "inventory" and _drag_item.get("_idx") == _hi2:
+                                    _drag_item = None
+                                elif _drag_item and _drag_item.get("from") == "chest":
+                                    _moved2 = _chest_list2.pop(_drag_item["_idx"])
+                                    _inv_list2.insert(_hi2, _moved2)
+                                    _drag_item = None; save_game()
+                                elif _se2 and _islot2 in ("weapon", "shield") and not _drag_item:
+                                    # Clique direto equipa quando janela de equip está aberta
+                                    _old_eq2 = _equipped2.get(_islot2)
+                                    _equipped2[_islot2] = {"category": _item2["category"], "idx": _item2["idx"]}
+                                    _inv_list2.pop(_hi2)
+                                    if _old_eq2: _inv_list2.append(_old_eq2)
+                                    save_game()
+                                else:
+                                    _drag_item = {"item": _item2, "from": "inventory", "_idx": _hi2}
+                                if snd_click: snd_click.play()
+
+                            elif _dslot_hit2 is not None:
+                                if _drag_item:
+                                    _di2  = _drag_item["item"]
+                                    _dsl2 = item_slot(_di2.get("category", ""))
+                                    if _dsl2 == _dslot_hit2:
+                                        _old_eq2b = _equipped2.get(_dslot_hit2)
+                                        _equipped2[_dslot_hit2] = {"category": _di2["category"], "idx": _di2["idx"]}
+                                        if _drag_item.get("from") == "chest": _chest_list2.pop(_drag_item["_idx"])
+                                        elif _drag_item.get("from") == "inventory": _inv_list2.pop(_drag_item["_idx"])
+                                        if _old_eq2b: _inv_list2.append(_old_eq2b)
+                                        _drag_item = None; save_game()
+                                        if snd_click: snd_click.play()
+                                elif _equipped2.get(_dslot_hit2):
+                                    _inv_list2.append(_equipped2[_dslot_hit2])
+                                    _equipped2[_dslot_hit2] = None
+                                    save_game()
+                                    if snd_click: snd_click.play()
+
+                            elif _drag_item:
+                                # Soltar em área vazia do painel de destino
+                                _src2 = _drag_item.get("from")
+                                _inv_area2   = pygame.Rect(_iox2, _wy2 + 46, _PW2, _wh2 - 50)
+                                _chest_area2 = pygame.Rect(_cox2, _wy2 + 46, _PW2, _wh2 - 50) if _cox2 else None
+                                if _src2 == "chest" and _inv_area2.collidepoint(click_pos):
+                                    _moved2 = _chest_list2.pop(_drag_item["_idx"])
+                                    _inv_list2.append(_moved2)
+                                    _drag_item = None
+                                    save_game()
+                                    if snd_click: snd_click.play()
+                                elif _src2 == "inventory" and _chest_area2 and _chest_area2.collidepoint(click_pos):
+                                    _moved2 = _inv_list2.pop(_drag_item["_idx"])
+                                    _chest_list2.append(_moved2)
+                                    _drag_item = None
+                                    save_game()
+                                    if snd_click: snd_click.play()
+
                         # Botões do painel lateral direito
                         if hub_pronto_btn.rect.collidepoint(click_pos) and not hub_countdown_active:
                             hub_countdown_active = True
@@ -3349,12 +3688,108 @@ def main():
                         else:
                             for _ti, _tbtn in enumerate(item_shop_tab_btns):
                                 if _tbtn.rect.collidepoint(click_pos):
-                                    if _ti == 0:
-                                        item_shop_active_tab = 0
-                                        item_shop_scroll_y   = 0
+                                    if _ti in (0, _ITEM_SHOP_SELL_TAB):
+                                        item_shop_active_tab    = _ti
+                                        item_shop_scroll_y      = 0
+                                        item_shop_sell_selected = None
                                         if snd_click: snd_click.play()
                                     else:
                                         push_skill_feed("Em breve!", (180, 180, 180))
+                            # Compra de item ao clicar num slot
+                            if item_shop_active_tab == 0:
+                                _SLOT = 72; _PAD = 8
+                                _itens_dir = os.path.join("assets", "ui", "itens")
+                                _cx0 = int(SCREEN_W * 0.05); _cy0 = int(SCREEN_H * 0.21)
+                                _cw  = int(SCREEN_W * 0.90); _SB_W = 14
+                                _grid_w = _cw - _SB_W - 8
+                                _COLS = max(1, (_grid_w - 16) // (_SLOT + _PAD))
+                                _draw_x = _cx0 + 12; _draw_y = _cy0 + 12 - item_shop_scroll_y
+                                _clip_rect = pygame.Rect(_cx0 + 4, _cy0 + 4, _grid_w, int(SCREEN_H * 0.67) - 8)
+                                for _cname, _cdat in ITEM_SHOP_CATEGORIES.items():
+                                    _draw_y += 30; _col = 0; _draw_x = _cx0 + 12
+                                    _stats_list = ITEM_SHOP_STATS.get(_cname, [])
+                                    for _n in range(1, _cdat["count"] + 1):
+                                        _sr = pygame.Rect(_draw_x, _draw_y, _SLOT, _SLOT)
+                                        if _sr.collidepoint(click_pos) and _clip_rect.collidepoint(click_pos):
+                                            _idx = _n - 1
+                                            _st  = _stats_list[_idx] if _idx < len(_stats_list) else {}
+                                            _price = _st.get("price", 0)
+                                            _key   = {"category": _cname, "idx": _idx}
+                                            _owned = _key in save_data["purchased_items"]
+                                            if not _owned and _price > 0 and save_data["gold"] >= _price:
+                                                item_shop_confirm = {
+                                                    "category": _cname, "idx": _idx,
+                                                    "price": _price, "st": _st,
+                                                }
+                                                if snd_click: snd_click.play()
+                                            elif _owned:
+                                                push_skill_feed("Item já comprado!", (180, 180, 80))
+                                            else:
+                                                push_skill_feed("Ouro insuficiente!", (200, 60, 60))
+                                        _col += 1
+                                        if _col >= _COLS: _col = 0; _draw_x = _cx0 + 12; _draw_y += _SLOT + _PAD
+                                        else: _draw_x += _SLOT + _PAD
+                                    if _col > 0: _draw_x = _cx0 + 12; _draw_y += _SLOT + _PAD
+                                    _draw_y += 10
+
+                            # ── Aba VENDER: clique para selecionar/confirmar venda ──
+                            if item_shop_active_tab == _ITEM_SHOP_SELL_TAB:
+                                _sv_SLOT = 72; _sv_PAD = 8
+                                _sv_cx0 = int(SCREEN_W * 0.05); _sv_cy0 = int(SCREEN_H * 0.21)
+                                _sv_cw  = int(SCREEN_W * 0.90); _sv_SB_W = 14
+                                _sv_gw  = _sv_cw - _sv_SB_W - 8
+                                _sv_COLS = max(1, (_sv_gw - 16) // (_sv_SLOT + _sv_PAD))
+                                _sv_clip = pygame.Rect(_sv_cx0+4, _sv_cy0+4, _sv_gw, int(SCREEN_H*0.67)-8)
+
+                                # Monta lista de itens vendáveis
+                                _sv_items = []
+                                for _svi in save_data["chest_items"]:
+                                    _sv_items.append({"item": _svi, "source": "chest", "cid": None})
+                                for _svcid, _svinv in save_data["char_inventories"].items():
+                                    for _svi in _svinv:
+                                        _sv_items.append({"item": _svi, "source": "inventory", "cid": _svcid})
+
+                                _sv_dx = _sv_cx0 + 12; _sv_dy = _sv_cy0 + 12 - item_shop_scroll_y
+                                for _svi2, _sventry in enumerate(_sv_items):
+                                    _svr = pygame.Rect(_sv_dx, _sv_dy, _sv_SLOT, _sv_SLOT)
+                                    if _svr.collidepoint(click_pos) and _sv_clip.collidepoint(click_pos):
+                                        _is_sel = (item_shop_sell_selected is not None and
+                                                   item_shop_sell_selected.get("item") == _sventry["item"] and
+                                                   item_shop_sell_selected.get("source") == _sventry["source"] and
+                                                   item_shop_sell_selected.get("cid") == _sventry["cid"])
+                                        if _is_sel:
+                                            # Segunda clique → vender
+                                            _sv_it  = _sventry["item"]
+                                            _sv_cat = _sv_it.get("category", ""); _sv_idx = _sv_it.get("idx", 0)
+                                            _sv_st  = ITEM_SHOP_STATS.get(_sv_cat, [{}])
+                                            _sv_st  = _sv_st[_sv_idx] if _sv_idx < len(_sv_st) else {}
+                                            _sv_price = max(1, _sv_st.get("price", 0) // 2)
+                                            # Remove de chest ou inventory
+                                            if _sventry["source"] == "chest":
+                                                try: save_data["chest_items"].remove(_sv_it)
+                                                except ValueError: pass
+                                            else:
+                                                _cid_sv = _sventry.get("cid", "0")
+                                                _inv_sv = save_data["char_inventories"].get(_cid_sv, [])
+                                                try: _inv_sv.remove(_sv_it)
+                                                except ValueError: pass
+                                            # Remove de purchased_items para poder recomprar
+                                            _sv_key = {"category": _sv_cat, "idx": _sv_idx}
+                                            try: save_data["purchased_items"].remove(_sv_key)
+                                            except ValueError: pass
+                                            save_data["gold"] += _sv_price
+                                            item_shop_sell_selected = None
+                                            save_game()
+                                            push_skill_feed(f"+{_sv_price} ouro", (220, 200, 80))
+                                            if snd_click: snd_click.play()
+                                        else:
+                                            # Primeiro clique → selecionar
+                                            item_shop_sell_selected = dict(_sventry)
+                                            if snd_click: snd_click.play()
+                                        break
+                                    _sv_c = (_svi2 + 1) % _sv_COLS
+                                    if _sv_c == 0: _sv_dx = _sv_cx0+12; _sv_dy += _sv_SLOT + _sv_PAD
+                                    else: _sv_dx += _sv_SLOT + _sv_PAD
 
                     elif state == "CHAR_SELECT":
                         if char_back_btn.rect.collidepoint(click_pos):
@@ -3576,7 +4011,9 @@ def main():
                     elif state in ["CHAR_SELECT", "MISSIONS", "BG_SELECT", "SAVES"]:
                         state = "MENU"
                     elif state in ["SHOP", "ITEM_SHOP"]:
-                        if hub_return and hub_scene is not None:
+                        if item_shop_confirm is not None:
+                            item_shop_confirm = None
+                        elif hub_return and hub_scene is not None:
                             hub_return = False
                             state = "HUB"
                         else:
@@ -3662,7 +4099,8 @@ def main():
         # 3a. Lógica do Hub Room
         if state == "HUB" and hub_scene is not None:
             keys = pygame.key.get_pressed()
-            hub_scene.update(dt, keys, SCREEN_W, SCREEN_H)
+            hub_scene.update(dt, keys, SCREEN_W, SCREEN_H,
+                             suppress_transitions=hub_chest_open or hub_equip_open or hub_status_open)
             if hub_countdown_active:
                 hub_countdown_timer -= dt
                 if hub_countdown_timer <= 0.0:
@@ -4472,6 +4910,8 @@ def main():
 
             # Título (sem painel/retângulo de fundo)
             draw_screen_title(screen, font_l, "LOJA DE ITENS", SCREEN_W // 2, int(SCREEN_H * 0.075))
+            _is_gold_txt = font_m.render(f"OURO: {save_data['gold']}", True, UI_THEME["faded_gold"])
+            screen.blit(_is_gold_txt, _is_gold_txt.get_rect(topright=(SCREEN_W - 30, 20)))
 
             # Abas (tabs) — desenhadas manualmente para controle total de cor
             _tab_w_actual = max(180, SCREEN_W // (len(ITEM_SHOP_TABS) + 1))
@@ -4481,17 +4921,34 @@ def main():
                 _tbtn.rect.height  = 42
                 _tbtn.rect.topleft = (int(SCREEN_W * 0.05) + _ti * (_tab_w_actual + 8), int(SCREEN_H * 0.135))
                 _is_active   = (_ti == item_shop_active_tab)
-                _is_tab_lock = (_ti > 0)
+                _is_tab_lock = (_ti in (1, 2))   # ARMADURAS e UTILITÁRIOS ainda em breve
 
                 # Fundo da aba
-                _tab_bg = (50, 40, 28) if _is_active else (28, 22, 16)
+                if _is_active:
+                    _tab_bg = (50, 40, 28)
+                elif _ti == _ITEM_SHOP_SELL_TAB:
+                    _tab_bg = (30, 20, 20)
+                else:
+                    _tab_bg = (28, 22, 16)
                 pygame.draw.rect(screen, _tab_bg, _tbtn.rect, border_radius=6)
-                # Borda: branca fina se ativa, cinza escuro se bloqueada
-                _tab_border = (180, 160, 100) if _is_active else (60, 50, 40)
+                # Borda
+                if _is_active:
+                    _tab_border = (180, 160, 100)
+                elif _ti == _ITEM_SHOP_SELL_TAB:
+                    _tab_border = (140, 60, 60)
+                else:
+                    _tab_border = (60, 50, 40)
                 pygame.draw.rect(screen, _tab_border, _tbtn.rect, 1, border_radius=6)
 
                 # Texto da aba
-                _tab_color = (220, 200, 140) if _is_active else (200, 60, 60)
+                if _is_active:
+                    _tab_color = (220, 200, 140)
+                elif _is_tab_lock:
+                    _tab_color = (200, 60, 60)
+                elif _ti == _ITEM_SHOP_SELL_TAB:
+                    _tab_color = (220, 120, 100)
+                else:
+                    _tab_color = (200, 180, 120)
                 _tab_surf  = font_s.render(_tlabel, True, _tab_color)
                 screen.blit(_tab_surf, _tab_surf.get_rect(center=_tbtn.rect.center))
 
@@ -4536,6 +4993,9 @@ def main():
                     _col = 0
                     _draw_x = _cx0 + 12
 
+                    _stats_list = ITEM_SHOP_STATS.get(_cname, [])
+                    _tooltip_data = None   # (rect, stat_dict) do item em hover
+
                     for _n in range(1, _cdat["count"] + 1):
                         _fname = f"{_cdat['prefix']} ({_n}).png"
 
@@ -4552,17 +5012,37 @@ def main():
                             else:
                                 _item_shop_img_cache[_fname] = None
 
+                        _idx  = _n - 1
+                        _st   = _stats_list[_idx] if _idx < len(_stats_list) else {}
+                        _owned = {"category": _cname, "idx": _idx} in save_data["purchased_items"]
+
                         _sr   = pygame.Rect(_draw_x, _draw_y, _SLOT, _SLOT)
                         _shov = _sr.collidepoint(m_pos) and _clip_rect.collidepoint(m_pos)
-                        _scol = (65, 52, 32) if _shov else (35, 28, 20)
+
+                        # Fundo: verde escuro se comprado, laranja se hover, normal se não
+                        if _owned:
+                            _scol = (20, 60, 20)
+                        elif _shov:
+                            _scol = (65, 52, 32)
+                        else:
+                            _scol = (35, 28, 20)
                         pygame.draw.rect(screen, _scol, _sr, border_radius=5)
-                        pygame.draw.rect(screen,
-                                         UI_THEME["old_gold"] if _shov else UI_THEME["iron"],
-                                         _sr, 2 if _shov else 1, border_radius=5)
+
+                        # Borda: ouro se hover/comprado, ferro se normal
+                        _border_col = UI_THEME["old_gold"] if (_shov or _owned) else UI_THEME["iron"]
+                        pygame.draw.rect(screen, _border_col, _sr, 2 if (_shov or _owned) else 1, border_radius=5)
+
+                        # Ícone de comprado (✓)
+                        if _owned:
+                            _chk = font_s.render("✓", True, (80, 220, 80))
+                            screen.blit(_chk, (_sr.right - _chk.get_width() - 3, _sr.top + 2))
 
                         _img = _item_shop_img_cache.get(_fname)
                         if _img:
                             screen.blit(_img, _img.get_rect(center=_sr.center))
+
+                        if _shov and _st:
+                            _tooltip_data = (_sr, _st)
 
                         _col += 1
                         if _col >= _COLS:
@@ -4577,6 +5057,36 @@ def main():
                         _draw_y += _SLOT + _PAD
                     _draw_y += 10  # espaço entre subcategorias
 
+                    # Tooltip do item em hover (desenhado fora do clip)
+                    if _tooltip_data:
+                        screen.set_clip(None)
+                        _tsr, _tst = _tooltip_data
+                        _tname  = _tst.get("name", "")
+                        _tatk   = _tst.get("atk", 0)
+                        _tdef   = _tst.get("def", 0)
+                        _tprice = _tst.get("price", 0)
+                        _tlines = [_tname]
+                        if _tatk > 0: _tlines.append(f"ATQ: +{_tatk}")
+                        if _tdef > 0: _tlines.append(f"DEF: +{_tdef}")
+                        _tlines.append(f"Preco: {_tprice} ouro")
+                        _tpad = 8
+                        _tw   = max(font_s.size(l)[0] for l in _tlines) + _tpad * 2
+                        _th   = len(_tlines) * 20 + _tpad * 2
+                        _tx   = min(_tsr.right + 4, SCREEN_W - _tw - 4)
+                        _ty   = max(4, _tsr.top - _th // 2)
+                        _trect = pygame.Rect(_tx, _ty, _tw, _th)
+                        _t_surf = pygame.Surface((_tw, _th), pygame.SRCALPHA)
+                        _t_surf.fill((18, 14, 10, 220))
+                        screen.blit(_t_surf, _trect.topleft)
+                        pygame.draw.rect(screen, UI_THEME["old_gold"], _trect, 1, border_radius=4)
+                        for _li, _ll in enumerate(_tlines):
+                            _lc = UI_THEME["old_gold"] if _li == 0 else (200, 190, 160)
+                            if "ATQ" in _ll: _lc = (220, 100, 60)
+                            elif "DEF" in _ll: _lc = (80, 160, 220)
+                            elif "Preco" in _ll: _lc = UI_THEME["faded_gold"]
+                            screen.blit(font_s.render(_ll, True, _lc), (_tx + _tpad, _ty + _tpad + _li * 20))
+                        screen.set_clip(_clip_rect)
+
                 screen.set_clip(None)
 
                 # ── Scrollbar vertical ─────────────────────────────────────────
@@ -4590,8 +5100,226 @@ def main():
                     pygame.draw.rect(screen, UI_THEME["faded_gold"], _thumb, border_radius=5)
                     pygame.draw.rect(screen, UI_THEME["old_gold"], _thumb, 1, border_radius=5)
 
+            # ── Aba VENDER ────────────────────────────────────────────────────
+            if item_shop_active_tab == _ITEM_SHOP_SELL_TAB:
+                _sv_SLOT = 72; _sv_PAD = 8
+                _sv_cx0  = int(SCREEN_W * 0.05); _sv_cy0 = int(SCREEN_H * 0.21)
+                _sv_cw   = int(SCREEN_W * 0.90); _sv_ch  = int(SCREEN_H * 0.67)
+                _sv_SB_W = 14; _sv_gw = _sv_cw - _sv_SB_W - 8
+                _sv_COLS = max(1, (_sv_gw - 16) // (_sv_SLOT + _sv_PAD))
+                _sv_itens_dir = os.path.join("assets", "ui", "itens")
+
+                # Lista de itens vendáveis: chest + todas as char_inventories
+                _sv_all = []
+                for _svi in save_data["chest_items"]:
+                    _sv_all.append({"item": _svi, "source": "chest", "cid": None})
+                for _svcid, _svinv in save_data["char_inventories"].items():
+                    for _svi in _svinv:
+                        _sv_all.append({"item": _svi, "source": "inventory", "cid": _svcid})
+
+                # Altura total para scroll
+                _sv_rows  = math.ceil(len(_sv_all) / _sv_COLS) if _sv_all else 1
+                _sv_total = _sv_rows * (_sv_SLOT + _sv_PAD) + 40
+                _sv_max_s = max(0, _sv_total - _sv_ch + 16)
+                item_shop_scroll_y = max(0, min(item_shop_scroll_y, _sv_max_s))
+
+                _sv_clip = pygame.Rect(_sv_cx0+4, _sv_cy0+4, _sv_gw, _sv_ch-8)
+                screen.set_clip(_sv_clip)
+
+                _sv_dx = _sv_cx0 + 12
+                _sv_dy = _sv_cy0 + 12 - item_shop_scroll_y
+
+                # Subtítulo
+                _sv_lbl = font_s.render("Clique uma vez para selecionar • Clique novamente para confirmar venda (50% do preço)", True, (160,130,90))
+                screen.blit(_sv_lbl, (_sv_dx, _sv_dy))
+                _sv_dy += 28
+
+                _sv_tooltip_data = None
+
+                if not _sv_all:
+                    screen.set_clip(None)
+                    _sv_empty = font_m.render("Nenhum item para vender.", True, (140, 120, 80))
+                    screen.blit(_sv_empty, _sv_empty.get_rect(center=(_sv_cx0+_sv_cw//2, _sv_cy0+_sv_ch//2)))
+                else:
+                    for _svi2, _sventry in enumerate(_sv_all):
+                        _sv_it  = _sventry["item"]
+                        _sv_cat = _sv_it.get("category",""); _sv_idx = _sv_it.get("idx",0)
+                        _sv_cdat = ITEM_SHOP_CATEGORIES.get(_sv_cat,{})
+                        _sv_fn  = f"{_sv_cdat.get('prefix',_sv_cat)} ({_sv_idx+1}).png"
+                        _sv_st2 = ITEM_SHOP_STATS.get(_sv_cat,[{}])
+                        _sv_st2 = _sv_st2[_sv_idx] if _sv_idx < len(_sv_st2) else {}
+                        _sv_sell_price = max(1, _sv_st2.get("price",0)//2)
+
+                        _svr = pygame.Rect(_sv_dx, _sv_dy, _sv_SLOT, _sv_SLOT)
+                        _sv_hov = _svr.collidepoint(m_pos) and _sv_clip.collidepoint(m_pos)
+                        _sv_is_sel = (item_shop_sell_selected is not None and
+                                      item_shop_sell_selected.get("item") == _sv_it and
+                                      item_shop_sell_selected.get("source") == _sventry["source"] and
+                                      item_shop_sell_selected.get("cid") == _sventry["cid"])
+
+                        if _sv_is_sel:
+                            _sv_bg = (70, 20, 20)
+                            _sv_brd = (220, 80, 60); _sv_brd_w = 2
+                        elif _sv_hov:
+                            _sv_bg = (55, 30, 20)
+                            _sv_brd = (180, 100, 60); _sv_brd_w = 1
+                        else:
+                            _sv_bg = (35, 28, 20)
+                            _sv_brd = UI_THEME["iron"]; _sv_brd_w = 1
+                        pygame.draw.rect(screen, _sv_bg, _svr, border_radius=5)
+                        pygame.draw.rect(screen, _sv_brd, _svr, _sv_brd_w, border_radius=5)
+
+                        # Imagem
+                        if _sv_fn not in _item_shop_img_cache:
+                            _sv_fp = os.path.join(_sv_itens_dir, _sv_fn)
+                            if os.path.exists(_sv_fp):
+                                try:
+                                    _sv_raw = pygame.image.load(_sv_fp).convert_alpha()
+                                    _item_shop_img_cache[_sv_fn] = pygame.transform.smoothscale(_sv_raw, (_sv_SLOT-10, _sv_SLOT-10))
+                                except Exception: _item_shop_img_cache[_sv_fn] = None
+                            else: _item_shop_img_cache[_sv_fn] = None
+                        _sv_img = _item_shop_img_cache.get(_sv_fn)
+                        if _sv_img: screen.blit(_sv_img, _sv_img.get_rect(center=_svr.center))
+
+                        # Badge selecionado
+                        if _sv_is_sel:
+                            _sv_badge = font_s.render("?", True, (255, 180, 80))
+                            screen.blit(_sv_badge, (_svr.right - _sv_badge.get_width() - 2, _svr.top + 2))
+
+                        if _sv_hov:
+                            _sv_tooltip_data = (_svr, _sv_st2, _sv_sell_price, _sv_is_sel, _sventry)
+
+                        _sv_c = (_svi2+1) % _sv_COLS
+                        if _sv_c == 0: _sv_dx = _sv_cx0+12; _sv_dy += _sv_SLOT + _sv_PAD
+                        else: _sv_dx += _sv_SLOT + _sv_PAD
+
+                    screen.set_clip(None)
+
+                    # Tooltip
+                    if _sv_tooltip_data:
+                        _svtr, _svtst, _svtp, _svtsel, _svtentry = _sv_tooltip_data
+                        _svtlines = [_svtst.get("name", "")]
+                        _sva = _svtst.get("atk",0); _svd = _svtst.get("def",0)
+                        if _sva: _svtlines.append(f"ATQ: +{_sva}")
+                        if _svd: _svtlines.append(f"DEF: +{_svd}")
+                        _sv_src_lbl = "Baú" if _svtentry["source"]=="chest" else f"Inventário ({CHAR_DATA.get(int(_svtentry['cid'] or 0),{}).get('name','Herói')})"
+                        _svtlines.append(f"Origem: {_sv_src_lbl}")
+                        if _svtsel:
+                            _svtlines.append(f"► Clique novamente p/ vender: {_svtp} ouro")
+                        else:
+                            _svtlines.append(f"Vender por: {_svtp} ouro")
+                        _svtw = max(font_s.size(l)[0] for l in _svtlines)+16
+                        _svth = len(_svtlines)*20+12
+                        _svtx = min(_svtr.right+4, SCREEN_W-_svtw-4)
+                        _svty = max(4, _svtr.top-_svth//2)
+                        _svts = pygame.Surface((_svtw,_svth), pygame.SRCALPHA); _svts.fill((18,14,10,230))
+                        screen.blit(_svts, (_svtx,_svty))
+                        pygame.draw.rect(screen, (180,80,60), pygame.Rect(_svtx,_svty,_svtw,_svth), 1, border_radius=4)
+                        for _svtli, _svtll in enumerate(_svtlines):
+                            _svtc = UI_THEME["old_gold"] if _svtli==0 else (200,190,160)
+                            if "ATQ" in _svtll: _svtc=(220,100,60)
+                            elif "DEF" in _svtll: _svtc=(80,160,220)
+                            elif "Vender" in _svtll or "vender" in _svtll: _svtc=(220,200,80)
+                            elif "Origem" in _svtll: _svtc=(140,130,100)
+                            screen.blit(font_s.render(_svtll,True,_svtc), (_svtx+8,_svty+6+_svtli*20))
+
+                # Scrollbar
+                _sv_sb_x   = _sv_cx0 + _sv_cw - _sv_SB_W - 4
+                _sv_sb_rect = pygame.Rect(_sv_sb_x, _sv_cy0+4, _sv_SB_W, _sv_ch-8)
+                pygame.draw.rect(screen, (30,25,18), _sv_sb_rect, border_radius=6)
+                if _sv_max_s > 0:
+                    _sv_th2 = max(30, int(_sv_sb_rect.height * _sv_ch / max(1, _sv_total)))
+                    _sv_ty2 = _sv_sb_rect.top + int((_sv_sb_rect.height-_sv_th2)*item_shop_scroll_y/max(1,_sv_max_s))
+                    _sv_thumb = pygame.Rect(_sv_sb_x+2, _sv_ty2, _sv_SB_W-4, _sv_th2)
+                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _sv_thumb, border_radius=5)
+                    pygame.draw.rect(screen, UI_THEME["old_gold"], _sv_thumb, 1, border_radius=5)
+
             item_shop_back_btn.check_hover(m_pos, snd_hover)
             item_shop_back_btn.draw(screen)
+
+            # ── Diálogo de confirmação de compra ──────────────────────────────
+            if item_shop_confirm is not None:
+                _cf = item_shop_confirm
+                _cf_st = _cf.get("st", {})
+                _cf_name  = _cf_st.get("name", _cf["category"])
+                _cf_price = _cf["price"]
+                _cf_atk   = _cf_st.get("atk", 0)
+                _cf_def   = _cf_st.get("def", 0)
+
+                _cfd_w = 420; _cfd_h = 230
+                _cfd_x = (SCREEN_W - _cfd_w) // 2
+                _cfd_y = (SCREEN_H - _cfd_h) // 2
+
+                # Escurecimento de fundo
+                _cfd_ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                _cfd_ov.fill((0, 0, 0, 140))
+                screen.blit(_cfd_ov, (0, 0))
+
+                # Janela
+                _cfd_bg = pygame.Surface((_cfd_w, _cfd_h), pygame.SRCALPHA)
+                _cfd_bg.fill((18, 14, 10, 245))
+                screen.blit(_cfd_bg, (_cfd_x, _cfd_y))
+                pygame.draw.rect(screen, UI_THEME.get("old_gold", (200, 170, 60)),
+                                 pygame.Rect(_cfd_x, _cfd_y, _cfd_w, _cfd_h), 2, border_radius=10)
+
+                # Imagem do item
+                _cfd_itens_dir = os.path.join("assets", "ui", "itens")
+                _cfd_cdat = ITEM_SHOP_CATEGORIES.get(_cf["category"], {})
+                _cfd_fn   = f"{_cfd_cdat.get('prefix', _cf['category'])} ({_cf['idx'] + 1}).png"
+                if _cfd_fn not in _item_shop_img_cache:
+                    _cfd_fp = os.path.join(_cfd_itens_dir, _cfd_fn)
+                    if os.path.exists(_cfd_fp):
+                        try:
+                            _cfd_raw = pygame.image.load(_cfd_fp).convert_alpha()
+                            _item_shop_img_cache[_cfd_fn] = pygame.transform.smoothscale(_cfd_raw, (56, 56))
+                        except Exception: _item_shop_img_cache[_cfd_fn] = None
+                    else: _item_shop_img_cache[_cfd_fn] = None
+                _cfd_img = _item_shop_img_cache.get(_cfd_fn)
+                _cfd_img_x = _cfd_x + 20; _cfd_img_y = _cfd_y + 20
+                _cfd_img_r = pygame.Rect(_cfd_img_x, _cfd_img_y, 56, 56)
+                pygame.draw.rect(screen, (30, 28, 22), _cfd_img_r, border_radius=6)
+                pygame.draw.rect(screen, UI_THEME.get("old_gold", (200, 170, 60)), _cfd_img_r, 1, border_radius=6)
+                if _cfd_img: screen.blit(_cfd_img, _cfd_img_r.topleft)
+
+                # Nome e stats
+                _cfd_name_s = font_m.render(_cf_name, True, UI_THEME.get("old_gold", (220, 180, 80)))
+                screen.blit(_cfd_name_s, (_cfd_x + 88, _cfd_y + 22))
+                _cfd_stat_parts = []
+                if _cf_atk: _cfd_stat_parts.append(f"ATQ: +{_cf_atk}")
+                if _cf_def: _cfd_stat_parts.append(f"DEF: +{_cf_def}")
+                _cfd_stat_parts.append(f"Preço: {_cf_price} ouro")
+                _cfd_stat_s = font_s.render("  |  ".join(_cfd_stat_parts), True, (180, 170, 130))
+                screen.blit(_cfd_stat_s, (_cfd_x + 88, _cfd_y + 50))
+
+                # Linha divisória
+                pygame.draw.line(screen, UI_THEME.get("faded_gold", (130, 110, 50)),
+                                 (_cfd_x + 16, _cfd_y + 90), (_cfd_x + _cfd_w - 16, _cfd_y + 90), 1)
+
+                # Pergunta
+                _cfd_q1 = font_m.render("Você deseja realmente comprar", True, (220, 210, 180))
+                _cfd_q2 = font_m.render("este item?", True, (220, 210, 180))
+                screen.blit(_cfd_q1, _cfd_q1.get_rect(centerx=_cfd_x + _cfd_w // 2, top=_cfd_y + 100))
+                screen.blit(_cfd_q2, _cfd_q2.get_rect(centerx=_cfd_x + _cfd_w // 2, top=_cfd_y + 124))
+
+                # Botões SIM / NÃO
+                _cfd_sim = pygame.Rect(_cfd_x + 40,  _cfd_y + 163, 140, 44)
+                _cfd_nao = pygame.Rect(_cfd_x + 240, _cfd_y + 163, 140, 44)
+                _cfd_sim_hov = _cfd_sim.collidepoint(m_pos)
+                _cfd_nao_hov = _cfd_nao.collidepoint(m_pos)
+
+                pygame.draw.rect(screen, (30, 65, 30) if _cfd_sim_hov else (20, 45, 20), _cfd_sim, border_radius=8)
+                pygame.draw.rect(screen, (80, 200, 80) if _cfd_sim_hov else (50, 140, 50), _cfd_sim, 2, border_radius=8)
+                _sim_s = font_m.render("SIM", True, (140, 240, 140) if _cfd_sim_hov else (100, 200, 100))
+                screen.blit(_sim_s, _sim_s.get_rect(center=_cfd_sim.center))
+
+                pygame.draw.rect(screen, (65, 20, 20) if _cfd_nao_hov else (45, 14, 14), _cfd_nao, border_radius=8)
+                pygame.draw.rect(screen, (200, 70, 70) if _cfd_nao_hov else (140, 50, 50), _cfd_nao, 2, border_radius=8)
+                _nao_s = font_m.render("NÃO", True, (240, 120, 120) if _cfd_nao_hov else (200, 90, 90))
+                screen.blit(_nao_s, _nao_s.get_rect(center=_cfd_nao.center))
+
+                # Dica ESC
+                _cfd_esc = font_s.render("ESC — Cancelar", True, (90, 80, 60))
+                screen.blit(_cfd_esc, _cfd_esc.get_rect(centerx=_cfd_x+_cfd_w//2, bottom=_cfd_y+_cfd_h-6))
 
         elif state == "CHAR_SELECT":
             draw_menu_background(screen, m_pos, dt)
@@ -4846,6 +5574,305 @@ def main():
             # ── Mapa + jogador ─────────────────────────────────────────────
             hub_scene.draw(screen)
 
+            # ── "Press F" flutuante sobre o baú (2º andar) ─────────────────
+            if hub_scene.player_near_chest and not hub_chest_open:
+                _chest_sp = hub_scene.chest_screen_pos
+                _f_now    = pygame.time.get_ticks()
+                _f_bob    = math.sin(_f_now / 400.0) * 4   # animação flutuante
+                _f_surf   = font_s.render("[F]  Abrir Baú", True, (240, 220, 100))
+                _f_bg     = pygame.Surface((_f_surf.get_width() + 16, _f_surf.get_height() + 8), pygame.SRCALPHA)
+                _f_bg.fill((10, 8, 6, 180))
+                _f_rect   = _f_bg.get_rect(centerx=int(_chest_sp.x), bottom=int(_chest_sp.y - 24 + _f_bob))
+                screen.blit(_f_bg, _f_rect)
+                pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
+                screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
+
+            # ── Janela combinada Baú / Equipamento ─────────────────────────
+            if hub_chest_open or hub_equip_open:  # COMBINED_WINDOW_START
+                _cid_w   = player.char_id if player else 0
+                _chest_w = save_data["chest_items"]
+                _inv_wl  = get_char_inventory(_cid_w)
+                _equip_w = get_char_equipped(_cid_w)
+                _GOLD_W  = UI_THEME.get("old_gold", (200, 170, 60))
+                _FGOLD_W = UI_THEME.get("faded_gold", (140, 110, 40))
+                _SL_W = 52; _PD_W = 6
+                _PNL_W = 190; _DB_W = 280
+                _itens_dir_w = os.path.join("assets", "ui", "itens")
+                _sc_w = hub_chest_open; _se_w = hub_equip_open
+                _tot_w = (_PNL_W if _sc_w else 0) + (_DB_W if _se_w else 0) + _PNL_W + 10
+                _WW = max(400, min(_tot_w + 24, int(SCREEN_W * 0.95)))
+                _WH = min(540, int(SCREEN_H * 0.82))
+                _WX = (SCREEN_W - _WW) // 2
+                _WY = (SCREEN_H - _WH) // 2
+                _wbg = pygame.Surface((_WW, _WH), pygame.SRCALPHA)
+                _wbg.fill((12, 10, 8, 225))
+                screen.blit(_wbg, (_WX, _WY))
+                pygame.draw.rect(screen, _GOLD_W, pygame.Rect(_WX, _WY, _WW, _WH), 2, border_radius=8)
+
+                # Title
+                _titles_w = []
+                if _sc_w: _titles_w.append("Baú")
+                if _se_w: _titles_w.append("Equipamento")
+                _titles_w.append("Inventário")
+                _t_surf_w = font_m.render("  |  ".join(_titles_w), True, _GOLD_W)
+                screen.blit(_t_surf_w, _t_surf_w.get_rect(centerx=_WX+_WW//2, top=_WY+8))
+                pygame.draw.line(screen, _FGOLD_W, (_WX+12, _WY+42), (_WX+_WW-12, _WY+42), 1)
+
+                # Panel x-offsets
+                _pcx = _WX + 10
+                _cox_d = _pcx if _sc_w else None
+                if _sc_w:
+                    _pcx += _PNL_W + 4
+                    pygame.draw.line(screen, _FGOLD_W, (_pcx, _WY+42), (_pcx, _WY+_WH-28), 1)
+                _dox_d = _pcx if _se_w else None
+                if _se_w:
+                    _pcx += _DB_W + 4
+                    pygame.draw.line(screen, _FGOLD_W, (_pcx, _WY+42), (_pcx, _WY+_WH-28), 1)
+                _iox_d = _pcx
+                _iy0_d = _WY + 66
+
+                # Panel labels
+                if _cox_d is not None:
+                    _lbl_d = font_s.render("BAÚ", True, (170, 150, 95))
+                    screen.blit(_lbl_d, _lbl_d.get_rect(centerx=_cox_d+_PNL_W//2, top=_WY+46))
+                if _dox_d is not None:
+                    _lbl_d = font_s.render("EQUIPAMENTO", True, (170, 150, 95))
+                    screen.blit(_lbl_d, _lbl_d.get_rect(centerx=_dox_d+_DB_W//2, top=_WY+46))
+                _lbl_d = font_s.render("INVENTÁRIO", True, (170, 150, 95))
+                screen.blit(_lbl_d, _lbl_d.get_rect(centerx=_iox_d+_PNL_W//2, top=_WY+46))
+
+                # Helper: draw item grid, returns list of rects
+                def _draw_grid_w(items, ox):
+                    _cols_g = max(1, (_PNL_W - 4) // (_SL_W + _PD_W))
+                    _gx, _gy = ox, _iy0_d
+                    _rects_g = []
+                    for _gi, _gitem in enumerate(items):
+                        _gr = pygame.Rect(_gx, _gy, _SL_W, _SL_W)
+                        _rects_g.append(_gr)
+                        _sel_g = (_drag_item is not None and
+                                  _drag_item["item"].get("category") == _gitem.get("category") and
+                                  _drag_item["item"].get("idx") == _gitem.get("idx"))
+                        pygame.draw.rect(screen, (50,50,20) if _sel_g else (25,25,25), _gr, border_radius=4)
+                        pygame.draw.rect(screen, _GOLD_W if _sel_g else (65,65,65), _gr, 2 if _sel_g else 1, border_radius=4)
+                        _gcat = _gitem.get("category",""); _gidx = _gitem.get("idx",0)
+                        _gcdat = ITEM_SHOP_CATEGORIES.get(_gcat,{}); _gfn = f"{_gcdat.get('prefix',_gcat)} ({_gidx+1}).png"
+                        if _gfn not in _item_shop_img_cache:
+                            _gfp = os.path.join(_itens_dir_w, _gfn)
+                            if os.path.exists(_gfp):
+                                try:
+                                    _graw = pygame.image.load(_gfp).convert_alpha()
+                                    _item_shop_img_cache[_gfn] = pygame.transform.smoothscale(_graw, (_SL_W-8,_SL_W-8))
+                                except Exception: _item_shop_img_cache[_gfn] = None
+                            else: _item_shop_img_cache[_gfn] = None
+                        _gimg = _item_shop_img_cache.get(_gfn)
+                        if _gimg: screen.blit(_gimg, _gimg.get_rect(center=_gr.center))
+                        _gc = (_gi+1) % _cols_g
+                        if _gc == 0: _gx = ox; _gy += _SL_W + _PD_W
+                        else: _gx += _SL_W + _PD_W
+                    return _rects_g
+
+                # Chest panel
+                _chest_rects_d = _draw_grid_w(_chest_w, _cox_d) if _cox_d is not None else []
+                if _cox_d is not None and not _chest_w:
+                    _es = font_s.render("Baú vazio", True, (110,95,65))
+                    screen.blit(_es, _es.get_rect(centerx=_cox_d+_PNL_W//2, top=_iy0_d+10))
+
+                # Diablo equipment panel
+                _diab_rects_d = {}
+                if _dox_d is not None:
+                    _DS_D = 56; _dcc_d = _dox_d + _DB_W // 2
+                    _diab_pos_d = {
+                        "helmet": (_dcc_d-_DS_D//2, _WY+66),
+                        "weapon": (_dox_d+16,       _WY+136),
+                        "armor":  (_dcc_d-_DS_D//2, _WY+136),
+                        "shield": (_dox_d+_DB_W-_DS_D-16, _WY+136),
+                        "legs":   (_dcc_d-_DS_D//2, _WY+206),
+                        "boots":  (_dcc_d-_DS_D//2, _WY+276),
+                    }
+                    _ACTV_D = {"weapon","shield"}
+                    _SLBL_D = {"helmet":"Capacete","weapon":"Arma","armor":"Armadura",
+                               "shield":"Escudo","legs":"Calças","boots":"Botas"}
+                    for _sk_d, (_sdx_d, _sdy_d) in _diab_pos_d.items():
+                        _sr_d = pygame.Rect(_sdx_d, _sdy_d, _DS_D, _DS_D)
+                        _diab_rects_d[_sk_d] = _sr_d
+                        _eq_itm_d = _equip_w.get(_sk_d)
+                        _act_d = _sk_d in _ACTV_D
+                        if _act_d:
+                            _sbg_d = (32,30,55) if _eq_itm_d else (18,18,35)
+                            _sbd_d = _GOLD_W if _eq_itm_d else (75,70,130)
+                        else:
+                            _sbg_d = (20,18,16); _sbd_d = (45,42,38)
+                        pygame.draw.rect(screen, _sbg_d, _sr_d, border_radius=5)
+                        pygame.draw.rect(screen, _sbd_d, _sr_d, 1, border_radius=5)
+                        if _eq_itm_d and _act_d:
+                            _ecd_d = ITEM_SHOP_CATEGORIES.get(_eq_itm_d["category"],{})
+                            _efn_d = f"{_ecd_d.get('prefix',_eq_itm_d['category'])} ({_eq_itm_d['idx']+1}).png"
+                            if _efn_d not in _item_shop_img_cache:
+                                _efp_d = os.path.join(_itens_dir_w, _efn_d)
+                                if os.path.exists(_efp_d):
+                                    try:
+                                        _eraw_d = pygame.image.load(_efp_d).convert_alpha()
+                                        _item_shop_img_cache[_efn_d] = pygame.transform.smoothscale(_eraw_d, (_DS_D-8,_DS_D-8))
+                                    except Exception: _item_shop_img_cache[_efn_d] = None
+                                else: _item_shop_img_cache[_efn_d] = None
+                            _eimg_d = _item_shop_img_cache.get(_efn_d)
+                            if _eimg_d: screen.blit(_eimg_d, _eimg_d.get_rect(center=_sr_d.center))
+                        else:
+                            _slb_c_d = (85,80,60) if _act_d else (50,46,38)
+                            _slb_s_d = font_s.render(_SLBL_D.get(_sk_d,_sk_d), True, _slb_c_d)
+                            screen.blit(_slb_s_d, _slb_s_d.get_rect(center=_sr_d.center))
+                    # Active bonuses below Diablo panel
+                    _bparts_d = []
+                    for _bslot_d, _bpfx_d in (("weapon","ATQ"),("shield","DEF")):
+                        _beq_d = _equip_w.get(_bslot_d)
+                        if _beq_d:
+                            _bst_d = ITEM_SHOP_STATS.get(_beq_d["category"],[])
+                            if _beq_d["idx"] < len(_bst_d):
+                                _bval_d = _bst_d[_beq_d["idx"]].get("atk" if _bpfx_d=="ATQ" else "def", 0)
+                                if _bval_d: _bparts_d.append(f"{_bpfx_d} +{_bval_d}")
+                    if _bparts_d:
+                        _bsurf_d = font_s.render("  |  ".join(_bparts_d), True, (200,200,100))
+                        screen.blit(_bsurf_d, _bsurf_d.get_rect(centerx=_dox_d+_DB_W//2, bottom=_WY+_WH-34))
+
+                # Inventory panel
+                _inv_rects_d = _draw_grid_w(_inv_wl, _iox_d)
+                if not _inv_wl:
+                    _ei_s = font_s.render("Inventário vazio", True, (110,95,65))
+                    screen.blit(_ei_s, _ei_s.get_rect(centerx=_iox_d+_PNL_W//2, top=_iy0_d+10))
+
+                # Tooltip helper
+                def _tip_d(itm_d2, anchor_d):
+                    _tc_d = itm_d2.get("category",""); _ti_d = itm_d2.get("idx",0)
+                    _tst_d = ITEM_SHOP_STATS.get(_tc_d,[{}]); _tst_d = _tst_d[_ti_d] if _ti_d < len(_tst_d) else {}
+                    if not _tst_d: return
+                    _tls_d = [_tst_d.get("name",_tc_d)]
+                    _ta_d = _tst_d.get("atk",0); _td_d = _tst_d.get("def",0)
+                    if _ta_d: _tls_d.append(f"ATQ: +{_ta_d}")
+                    if _td_d: _tls_d.append(f"DEF: +{_td_d}")
+                    _ttw_d = max(font_s.size(_l)[0] for _l in _tls_d)+16
+                    _tth_d = len(_tls_d)*20+12
+                    _ttx_d = min(anchor_d.right+4, SCREEN_W-_ttw_d-4)
+                    _tty_d = max(4, anchor_d.top)
+                    _ts_d = pygame.Surface((_ttw_d,_tth_d), pygame.SRCALPHA); _ts_d.fill((18,14,10,230))
+                    screen.blit(_ts_d, (_ttx_d,_tty_d))
+                    pygame.draw.rect(screen, _GOLD_W, pygame.Rect(_ttx_d,_tty_d,_ttw_d,_tth_d), 1, border_radius=4)
+                    for _tli_d, _tll_d in enumerate(_tls_d):
+                        _tc_d2 = _GOLD_W if _tli_d==0 else (200,190,160)
+                        if "ATQ" in _tll_d: _tc_d2=(220,100,60)
+                        elif "DEF" in _tll_d: _tc_d2=(80,160,220)
+                        screen.blit(font_s.render(_tll_d,True,_tc_d2), (_ttx_d+8,_tty_d+6+_tli_d*20))
+
+                for _ci5, _cr5 in enumerate(_chest_rects_d):
+                    if _cr5.collidepoint(m_pos) and _ci5 < len(_chest_w): _tip_d(_chest_w[_ci5], _cr5)
+                for _ii5, _ir5 in enumerate(_inv_rects_d):
+                    if _ir5.collidepoint(m_pos) and _ii5 < len(_inv_wl): _tip_d(_inv_wl[_ii5], _ir5)
+                if _dox_d is not None:
+                    for _sk5, _sr5 in _diab_rects_d.items():
+                        if _sr5.collidepoint(m_pos) and _equip_w.get(_sk5): _tip_d(_equip_w[_sk5], _sr5)
+
+                # Hint / drag indicator
+                if _drag_item:
+                    _dn_d = _drag_item["item"]
+                    _dcat_d = _dn_d.get("category",""); _didx_d = _dn_d.get("idx",0)
+                    _dst_d = ITEM_SHOP_STATS.get(_dcat_d,[{}]); _dst_d = _dst_d[_didx_d] if _didx_d < len(_dst_d) else {}
+                    _dnm_d = _dst_d.get("name",_dcat_d)
+                    _dh_s_d = font_s.render(f"Selecionado: {_dnm_d[:22]}  — clique no destino  |  ESC = cancelar", True, (255,225,80))
+                else:
+                    _dh_s_d = font_s.render("Clique para selecionar  |  F / I / ESC — Fechar", True, (100,90,65))
+                screen.blit(_dh_s_d, _dh_s_d.get_rect(centerx=_WX+_WW//2, bottom=_WY+_WH-6))
+
+            # ── Janela de Status do Personagem (C) ──────────────────────────
+            if hub_status_open and player is not None:
+                _ST_W  = 240
+                _ST_H  = min(440, int(SCREEN_H * 0.70))
+                _ST_X  = 10
+                _ST_Y  = (SCREEN_H - _ST_H) // 2
+                _GOLD  = UI_THEME.get("old_gold", (200, 170, 60))
+                _FGOLD = UI_THEME.get("faded_gold", (140, 110, 40))
+
+                _st_bg = pygame.Surface((_ST_W, _ST_H), pygame.SRCALPHA)
+                _st_bg.fill((10, 8, 6, 230))
+                screen.blit(_st_bg, (_ST_X, _ST_Y))
+                pygame.draw.rect(screen, _GOLD, pygame.Rect(_ST_X, _ST_Y, _ST_W, _ST_H), 2, border_radius=8)
+
+                # Título
+                _st_title = font_m.render("STATUS", True, _GOLD)
+                screen.blit(_st_title, _st_title.get_rect(centerx=_ST_X + _ST_W // 2, top=_ST_Y + 10))
+                pygame.draw.line(screen, _FGOLD, (_ST_X + 10, _ST_Y + 40), (_ST_X + _ST_W - 10, _ST_Y + 40), 1)
+
+                # Nome do personagem
+                _st_char_name = CHAR_DATA.get(player.char_id, {}).get("name", "Herói")
+                _st_cn = font_s.render(_st_char_name, True, (220, 200, 160))
+                screen.blit(_st_cn, _st_cn.get_rect(centerx=_ST_X + _ST_W // 2, top=_ST_Y + 46))
+
+                pygame.draw.line(screen, _FGOLD, (_ST_X + 10, _ST_Y + 68), (_ST_X + _ST_W - 10, _ST_Y + 68), 1)
+
+                # Calcular stats com equipamento
+                _st_equipped = get_char_equipped(player.char_id)
+                _st_eq_w = _st_equipped.get("weapon")
+                _st_eq_s = _st_equipped.get("shield")
+                _base_atk  = CHAR_DATA.get(player.char_id, {}).get("damage", 25)
+                _bonus_atk = 0
+                _bonus_def = 0
+                _eq_weapon_name = None
+                _eq_shield_name = None
+                if _st_eq_w:
+                    _wst2 = ITEM_SHOP_STATS.get(_st_eq_w["category"], [])
+                    if _st_eq_w["idx"] < len(_wst2):
+                        _bonus_atk = _wst2[_st_eq_w["idx"]].get("atk", 0)
+                        _eq_weapon_name = _wst2[_st_eq_w["idx"]].get("name", "")
+                if _st_eq_s:
+                    _sst2 = ITEM_SHOP_STATS.get(_st_eq_s["category"], [])
+                    if _st_eq_s["idx"] < len(_sst2):
+                        _bonus_def = _sst2[_st_eq_s["idx"]].get("def", 0)
+                        _eq_shield_name = _sst2[_st_eq_s["idx"]].get("name", "")
+                _def_pct = min(80, int(save_data["perm_upgrades"].get("aura_res", 0) * 10 + _bonus_def / 3.0))
+
+                # Linha de stat
+                def _draw_stat(label, value_str, lbl_col, val_col, y_off):
+                    _ls = font_s.render(label, True, lbl_col)
+                    _vs = font_s.render(value_str, True, val_col)
+                    screen.blit(_ls, (_ST_X + 14, _ST_Y + y_off))
+                    screen.blit(_vs, (_vs.get_rect(right=_ST_X + _ST_W - 14, top=_ST_Y + y_off)))
+
+                _sy = 76
+                _draw_stat("❤  HP", f"{CHAR_DATA.get(player.char_id,{}).get('hp', player.base_hp)}", (200, 80, 80), (240, 140, 140), _sy)
+                _sy += 22
+                if _bonus_atk:
+                    _draw_stat("⚔  ATQ base", str(_base_atk), (180, 140, 80), (220, 180, 120), _sy); _sy += 20
+                    _draw_stat("   + Arma",   f"+{_bonus_atk}", (180, 140, 80), (255, 160, 60), _sy); _sy += 20
+                    _draw_stat("   TOTAL",    str(_base_atk + _bonus_atk), (220, 180, 80), (255, 210, 60), _sy); _sy += 22
+                else:
+                    _draw_stat("⚔  ATQ", str(_base_atk), (180, 140, 80), (220, 180, 120), _sy); _sy += 22
+                if _bonus_def:
+                    _draw_stat("🛡  DEF (escudo)", f"{_bonus_def}", (80, 130, 200), (120, 180, 240), _sy); _sy += 20
+                    _draw_stat("   Resist.",       f"{_def_pct}%", (80, 130, 200), (100, 200, 255), _sy); _sy += 22
+                else:
+                    _draw_stat("🛡  DEF", f"{_def_pct}%", (80, 130, 200), (120, 180, 240), _sy); _sy += 22
+                _draw_stat("💨  VEL", str(CHAR_DATA.get(player.char_id, {}).get("speed", 280)), (100, 180, 100), (140, 220, 140), _sy); _sy += 22
+                _draw_stat("❤  HP atual", f"{int(player.hp)}", (160, 80, 80), (200, 110, 110), _sy); _sy += 24
+
+                # Equipamento ativo
+                pygame.draw.line(screen, _FGOLD, (_ST_X + 10, _ST_Y + _sy), (_ST_X + _ST_W - 10, _ST_Y + _sy), 1)
+                _sy += 8
+                _eq_lbl = font_s.render("Equipamento", True, (160, 140, 90))
+                screen.blit(_eq_lbl, _eq_lbl.get_rect(centerx=_ST_X + _ST_W // 2, top=_ST_Y + _sy)); _sy += 20
+                if _eq_weapon_name:
+                    _ew_s = font_s.render(f"⚔ {_eq_weapon_name[:18]}", True, (220, 170, 70))
+                    screen.blit(_ew_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                else:
+                    _ew_s = font_s.render("⚔ Sem arma", True, (110, 100, 70))
+                    screen.blit(_ew_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                if _eq_shield_name:
+                    _es_s = font_s.render(f"🛡 {_eq_shield_name[:18]}", True, (100, 170, 220))
+                    screen.blit(_es_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                else:
+                    _es_s = font_s.render("🛡 Sem escudo", True, (70, 110, 140))
+                    screen.blit(_es_s, (_ST_X + 10, _ST_Y + _sy))
+
+                _st_close = font_s.render("C / ESC — Fechar", True, (100, 90, 65))
+                screen.blit(_st_close, _st_close.get_rect(centerx=_ST_X + _ST_W // 2, bottom=_ST_Y + _ST_H - 6))
+
             # ── Painel lateral direito (compacto) ───────────────────────────
             _hp_x = int(SCREEN_W * 0.84)
             _hp_w = SCREEN_W - _hp_x
@@ -4901,9 +5928,13 @@ def main():
                 _cd_s = font_s.render(_cd_text, True, (255, 220, 60))
                 screen.blit(_cd_s, _cd_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.57)))
 
-            # Dica ESC
-            _esc_s = font_s.render("ESC → Voltar", True, (120, 110, 90))
-            screen.blit(_esc_s, _esc_s.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.97)))
+            # Dicas de tecla
+            _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
+            _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
+            _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
+            screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.91)))
+            screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.94)))
+            screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
 
         elif state == "PACT_SELECT":
             draw_menu_background(screen, m_pos, dt)
