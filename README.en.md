@@ -283,7 +283,11 @@ Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](LICENSE).
+Proprietary Source-Available License.
+The source code is provided for viewing and educational purposes only.
+Compiling, redistributing, or selling the source code or binaries is prohibited.
+All commercial exploitation rights are reserved by the author.
+See [LICENSE](LICENSE).
 
 ## Gameplay (GIF)
 

@@ -590,7 +590,11 @@ Diretrizes: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## Licença
 
-Distribuído sob licença MIT. Consulte [LICENSE](LICENSE)...
+Licença proprietária com codigo disponivel (source-available).
+O codigo esta disponivel apenas para visualizacao e fins educacionais.
+Compilacao, redistribuicao e venda do codigo-fonte ou binario sao proibidas.
+Todos os direitos de exploracao comercial sao reservados ao autor.
+Consulte [LICENSE](LICENSE).
 
 ---
 

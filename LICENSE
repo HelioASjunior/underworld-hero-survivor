@@ -1,21 +1,68 @@
-MIT License
+UNDERWORLD HERO - PROPRIETARY SOURCE-AVAILABLE LICENSE (EULA)
 
-Copyright (c) 2026 Hélio Júnior
+Copyright (c) 2026 Helio Junior
+All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This End User License Agreement ("Agreement") governs access to and use of the
+Underworld Hero source code, assets, and related materials (collectively, the
+"Software"). By accessing, copying, or using any part of the Software, you
+agree to be bound by this Agreement.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. License Scope
+The Software is made available exclusively as source-available material for
+personal viewing and non-commercial educational study.
 
+2. Limited Permission
+Subject to continuous compliance with this Agreement, you may:
+- Access and read the source code.
+- Study the implementation for private, non-commercial educational purposes.
+
+3. Restrictions
+Except with prior written authorization from the copyright holder, you must
+not:
+- Compile, build, package, or otherwise generate binaries from the Software.
+- Run, distribute, publish, host, mirror, or provide compiled versions of the
+	Software.
+- Copy, redistribute, sublicense, rent, lease, sell, or otherwise transfer the
+	Software, in whole or in part.
+- Modify, adapt, translate, reverse engineer, or create derivative works for
+	public or commercial release.
+- Use the Software, its assets, or any substantial portion thereof for
+	commercial purposes.
+
+4. Commercial Rights Reservation
+All rights of commercial exploitation are expressly and exclusively reserved by
+the copyright holder, including commercialization, licensing, publication,
+distribution, and monetization.
+
+5. Intellectual Property and Branding
+No trademark, trade name, logo, visual identity, or other branding right is
+granted under this Agreement.
+
+6. Term and Automatic Termination
+This Agreement is effective until terminated. Any violation of this Agreement
+automatically and immediately terminates all permissions granted herein,
+without prior notice. Upon termination, you must cease all use of the Software
+and permanently delete all copies in your possession or control.
+
+7. No Warranty
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+8. Limitation of Liability
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES, OR FOR ANY LOSS OF DATA, PROFITS, OR
+BUSINESS INTERRUPTION, ARISING FROM OR RELATED TO THE SOFTWARE OR THIS
+AGREEMENT, WHETHER IN CONTRACT, TORT, OR OTHERWISE.
+
+9. Governing Law and Venue
+This Agreement is governed by the laws of the Federative Republic of Brazil.
+The parties elect the courts of the District of [CITY/STATE], Brazil, as the
+exclusive venue for disputes arising from or related to this Agreement,
+expressly waiving any other jurisdiction, however privileged.
+
+10. Contact and Commercial Licensing
+For commercial licensing, redistribution permissions, or other exceptions,
+contact the copyright holder directly.
