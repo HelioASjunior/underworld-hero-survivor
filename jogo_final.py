@@ -3267,8 +3267,12 @@ def main():
     hub_chest_open     = False   # Janela do Baú (F key — abre baú + inventário)
     hub_equip_open     = False   # Janela de Equipamento (I key — layout Diablo)
     hub_status_open    = False   # Janela de Status (C key)
-    # Item sendo arrastado/movido: {"cat": str, "idx": int, "from": "chest"|"inventory"}
-    _drag_item: dict | None = None
+    # Drag-and-drop: item sendo arrastado com o mouse
+    _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip", "_idx":int, "_slot":str|None}
+    _drag_active: bool = False       # True enquanto o botão do mouse está pressionado
+    _drag_offset: tuple = (0, 0)     # offset do centro do item até o cursor no início do drag
+    # Cache da imagem do painel de inventário escalada
+    _inv_panel_cache: dict = {}      # {scale_key: scaled_surface}
 
     # Fila de horda e obstáculos graduais (inicializados aqui para o caso
     # de o loop começar antes de reset_game ser chamado)
@@ -3383,16 +3387,16 @@ def main():
                 if state == "HUB" and event.key == pygame.K_f:
                     if hub_chest_open:
                         hub_chest_open = False
-                        _drag_item     = None
+                        _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
                     elif hub_scene is not None and hub_scene.player_near_chest:
                         hub_chest_open = True
-                        _drag_item     = None
+                        _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
 
                 if state == "HUB" and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
-                    _drag_item     = None
+                    _drag_item = None; _drag_active = False
                     if snd_click: snd_click.play()
 
                 if state == "HUB" and event.key == pygame.K_c:
@@ -3406,6 +3410,7 @@ def main():
                             hub_equip_open  = False
                             hub_status_open = False
                             _drag_item      = None
+                            _drag_active    = False
                         else:
                             hub_countdown_active = False
                             hub_countdown_timer  = 0.0
@@ -3503,120 +3508,112 @@ def main():
                                 menu_exit_timer = MENU_EXIT_DURATION
 
                     elif state == "HUB":
-                        # ── Clique nas janelas Baú / Equipamento ──────────────
-                        if hub_chest_open or hub_equip_open:
-                            _cid2        = player.char_id if player else 0
-                            _chest_list2 = save_data["chest_items"]
-                            _inv_list2   = get_char_inventory(_cid2)
-                            _equipped2   = get_char_equipped(_cid2)
-                            _SL2 = 52; _PD2 = 6; _PW2 = 190; _DW2 = 280
-                            _sc2 = hub_chest_open; _se2 = hub_equip_open
-                            _tot2 = (_PW2 if _sc2 else 0) + (_DW2 if _se2 else 0) + _PW2 + 10
-                            _ww2 = max(400, min(_tot2 + 20, int(SCREEN_W * 0.95)))
-                            _wh2 = min(540, int(SCREEN_H * 0.82))
-                            _wx2 = (SCREEN_W - _ww2) // 2
-                            _wy2 = (SCREEN_H - _wh2) // 2
-                            _cx2 = _wx2 + 10
-                            _cox2 = _cx2 if _sc2 else None
-                            if _sc2: _cx2 += _PW2 + 4
-                            _dox2 = _cx2 if _se2 else None
-                            if _se2: _cx2 += _DW2 + 4
-                            _iox2 = _cx2
-                            _iy02 = _wy2 + 66
+                        # ── Inicio de Drag-and-Drop nas janelas de Inventário / Baú ──
+                        if hub_equip_open and not _drag_active:
+                            _dd_cid  = player.char_id if player else 0
+                            _dd_inv  = get_char_inventory(_dd_cid)
+                            _dd_eq   = get_char_equipped(_dd_cid)
+                            # Calcular posição/escala do painel (mesma lógica do draw)
+                            _dd_sc   = min(SCREEN_W * 0.42 / 1128, SCREEN_H * 0.80 / 1254)
+                            _dd_PW   = int(1128 * _dd_sc); _dd_PH = int(1254 * _dd_sc)
+                            _dd_PX   = (SCREEN_W - _dd_PW) // 2
+                            _dd_PY   = (SCREEN_H - _dd_PH) // 2
+                            # Slots de equipamento (posições relativas à imagem 1128×1254)
+                            _dd_eqslots = {
+                                "helmet": (295,143,110,104), "weapon": (141,266,106,105),
+                                "armor":  (295,253,110,123), "shield": (457,266,106,105),
+                                "legs":   (295,381,110,104), "boots":  (295,509,110,104),
+                            }
+                            # Testar clique em slots de equipamento
+                            _dd_hit_eq = None
+                            for _sk_dd, (ex,ey,ew,eh) in _dd_eqslots.items():
+                                _sr_dd = pygame.Rect(
+                                    _dd_PX + int(ex*_dd_sc), _dd_PY + int(ey*_dd_sc),
+                                    int(ew*_dd_sc), int(eh*_dd_sc))
+                                if _sr_dd.collidepoint(click_pos) and _dd_eq.get(_sk_dd):
+                                    _dd_hit_eq = _sk_dd; break
+                            # Testar clique em slots do inventário (grade 8×5)
+                            _dd_COLS = 8
+                            _dd_gx0  = _dd_PX + int(52*_dd_sc)
+                            _dd_gy0  = _dd_PY + int(805*_dd_sc)
+                            _dd_sw   = int(121*_dd_sc)
+                            _dd_sh   = int(85*_dd_sc)
+                            _dd_gapx = int(10*_dd_sc)
+                            _dd_gapy = int(6*_dd_sc)
+                            _dd_stepx = _dd_sw + _dd_gapx
+                            _dd_stepy = _dd_sh + _dd_gapy
+                            _dd_hit_inv = -1
+                            for _di_dd in range(len(_dd_inv)):
+                                _col_dd = _di_dd % _dd_COLS
+                                _row_dd = _di_dd // _dd_COLS
+                                _ir_dd = pygame.Rect(_dd_gx0 + _col_dd*_dd_stepx,
+                                                     _dd_gy0 + _row_dd*_dd_stepy,
+                                                     _dd_sw, _dd_sh)
+                                if _ir_dd.collidepoint(click_pos):
+                                    _dd_hit_inv = _di_dd; break
+                            if _dd_hit_eq is not None:
+                                _itm_dd = _dd_eq[_dd_hit_eq]
+                                _drag_item   = {"item": _itm_dd, "from": "equip", "_idx": -1, "_slot": _dd_hit_eq}
+                                _drag_active = True
+                                _drag_offset = (click_pos[0] - int((_dd_eqslots[_dd_hit_eq][0]+_dd_eqslots[_dd_hit_eq][2]//2)*_dd_sc+_dd_PX),
+                                               click_pos[1] - int((_dd_eqslots[_dd_hit_eq][1]+_dd_eqslots[_dd_hit_eq][3]//2)*_dd_sc+_dd_PY))
+                                if snd_click: snd_click.play()
+                            elif _dd_hit_inv >= 0:
+                                _itm_dd = _dd_inv[_dd_hit_inv]
+                                _col_dd = _dd_hit_inv % _dd_COLS; _row_dd = _dd_hit_inv // _dd_COLS
+                                _cx_dd = _dd_gx0 + _col_dd*_dd_stepx + _dd_sw//2
+                                _cy_dd = _dd_gy0 + _row_dd*_dd_stepy + _dd_sh//2
+                                _drag_item   = {"item": _itm_dd, "from": "inventory", "_idx": _dd_hit_inv, "_slot": None}
+                                _drag_active = True
+                                _drag_offset = (click_pos[0]-_cx_dd, click_pos[1]-_cy_dd)
+                                if snd_click: snd_click.play()
 
-                            def _ghit2(items, ox, oy):
-                                _cols2 = max(1, (_PW2 - 4) // (_SL2 + _PD2))
-                                _ix2, _iy2 = ox, oy
-                                for _i2, _itm2 in enumerate(items):
-                                    if pygame.Rect(_ix2, _iy2, _SL2, _SL2).collidepoint(click_pos):
-                                        return _i2
-                                    _c2 = (_i2 + 1) % _cols2
-                                    if _c2 == 0: _ix2 = ox; _iy2 += _SL2 + _PD2
-                                    else: _ix2 += _SL2 + _PD2
+                        elif hub_chest_open and not _drag_active:
+                            _dd_cid2 = player.char_id if player else 0
+                            _dd_inv2 = get_char_inventory(_dd_cid2)
+                            _dd_chest2 = save_data["chest_items"]
+                            _SL2=52; _PD2=6; _PW2=190; _DW2=280
+                            _sc2=hub_chest_open; _se2=hub_equip_open
+                            _tot2=(_PW2 if _sc2 else 0)+(_DW2 if _se2 else 0)+_PW2+10
+                            _ww2=max(400,min(_tot2+20,int(SCREEN_W*0.95)))
+                            _wh2=min(540,int(SCREEN_H*0.82))
+                            _wx2=(SCREEN_W-_ww2)//2; _wy2=(SCREEN_H-_wh2)//2
+                            _cx2=_wx2+10
+                            _cox2=_cx2 if _sc2 else None
+                            if _sc2: _cx2+=_PW2+4
+                            _iox2=_cx2; _iy02=_wy2+66
+                            def _ghit_drag(items, ox, oy):
+                                _cols_g=max(1,(_PW2-4)//(_SL2+_PD2))
+                                _ix_g,_iy_g=ox,oy
+                                for _ig,_ in enumerate(items):
+                                    if pygame.Rect(_ix_g,_iy_g,_SL2,_SL2).collidepoint(click_pos):
+                                        return _ig
+                                    _cg=(_ig+1)%_cols_g
+                                    if _cg==0: _ix_g=ox; _iy_g+=_SL2+_PD2
+                                    else: _ix_g+=_SL2+_PD2
                                 return -1
-
-                            _hc2 = _ghit2(_chest_list2, _cox2 or 0, _iy02) if _cox2 is not None else -1
-                            _hi2 = _ghit2(_inv_list2, _iox2, _iy02)
-
-                            # Diablo slot hit (weapon/shield only)
-                            _dslot_hit2 = None
-                            if _dox2 is not None:
-                                _DS2 = 56; _dc2c = _dox2 + _DW2 // 2
-                                _dlayout2 = {
-                                    "weapon": pygame.Rect(_dox2 + 16,                  _wy2 + 136, _DS2, _DS2),
-                                    "shield": pygame.Rect(_dox2 + _DW2 - _DS2 - 16,   _wy2 + 136, _DS2, _DS2),
-                                }
-                                for _sk2c, _sr2c in _dlayout2.items():
-                                    if _sr2c.collidepoint(click_pos):
-                                        _dslot_hit2 = _sk2c; break
-
-                            if _hc2 >= 0 and _hc2 < len(_chest_list2):
-                                _item2 = _chest_list2[_hc2]
-                                if _drag_item and _drag_item.get("from") == "chest" and _drag_item.get("_idx") == _hc2:
-                                    _drag_item = None
-                                elif _drag_item and _drag_item.get("from") == "inventory":
-                                    _moved2 = _inv_list2.pop(_drag_item["_idx"])
-                                    _chest_list2.insert(_hc2, _moved2)
-                                    _drag_item = None; save_game()
-                                else:
-                                    _drag_item = {"item": _item2, "from": "chest", "_idx": _hc2}
+                            _hc2=_ghit_drag(_dd_chest2,_cox2 or 0,_iy02) if _cox2 else -1
+                            _hi2=_ghit_drag(_dd_inv2,_iox2,_iy02)
+                            if _hc2>=0 and _hc2<len(_dd_chest2):
+                                _itm_c=_dd_chest2[_hc2]
+                                _cols_c=max(1,(_PW2-4)//(_SL2+_PD2))
+                                _ci_c=_hc2%_cols_c; _ri_c=_hc2//_cols_c
+                                _cx_c=(_cox2 or 0)+_ci_c*(_SL2+_PD2)+_SL2//2
+                                _cy_c=_iy02+_ri_c*(_SL2+_PD2)+_SL2//2
+                                _drag_item={"item":_itm_c,"from":"chest","_idx":_hc2,"_slot":None}
+                                _drag_active=True
+                                _drag_offset=(click_pos[0]-_cx_c,click_pos[1]-_cy_c)
                                 if snd_click: snd_click.play()
-
-                            elif _hi2 >= 0 and _hi2 < len(_inv_list2):
-                                _item2 = _inv_list2[_hi2]
-                                _islot2 = item_slot(_item2.get("category", ""))
-                                if _drag_item and _drag_item.get("from") == "inventory" and _drag_item.get("_idx") == _hi2:
-                                    _drag_item = None
-                                elif _drag_item and _drag_item.get("from") == "chest":
-                                    _moved2 = _chest_list2.pop(_drag_item["_idx"])
-                                    _inv_list2.insert(_hi2, _moved2)
-                                    _drag_item = None; save_game()
-                                elif _se2 and _islot2 in ("weapon", "shield") and not _drag_item:
-                                    # Clique direto equipa quando janela de equip está aberta
-                                    _old_eq2 = _equipped2.get(_islot2)
-                                    _equipped2[_islot2] = {"category": _item2["category"], "idx": _item2["idx"]}
-                                    _inv_list2.pop(_hi2)
-                                    if _old_eq2: _inv_list2.append(_old_eq2)
-                                    save_game()
-                                else:
-                                    _drag_item = {"item": _item2, "from": "inventory", "_idx": _hi2}
+                            elif _hi2>=0 and _hi2<len(_dd_inv2):
+                                _itm_i=_dd_inv2[_hi2]
+                                _cols_c=max(1,(_PW2-4)//(_SL2+_PD2))
+                                _ci_i=_hi2%_cols_c; _ri_i=_hi2//_cols_c
+                                _cx_i=_iox2+_ci_i*(_SL2+_PD2)+_SL2//2
+                                _cy_i=_iy02+_ri_i*(_SL2+_PD2)+_SL2//2
+                                _drag_item={"item":_itm_i,"from":"inventory","_idx":_hi2,"_slot":None}
+                                _drag_active=True
+                                _drag_offset=(click_pos[0]-_cx_i,click_pos[1]-_cy_i)
                                 if snd_click: snd_click.play()
-
-                            elif _dslot_hit2 is not None:
-                                if _drag_item:
-                                    _di2  = _drag_item["item"]
-                                    _dsl2 = item_slot(_di2.get("category", ""))
-                                    if _dsl2 == _dslot_hit2:
-                                        _old_eq2b = _equipped2.get(_dslot_hit2)
-                                        _equipped2[_dslot_hit2] = {"category": _di2["category"], "idx": _di2["idx"]}
-                                        if _drag_item.get("from") == "chest": _chest_list2.pop(_drag_item["_idx"])
-                                        elif _drag_item.get("from") == "inventory": _inv_list2.pop(_drag_item["_idx"])
-                                        if _old_eq2b: _inv_list2.append(_old_eq2b)
-                                        _drag_item = None; save_game()
-                                        if snd_click: snd_click.play()
-                                elif _equipped2.get(_dslot_hit2):
-                                    _inv_list2.append(_equipped2[_dslot_hit2])
-                                    _equipped2[_dslot_hit2] = None
-                                    save_game()
-                                    if snd_click: snd_click.play()
-
-                            elif _drag_item:
-                                # Soltar em área vazia do painel de destino
-                                _src2 = _drag_item.get("from")
-                                _inv_area2   = pygame.Rect(_iox2, _wy2 + 46, _PW2, _wh2 - 50)
-                                _chest_area2 = pygame.Rect(_cox2, _wy2 + 46, _PW2, _wh2 - 50) if _cox2 else None
-                                if _src2 == "chest" and _inv_area2.collidepoint(click_pos):
-                                    _moved2 = _chest_list2.pop(_drag_item["_idx"])
-                                    _inv_list2.append(_moved2)
-                                    _drag_item = None
-                                    save_game()
-                                    if snd_click: snd_click.play()
-                                elif _src2 == "inventory" and _chest_area2 and _chest_area2.collidepoint(click_pos):
-                                    _moved2 = _inv_list2.pop(_drag_item["_idx"])
-                                    _chest_list2.append(_moved2)
-                                    _drag_item = None
-                                    save_game()
-                                    if snd_click: snd_click.play()
 
                         # Botões do painel lateral direito
                         if hub_pronto_btn.rect.collidepoint(click_pos) and not hub_countdown_active:
@@ -3982,6 +3979,139 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONUP and state == "SETTINGS":
                 stop_settings_drag()
+
+            # ── Drop do Drag-and-Drop de Inventário/Baú/Equipamento ──────────
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state == "HUB" and _drag_active:
+                _drop_pos = event.pos
+                _dd_cid_u = player.char_id if player else 0
+                _dd_inv_u = get_char_inventory(_dd_cid_u)
+                _dd_eq_u  = get_char_equipped(_dd_cid_u)
+                _dd_chest_u = save_data["chest_items"]
+                _dropped = False
+
+                if hub_equip_open:
+                    # --- Painel de Inventário (tecla I) ---
+                    _dd_sc_u   = min(SCREEN_W * 0.42 / 1128, SCREEN_H * 0.80 / 1254)
+                    _dd_PW_u   = int(1128 * _dd_sc_u); _dd_PH_u = int(1254 * _dd_sc_u)
+                    _dd_PX_u   = (SCREEN_W - _dd_PW_u) // 2
+                    _dd_PY_u   = (SCREEN_H - _dd_PH_u) // 2
+                    _dd_eqslots_u = {
+                        "helmet": (295,143,110,104), "weapon": (141,266,106,105),
+                        "armor":  (295,253,110,123), "shield": (457,266,106,105),
+                        "legs":   (295,381,110,104), "boots":  (295,509,110,104),
+                    }
+                    # Inventário grid
+                    _dd_COLS_u = 8
+                    _dd_gx0_u  = _dd_PX_u + int(52*_dd_sc_u)
+                    _dd_gy0_u  = _dd_PY_u + int(805*_dd_sc_u)
+                    _dd_sw_u   = int(121*_dd_sc_u)
+                    _dd_sh_u   = int(85*_dd_sc_u)
+                    _dd_stepx_u = _dd_sw_u + int(10*_dd_sc_u)
+                    _dd_stepy_u = _dd_sh_u + int(6*_dd_sc_u)
+
+                    # Testar drop em slot de equipamento
+                    for _sk_du, (ex,ey,ew,eh) in _dd_eqslots_u.items():
+                        _sr_du = pygame.Rect(_dd_PX_u+int(ex*_dd_sc_u), _dd_PY_u+int(ey*_dd_sc_u),
+                                             int(ew*_dd_sc_u), int(eh*_dd_sc_u))
+                        if _sr_du.collidepoint(_drop_pos):
+                            _di_item = _drag_item["item"]
+                            _di_slot = item_slot(_di_item.get("category",""))
+                            if _di_slot == _sk_du or _sk_du in ("helmet","armor","legs","boots"):
+                                _old_eq_u = _dd_eq_u.get(_sk_du)
+                                _dd_eq_u[_sk_du] = {"category":_di_item["category"],"idx":_di_item["idx"]}
+                                if _drag_item["from"] == "inventory": _dd_inv_u.pop(_drag_item["_idx"])
+                                elif _drag_item["from"] == "equip": _dd_eq_u[_drag_item["_slot"]] = None
+                                if _old_eq_u: _dd_inv_u.append(_old_eq_u)
+                                save_game(); _dropped = True
+                                if snd_click: snd_click.play()
+                            break
+
+                    if not _dropped:
+                        # Testar drop em slot de inventário
+                        _max_slots_u = 8 * 5  # 40 slots
+                        _target_idx_u = -1
+                        for _di_u in range(_max_slots_u):
+                            _col_u = _di_u % _dd_COLS_u; _row_u = _di_u // _dd_COLS_u
+                            _ir_u = pygame.Rect(_dd_gx0_u+_col_u*_dd_stepx_u, _dd_gy0_u+_row_u*_dd_stepy_u,
+                                                _dd_sw_u, _dd_sh_u)
+                            if _ir_u.collidepoint(_drop_pos):
+                                _target_idx_u = _di_u; break
+                        if _target_idx_u >= 0:
+                            _di_item = _drag_item["item"]
+                            if _drag_item["from"] == "equip":
+                                _dd_eq_u[_drag_item["_slot"]] = None
+                                if _target_idx_u < len(_dd_inv_u):
+                                    _dd_inv_u.insert(_target_idx_u, _di_item)
+                                else:
+                                    _dd_inv_u.append(_di_item)
+                                save_game(); _dropped = True
+                                if snd_click: snd_click.play()
+                            elif _drag_item["from"] == "inventory":
+                                _src_u = _drag_item["_idx"]
+                                _dd_inv_u.pop(_src_u)
+                                _real_target = min(_target_idx_u, len(_dd_inv_u))
+                                _dd_inv_u.insert(_real_target, _di_item)
+                                save_game(); _dropped = True
+                                if snd_click: snd_click.play()
+                            elif _drag_item["from"] == "chest":
+                                _dd_chest_u.pop(_drag_item["_idx"])
+                                if _target_idx_u < len(_dd_inv_u):
+                                    _dd_inv_u.insert(_target_idx_u, _di_item)
+                                else:
+                                    _dd_inv_u.append(_di_item)
+                                save_game(); _dropped = True
+                                if snd_click: snd_click.play()
+
+                elif hub_chest_open:
+                    # --- Painel de Baú (tecla F) ---
+                    _SL_u=52; _PD_u=6; _PW_u=190
+                    _ww_u=max(400,min(_PW_u*2+30,int(SCREEN_W*0.95)))
+                    _wh_u=min(540,int(SCREEN_H*0.82))
+                    _wx_u=(SCREEN_W-_ww_u)//2; _wy_u=(SCREEN_H-_wh_u)//2
+                    _cox_u=_wx_u+10; _iox_u=_cox_u+_PW_u+4; _iy0_u=_wy_u+66
+                    def _ghit_up(items, ox, oy):
+                        _cols_u=max(1,(_PW_u-4)//(_SL_u+_PD_u))
+                        _ix_u,_iy_u=ox,oy
+                        for _iu,_ in enumerate(items):
+                            if pygame.Rect(_ix_u,_iy_u,_SL_u,_SL_u).collidepoint(_drop_pos):
+                                return _iu
+                            _cu=(_iu+1)%_cols_u
+                            if _cu==0: _ix_u=ox; _iy_u+=_SL_u+_PD_u
+                            else: _ix_u+=_SL_u+_PD_u
+                        return -1
+                    _hc_u=_ghit_up(_dd_chest_u,_cox_u,_iy0_u)
+                    _hi_u=_ghit_up(_dd_inv_u,_iox_u,_iy0_u)
+                    _di_item=_drag_item["item"]
+                    if _hc_u>=0:
+                        if _drag_item["from"]=="inventory":
+                            _moved=_dd_inv_u.pop(_drag_item["_idx"])
+                            _dd_chest_u.insert(_hc_u,_moved); save_game(); _dropped=True
+                        elif _drag_item["from"]=="chest" and _drag_item["_idx"]!=_hc_u:
+                            _moved=_dd_chest_u.pop(_drag_item["_idx"])
+                            _dd_chest_u.insert(_hc_u,_moved); save_game(); _dropped=True
+                        if _dropped and snd_click: snd_click.play()
+                    elif _hi_u>=0:
+                        if _drag_item["from"]=="chest":
+                            _moved=_dd_chest_u.pop(_drag_item["_idx"])
+                            _dd_inv_u.insert(_hi_u,_moved); save_game(); _dropped=True
+                        elif _drag_item["from"]=="inventory" and _drag_item["_idx"]!=_hi_u:
+                            _moved=_dd_inv_u.pop(_drag_item["_idx"])
+                            _real_u=min(_hi_u,len(_dd_inv_u))
+                            _dd_inv_u.insert(_real_u,_moved); save_game(); _dropped=True
+                        if _dropped and snd_click: snd_click.play()
+                    else:
+                        # Drop em área vazia: mover para o outro painel
+                        _inv_area_u=pygame.Rect(_iox_u,_wy_u+46,_PW_u,_wh_u-50)
+                        _chest_area_u=pygame.Rect(_cox_u,_wy_u+46,_PW_u,_wh_u-50)
+                        if _drag_item["from"]=="chest" and _inv_area_u.collidepoint(_drop_pos):
+                            _moved=_dd_chest_u.pop(_drag_item["_idx"])
+                            _dd_inv_u.append(_moved); save_game(); _dropped=True
+                        elif _drag_item["from"]=="inventory" and _chest_area_u.collidepoint(_drop_pos):
+                            _moved=_dd_inv_u.pop(_drag_item["_idx"])
+                            _dd_chest_u.append(_moved); save_game(); _dropped=True
+                        if _dropped and snd_click: snd_click.play()
+
+                _drag_item = None; _drag_active = False
 
             # ── Gamepad: conexão/desconexão ──────────────────────────────────
             if event.type == pygame.JOYDEVICEADDED:
@@ -5587,199 +5717,360 @@ def main():
                 pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
                 screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
 
-            # ── Janela combinada Baú / Equipamento ─────────────────────────
-            if hub_chest_open or hub_equip_open:  # COMBINED_WINDOW_START
+            # ── Janela de Inventário / Equipamento (tecla I) ───────────────
+            if hub_equip_open:
+                _ie_cid  = player.char_id if player else 0
+                _ie_inv  = get_char_inventory(_ie_cid)
+                _ie_eq   = get_char_equipped(_ie_cid)
+                _ie_GOLD = UI_THEME.get("old_gold", (200, 170, 60))
+                _ie_dir  = os.path.join("assets", "ui", "itens")
+
+                # ── Escalar e cachear inventario.png ──────────────────────
+                _ie_sc   = min(SCREEN_W * 0.42 / 1128, SCREEN_H * 0.80 / 1254)
+                _ie_PW   = int(1128 * _ie_sc); _ie_PH = int(1254 * _ie_sc)
+                _ie_PX   = (SCREEN_W - _ie_PW) // 2
+                _ie_PY   = (SCREEN_H - _ie_PH) // 2
+                _ie_ckey = (_ie_PW, _ie_PH)
+                if _ie_ckey not in _inv_panel_cache:
+                    try:
+                        _raw_inv = pygame.image.load(
+                            os.path.join("assets", "ui", "panels", "inventario.png")
+                        ).convert_alpha()
+                        _inv_panel_cache[_ie_ckey] = pygame.transform.smoothscale(_raw_inv, (_ie_PW, _ie_PH))
+                    except Exception:
+                        _inv_panel_cache[_ie_ckey] = None
+                _ie_bg = _inv_panel_cache.get(_ie_ckey)
+                if _ie_bg:
+                    screen.blit(_ie_bg, (_ie_PX, _ie_PY))
+                else:
+                    # fallback: painel escuro simples
+                    _fb = pygame.Surface((_ie_PW, _ie_PH), pygame.SRCALPHA)
+                    _fb.fill((12, 10, 8, 240))
+                    screen.blit(_fb, (_ie_PX, _ie_PY))
+                    pygame.draw.rect(screen, _ie_GOLD, pygame.Rect(_ie_PX, _ie_PY, _ie_PW, _ie_PH), 2, border_radius=8)
+
+                # ── Helper: obter imagem do item escalada ─────────────────
+                def _ie_get_img(cat, idx, size):
+                    _cdat = ITEM_SHOP_CATEGORIES.get(cat, {})
+                    _fn   = "%s (%d).png" % (_cdat.get("prefix", cat), idx + 1)
+                    _key  = (_fn, size)
+                    if _key not in _item_shop_img_cache:
+                        _fp = os.path.join(_ie_dir, _fn)
+                        if os.path.exists(_fp):
+                            try:
+                                _raw = pygame.image.load(_fp).convert_alpha()
+                                _item_shop_img_cache[_key] = pygame.transform.smoothscale(_raw, (size, size))
+                            except Exception:
+                                _item_shop_img_cache[_key] = None
+                        else:
+                            _item_shop_img_cache[_key] = None
+                    return _item_shop_img_cache.get(_key)
+
+                # ── Helper: tooltip ───────────────────────────────────────
+                def _ie_tooltip(itm, anchor):
+                    _tc = itm.get("category",""); _ti = itm.get("idx",0)
+                    _tst = ITEM_SHOP_STATS.get(_tc,[{}])
+                    _tst = _tst[_ti] if _ti < len(_tst) else {}
+                    if not _tst: return
+                    _tls = [_tst.get("name", _tc)]
+                    _ta = _tst.get("atk",0); _td = _tst.get("def",0)
+                    if _ta: _tls.append("ATQ: +%d" % _ta)
+                    if _td: _tls.append("DEF: +%d" % _td)
+                    _ttw = max(font_s.size(_l)[0] for _l in _tls) + 16
+                    _tth = len(_tls) * 20 + 12
+                    _ttx = min(anchor.right + 4, SCREEN_W - _ttw - 4)
+                    _tty = max(4, anchor.top)
+                    _ts = pygame.Surface((_ttw, _tth), pygame.SRCALPHA); _ts.fill((18,14,10,230))
+                    screen.blit(_ts, (_ttx, _tty))
+                    pygame.draw.rect(screen, _ie_GOLD, pygame.Rect(_ttx,_tty,_ttw,_tth), 1, border_radius=4)
+                    for _tli, _tll in enumerate(_tls):
+                        _tc2 = _ie_GOLD if _tli==0 else (200,190,160)
+                        if "ATQ" in _tll: _tc2=(220,100,60)
+                        elif "DEF" in _tll: _tc2=(80,160,220)
+                        screen.blit(font_s.render(_tll, True, _tc2), (_ttx+8, _tty+6+_tli*20))
+
+                # ── Slots de equipamento (posições da imagem 1128×1254) ───
+                _ie_eqdef = {
+                    "helmet": (295,143,110,104),
+                    "weapon": (141,266,106,105),
+                    "armor":  (295,253,110,123),
+                    "shield": (457,266,106,105),
+                    "legs":   (295,381,110,104),
+                    "boots":  (295,509,110,104),
+                }
+                _ie_labels = {"helmet":"Capacete","weapon":"Arma","armor":"Armadura",
+                              "shield":"Escudo","legs":"Calças","boots":"Botas"}
+                _ie_active = {"weapon","shield"}  # slots equipáveis no jogo
+
+                for _sk_ie, (ex,ey,ew,eh) in _ie_eqdef.items():
+                    _sr_ie = pygame.Rect(_ie_PX+int(ex*_ie_sc), _ie_PY+int(ey*_ie_sc),
+                                         int(ew*_ie_sc), int(eh*_ie_sc))
+                    _eq_it = _ie_eq.get(_sk_ie)
+                    _is_drag_src = (_drag_active and _drag_item is not None and
+                                    _drag_item["from"]=="equip" and _drag_item["_slot"]==_sk_ie)
+                    # Destaque de drop quando arrastrando item compatível
+                    _is_drop_tgt = (_drag_active and _drag_item is not None and
+                                    _sr_ie.collidepoint(m_pos))
+                    if _is_drop_tgt:
+                        _hl = pygame.Surface((_sr_ie.width, _sr_ie.height), pygame.SRCALPHA)
+                        _hl.fill((255, 220, 80, 60))
+                        screen.blit(_hl, _sr_ie.topleft)
+                        pygame.draw.rect(screen, (255, 220, 80), _sr_ie, 2, border_radius=4)
+                    if _eq_it and not _is_drag_src:
+                        _img_ie = _ie_get_img(_eq_it["category"], _eq_it["idx"], min(_sr_ie.width,_sr_ie.height)-8)
+                        if _img_ie:
+                            screen.blit(_img_ie, _img_ie.get_rect(center=_sr_ie.center))
+                        if _sr_ie.collidepoint(m_pos): _ie_tooltip(_eq_it, _sr_ie)
+                    elif not _eq_it:
+                        _lbl_ie = font_s.render(_ie_labels.get(_sk_ie, _sk_ie), True, (80,72,55))
+                        screen.blit(_lbl_ie, _lbl_ie.get_rect(center=_sr_ie.center))
+                    elif _is_drag_src:
+                        # Slot vazio enquanto item está sendo arrastado
+                        _emp = pygame.Surface((_sr_ie.width, _sr_ie.height), pygame.SRCALPHA)
+                        _emp.fill((20, 18, 15, 80))
+                        screen.blit(_emp, _sr_ie.topleft)
+                        pygame.draw.rect(screen, (100, 90, 60), _sr_ie, 1, border_radius=4)
+
+                # ── Grade de inventário (8 colunas × 5 linhas) ────────────
+                _ie_COLS = 8
+                _ie_gx0  = _ie_PX + int(52  * _ie_sc)
+                _ie_gy0  = _ie_PY + int(805 * _ie_sc)
+                _ie_sw   = int(121 * _ie_sc)
+                _ie_sh   = int(85  * _ie_sc)
+                _ie_gapx = int(10  * _ie_sc)
+                _ie_gapy = int(6   * _ie_sc)
+                _ie_stpx = _ie_sw + _ie_gapx
+                _ie_stpy = _ie_sh + _ie_gapy
+                _ie_isize = min(_ie_sw, _ie_sh) - 8
+
+                for _ii_ie in range(_ie_COLS * 5):
+                    _col_ie = _ii_ie % _ie_COLS; _row_ie = _ii_ie // _ie_COLS
+                    _gr_ie = pygame.Rect(_ie_gx0+_col_ie*_ie_stpx, _ie_gy0+_row_ie*_ie_stpy,
+                                         _ie_sw, _ie_sh)
+                    _has_item = _ii_ie < len(_ie_inv)
+                    _is_drag_src2 = (_drag_active and _drag_item is not None and
+                                     _drag_item["from"]=="inventory" and _drag_item["_idx"]==_ii_ie)
+                    _is_drop_tgt2 = (_drag_active and _drag_item is not None and
+                                     _gr_ie.collidepoint(m_pos))
+                    if _is_drop_tgt2:
+                        _hl2 = pygame.Surface((_ie_sw, _ie_sh), pygame.SRCALPHA)
+                        _hl2.fill((255, 220, 80, 50))
+                        screen.blit(_hl2, _gr_ie.topleft)
+                        pygame.draw.rect(screen, (255, 220, 80), _gr_ie, 2, border_radius=3)
+                    if _has_item and not _is_drag_src2:
+                        _it_ie = _ie_inv[_ii_ie]
+                        _img_g = _ie_get_img(_it_ie["category"], _it_ie["idx"], _ie_isize)
+                        if _img_g: screen.blit(_img_g, _img_g.get_rect(center=_gr_ie.center))
+                        if _gr_ie.collidepoint(m_pos): _ie_tooltip(_it_ie, _gr_ie)
+                    elif _is_drag_src2:
+                        _emp2 = pygame.Surface((_ie_sw, _ie_sh), pygame.SRCALPHA)
+                        _emp2.fill((15, 12, 10, 70))
+                        screen.blit(_emp2, _gr_ie.topleft)
+
+                # ── Painel de stats (lado direito da imagem) ──────────────
+                _ie_sx0  = _ie_PX + int(640 * _ie_sc)   # x=640 na imagem = início da área de stats
+                _ie_sy0  = _ie_PY + int(130 * _ie_sc)
+                _ie_sw2  = _ie_PX + _ie_PW - _ie_sx0 - int(30 * _ie_sc)
+                _GOLD_ie = _ie_GOLD
+                _FGOLD_ie= UI_THEME.get("faded_gold", (140, 110, 40))
+
+                # Nome do personagem
+                _ie_cname = CHAR_DATA.get(_ie_cid, {}).get("name", "Herói")
+                _ie_cn = font_m.render(_ie_cname, True, (220, 200, 160))
+                screen.blit(_ie_cn, _ie_cn.get_rect(centerx=_ie_sx0+_ie_sw2//2, top=_ie_sy0))
+                pygame.draw.line(screen, _FGOLD_ie,
+                                 (_ie_sx0, _ie_sy0+_ie_cn.get_height()+4),
+                                 (_ie_sx0+_ie_sw2, _ie_sy0+_ie_cn.get_height()+4), 1)
+
+                # Calcular stats
+                _ie_eq_w = _ie_eq.get("weapon"); _ie_eq_s = _ie_eq.get("shield")
+                _ie_base_atk = CHAR_DATA.get(_ie_cid, {}).get("damage", 25)
+                _ie_bon_atk = 0; _ie_bon_def = 0
+                _ie_wname = None; _ie_sname = None
+                if _ie_eq_w:
+                    _wst = ITEM_SHOP_STATS.get(_ie_eq_w["category"], [])
+                    if _ie_eq_w["idx"] < len(_wst):
+                        _ie_bon_atk = _wst[_ie_eq_w["idx"]].get("atk", 0)
+                        _ie_wname   = _wst[_ie_eq_w["idx"]].get("name", "")
+                if _ie_eq_s:
+                    _sst = ITEM_SHOP_STATS.get(_ie_eq_s["category"], [])
+                    if _ie_eq_s["idx"] < len(_sst):
+                        _ie_bon_def = _sst[_ie_eq_s["idx"]].get("def", 0)
+                        _ie_sname   = _sst[_ie_eq_s["idx"]].get("name", "")
+                _ie_def_pct = min(80, int(save_data["perm_upgrades"].get("aura_res", 0) * 10 + _ie_bon_def / 3.0))
+
+                def _ie_stat(label, val_str, lbl_col, val_col, y_off):
+                    _ls = font_s.render(label, True, lbl_col)
+                    _vs = font_s.render(val_str, True, val_col)
+                    screen.blit(_ls, (_ie_sx0, _ie_sy0 + y_off))
+                    screen.blit(_vs, _vs.get_rect(right=_ie_sx0+_ie_sw2, top=_ie_sy0+y_off))
+
+                _ie_sy = _ie_cn.get_height() + 14
+                _ie_stat("HP", str(CHAR_DATA.get(_ie_cid,{}).get("hp", player.base_hp if player else 100)),
+                         (200,80,80), (240,140,140), _ie_sy); _ie_sy += 22
+                if _ie_bon_atk:
+                    _ie_stat("ATQ base", str(_ie_base_atk), (180,140,80), (220,180,120), _ie_sy); _ie_sy += 20
+                    _ie_stat("+ Arma", "+%d" % _ie_bon_atk, (180,140,80), (255,160,60), _ie_sy); _ie_sy += 20
+                    _ie_stat("TOTAL", str(_ie_base_atk+_ie_bon_atk), (220,180,80), (255,210,60), _ie_sy); _ie_sy += 22
+                else:
+                    _ie_stat("ATQ", str(_ie_base_atk), (180,140,80), (220,180,120), _ie_sy); _ie_sy += 22
+                if _ie_bon_def:
+                    _ie_stat("DEF escudo", str(_ie_bon_def), (80,130,200), (120,180,240), _ie_sy); _ie_sy += 20
+                    _ie_stat("Resistência", "%d%%" % _ie_def_pct, (80,130,200), (100,200,255), _ie_sy); _ie_sy += 22
+                else:
+                    _ie_stat("DEF", "%d%%" % _ie_def_pct, (80,130,200), (120,180,240), _ie_sy); _ie_sy += 22
+                _ie_stat("VEL", str(CHAR_DATA.get(_ie_cid,{}).get("speed",280)),
+                         (100,180,100), (140,220,140), _ie_sy); _ie_sy += 22
+                if player:
+                    _ie_stat("HP atual", str(int(player.hp)), (160,80,80), (200,110,110), _ie_sy); _ie_sy += 24
+
+                pygame.draw.line(screen, _FGOLD_ie,
+                                 (_ie_sx0, _ie_sy0+_ie_sy),
+                                 (_ie_sx0+_ie_sw2, _ie_sy0+_ie_sy), 1)
+                _ie_sy += 8
+                _eq_lbl = font_s.render("Equipamento", True, (160,140,90))
+                screen.blit(_eq_lbl, _eq_lbl.get_rect(centerx=_ie_sx0+_ie_sw2//2, top=_ie_sy0+_ie_sy)); _ie_sy += 20
+                _wlbl = font_s.render(("Arma: " + _ie_wname[:16]) if _ie_wname else "Sem arma", True,
+                                      (220,170,70) if _ie_wname else (100,90,65))
+                screen.blit(_wlbl, (_ie_sx0, _ie_sy0+_ie_sy)); _ie_sy += 20
+                _slbl = font_s.render(("Escudo: " + _ie_sname[:14]) if _ie_sname else "Sem escudo", True,
+                                      (100,170,220) if _ie_sname else (70,100,130))
+                screen.blit(_slbl, (_ie_sx0, _ie_sy0+_ie_sy))
+
+                # Dica de fechar
+                _ie_hint = font_s.render("I / ESC — Fechar", True, (90,80,58))
+                screen.blit(_ie_hint, _ie_hint.get_rect(centerx=_ie_PX+_ie_PW//2, bottom=_ie_PY+_ie_PH-8))
+
+            # ── Janela de Baú (tecla F) — painel compacto lado a lado ──────
+            elif hub_chest_open:
                 _cid_w   = player.char_id if player else 0
                 _chest_w = save_data["chest_items"]
                 _inv_wl  = get_char_inventory(_cid_w)
-                _equip_w = get_char_equipped(_cid_w)
                 _GOLD_W  = UI_THEME.get("old_gold", (200, 170, 60))
                 _FGOLD_W = UI_THEME.get("faded_gold", (140, 110, 40))
-                _SL_W = 52; _PD_W = 6
-                _PNL_W = 190; _DB_W = 280
+                _SL_W = 52; _PD_W = 6; _PNL_W = 190
                 _itens_dir_w = os.path.join("assets", "ui", "itens")
-                _sc_w = hub_chest_open; _se_w = hub_equip_open
-                _tot_w = (_PNL_W if _sc_w else 0) + (_DB_W if _se_w else 0) + _PNL_W + 10
-                _WW = max(400, min(_tot_w + 24, int(SCREEN_W * 0.95)))
+                _WW = max(400, min(_PNL_W * 2 + 30, int(SCREEN_W * 0.95)))
                 _WH = min(540, int(SCREEN_H * 0.82))
-                _WX = (SCREEN_W - _WW) // 2
-                _WY = (SCREEN_H - _WH) // 2
+                _WX = (SCREEN_W - _WW) // 2; _WY = (SCREEN_H - _WH) // 2
                 _wbg = pygame.Surface((_WW, _WH), pygame.SRCALPHA)
-                _wbg.fill((12, 10, 8, 225))
-                screen.blit(_wbg, (_WX, _WY))
-                pygame.draw.rect(screen, _GOLD_W, pygame.Rect(_WX, _WY, _WW, _WH), 2, border_radius=8)
+                _wbg.fill((12, 10, 8, 225)); screen.blit(_wbg, (_WX, _WY))
+                pygame.draw.rect(screen, _GOLD_W, pygame.Rect(_WX,_WY,_WW,_WH), 2, border_radius=8)
+                _t_w = font_m.render("Bau  |  Inventario", True, _GOLD_W)
+                screen.blit(_t_w, _t_w.get_rect(centerx=_WX+_WW//2, top=_WY+8))
+                pygame.draw.line(screen, _FGOLD_W, (_WX+12,_WY+42), (_WX+_WW-12,_WY+42), 1)
+                _cox_d = _WX + 10; _iox_d = _cox_d + _PNL_W + 4; _iy0_d = _WY + 66
+                pygame.draw.line(screen, _FGOLD_W, (_iox_d,_WY+42), (_iox_d,_WY+_WH-28), 1)
+                _lbl1 = font_s.render("BAU", True, (170,150,95))
+                screen.blit(_lbl1, _lbl1.get_rect(centerx=_cox_d+_PNL_W//2, top=_WY+46))
+                _lbl2 = font_s.render("INVENTARIO", True, (170,150,95))
+                screen.blit(_lbl2, _lbl2.get_rect(centerx=_iox_d+_PNL_W//2, top=_WY+46))
 
-                # Title
-                _titles_w = []
-                if _sc_w: _titles_w.append("Baú")
-                if _se_w: _titles_w.append("Equipamento")
-                _titles_w.append("Inventário")
-                _t_surf_w = font_m.render("  |  ".join(_titles_w), True, _GOLD_W)
-                screen.blit(_t_surf_w, _t_surf_w.get_rect(centerx=_WX+_WW//2, top=_WY+8))
-                pygame.draw.line(screen, _FGOLD_W, (_WX+12, _WY+42), (_WX+_WW-12, _WY+42), 1)
-
-                # Panel x-offsets
-                _pcx = _WX + 10
-                _cox_d = _pcx if _sc_w else None
-                if _sc_w:
-                    _pcx += _PNL_W + 4
-                    pygame.draw.line(screen, _FGOLD_W, (_pcx, _WY+42), (_pcx, _WY+_WH-28), 1)
-                _dox_d = _pcx if _se_w else None
-                if _se_w:
-                    _pcx += _DB_W + 4
-                    pygame.draw.line(screen, _FGOLD_W, (_pcx, _WY+42), (_pcx, _WY+_WH-28), 1)
-                _iox_d = _pcx
-                _iy0_d = _WY + 66
-
-                # Panel labels
-                if _cox_d is not None:
-                    _lbl_d = font_s.render("BAÚ", True, (170, 150, 95))
-                    screen.blit(_lbl_d, _lbl_d.get_rect(centerx=_cox_d+_PNL_W//2, top=_WY+46))
-                if _dox_d is not None:
-                    _lbl_d = font_s.render("EQUIPAMENTO", True, (170, 150, 95))
-                    screen.blit(_lbl_d, _lbl_d.get_rect(centerx=_dox_d+_DB_W//2, top=_WY+46))
-                _lbl_d = font_s.render("INVENTÁRIO", True, (170, 150, 95))
-                screen.blit(_lbl_d, _lbl_d.get_rect(centerx=_iox_d+_PNL_W//2, top=_WY+46))
-
-                # Helper: draw item grid, returns list of rects
-                def _draw_grid_w(items, ox):
-                    _cols_g = max(1, (_PNL_W - 4) // (_SL_W + _PD_W))
-                    _gx, _gy = ox, _iy0_d
-                    _rects_g = []
+                def _draw_grid_chest(items, ox):
+                    _cols_g = max(1, (_PNL_W-4)//(_SL_W+_PD_W))
+                    _gx, _gy = ox, _iy0_d; _rects_g = []
                     for _gi, _gitem in enumerate(items):
-                        _gr = pygame.Rect(_gx, _gy, _SL_W, _SL_W)
-                        _rects_g.append(_gr)
-                        _sel_g = (_drag_item is not None and
-                                  _drag_item["item"].get("category") == _gitem.get("category") and
-                                  _drag_item["item"].get("idx") == _gitem.get("idx"))
-                        pygame.draw.rect(screen, (50,50,20) if _sel_g else (25,25,25), _gr, border_radius=4)
-                        pygame.draw.rect(screen, _GOLD_W if _sel_g else (65,65,65), _gr, 2 if _sel_g else 1, border_radius=4)
-                        _gcat = _gitem.get("category",""); _gidx = _gitem.get("idx",0)
-                        _gcdat = ITEM_SHOP_CATEGORIES.get(_gcat,{}); _gfn = f"{_gcdat.get('prefix',_gcat)} ({_gidx+1}).png"
-                        if _gfn not in _item_shop_img_cache:
-                            _gfp = os.path.join(_itens_dir_w, _gfn)
-                            if os.path.exists(_gfp):
-                                try:
-                                    _graw = pygame.image.load(_gfp).convert_alpha()
-                                    _item_shop_img_cache[_gfn] = pygame.transform.smoothscale(_graw, (_SL_W-8,_SL_W-8))
-                                except Exception: _item_shop_img_cache[_gfn] = None
-                            else: _item_shop_img_cache[_gfn] = None
-                        _gimg = _item_shop_img_cache.get(_gfn)
-                        if _gimg: screen.blit(_gimg, _gimg.get_rect(center=_gr.center))
+                        _gr = pygame.Rect(_gx, _gy, _SL_W, _SL_W); _rects_g.append(_gr)
+                        _is_src = (_drag_active and _drag_item is not None and
+                                   _drag_item["from"]==("chest" if ox==_cox_d else "inventory") and
+                                   _drag_item["_idx"]==_gi)
+                        _is_tgt = (_drag_active and _drag_item is not None and _gr.collidepoint(m_pos))
+                        if _is_tgt:
+                            _hl3 = pygame.Surface((_SL_W,_SL_W), pygame.SRCALPHA)
+                            _hl3.fill((255,220,80,55)); screen.blit(_hl3, _gr.topleft)
+                            pygame.draw.rect(screen, (255,220,80), _gr, 2, border_radius=4)
+                        elif not _is_src:
+                            pygame.draw.rect(screen, (25,25,25), _gr, border_radius=4)
+                            pygame.draw.rect(screen, (65,65,65), _gr, 1, border_radius=4)
+                        else:
+                            pygame.draw.rect(screen, (15,12,10), _gr, border_radius=4)
+                            pygame.draw.rect(screen, (80,72,50), _gr, 1, border_radius=4)
+                        if not _is_src:
+                            _gcat = _gitem.get("category",""); _gidx = _gitem.get("idx",0)
+                            _gcdat = ITEM_SHOP_CATEGORIES.get(_gcat,{})
+                            _gfn = "%s (%d).png" % (_gcdat.get("prefix",_gcat), _gidx+1)
+                            _gkey = (_gfn, _SL_W-8)
+                            if _gkey not in _item_shop_img_cache:
+                                _gfp = os.path.join(_itens_dir_w, _gfn)
+                                if os.path.exists(_gfp):
+                                    try:
+                                        _graw = pygame.image.load(_gfp).convert_alpha()
+                                        _item_shop_img_cache[_gkey] = pygame.transform.smoothscale(_graw, (_SL_W-8,_SL_W-8))
+                                    except Exception: _item_shop_img_cache[_gkey] = None
+                                else: _item_shop_img_cache[_gkey] = None
+                            _gimg = _item_shop_img_cache.get(_gkey)
+                            if _gimg: screen.blit(_gimg, _gimg.get_rect(center=_gr.center))
                         _gc = (_gi+1) % _cols_g
-                        if _gc == 0: _gx = ox; _gy += _SL_W + _PD_W
-                        else: _gx += _SL_W + _PD_W
+                        if _gc==0: _gx=ox; _gy+=_SL_W+_PD_W
+                        else: _gx+=_SL_W+_PD_W
                     return _rects_g
 
-                # Chest panel
-                _chest_rects_d = _draw_grid_w(_chest_w, _cox_d) if _cox_d is not None else []
-                if _cox_d is not None and not _chest_w:
-                    _es = font_s.render("Baú vazio", True, (110,95,65))
+                _chest_rects_d = _draw_grid_chest(_chest_w, _cox_d)
+                if not _chest_w:
+                    _es = font_s.render("Bau vazio", True, (110,95,65))
                     screen.blit(_es, _es.get_rect(centerx=_cox_d+_PNL_W//2, top=_iy0_d+10))
-
-                # Diablo equipment panel
-                _diab_rects_d = {}
-                if _dox_d is not None:
-                    _DS_D = 56; _dcc_d = _dox_d + _DB_W // 2
-                    _diab_pos_d = {
-                        "helmet": (_dcc_d-_DS_D//2, _WY+66),
-                        "weapon": (_dox_d+16,       _WY+136),
-                        "armor":  (_dcc_d-_DS_D//2, _WY+136),
-                        "shield": (_dox_d+_DB_W-_DS_D-16, _WY+136),
-                        "legs":   (_dcc_d-_DS_D//2, _WY+206),
-                        "boots":  (_dcc_d-_DS_D//2, _WY+276),
-                    }
-                    _ACTV_D = {"weapon","shield"}
-                    _SLBL_D = {"helmet":"Capacete","weapon":"Arma","armor":"Armadura",
-                               "shield":"Escudo","legs":"Calças","boots":"Botas"}
-                    for _sk_d, (_sdx_d, _sdy_d) in _diab_pos_d.items():
-                        _sr_d = pygame.Rect(_sdx_d, _sdy_d, _DS_D, _DS_D)
-                        _diab_rects_d[_sk_d] = _sr_d
-                        _eq_itm_d = _equip_w.get(_sk_d)
-                        _act_d = _sk_d in _ACTV_D
-                        if _act_d:
-                            _sbg_d = (32,30,55) if _eq_itm_d else (18,18,35)
-                            _sbd_d = _GOLD_W if _eq_itm_d else (75,70,130)
-                        else:
-                            _sbg_d = (20,18,16); _sbd_d = (45,42,38)
-                        pygame.draw.rect(screen, _sbg_d, _sr_d, border_radius=5)
-                        pygame.draw.rect(screen, _sbd_d, _sr_d, 1, border_radius=5)
-                        if _eq_itm_d and _act_d:
-                            _ecd_d = ITEM_SHOP_CATEGORIES.get(_eq_itm_d["category"],{})
-                            _efn_d = f"{_ecd_d.get('prefix',_eq_itm_d['category'])} ({_eq_itm_d['idx']+1}).png"
-                            if _efn_d not in _item_shop_img_cache:
-                                _efp_d = os.path.join(_itens_dir_w, _efn_d)
-                                if os.path.exists(_efp_d):
-                                    try:
-                                        _eraw_d = pygame.image.load(_efp_d).convert_alpha()
-                                        _item_shop_img_cache[_efn_d] = pygame.transform.smoothscale(_eraw_d, (_DS_D-8,_DS_D-8))
-                                    except Exception: _item_shop_img_cache[_efn_d] = None
-                                else: _item_shop_img_cache[_efn_d] = None
-                            _eimg_d = _item_shop_img_cache.get(_efn_d)
-                            if _eimg_d: screen.blit(_eimg_d, _eimg_d.get_rect(center=_sr_d.center))
-                        else:
-                            _slb_c_d = (85,80,60) if _act_d else (50,46,38)
-                            _slb_s_d = font_s.render(_SLBL_D.get(_sk_d,_sk_d), True, _slb_c_d)
-                            screen.blit(_slb_s_d, _slb_s_d.get_rect(center=_sr_d.center))
-                    # Active bonuses below Diablo panel
-                    _bparts_d = []
-                    for _bslot_d, _bpfx_d in (("weapon","ATQ"),("shield","DEF")):
-                        _beq_d = _equip_w.get(_bslot_d)
-                        if _beq_d:
-                            _bst_d = ITEM_SHOP_STATS.get(_beq_d["category"],[])
-                            if _beq_d["idx"] < len(_bst_d):
-                                _bval_d = _bst_d[_beq_d["idx"]].get("atk" if _bpfx_d=="ATQ" else "def", 0)
-                                if _bval_d: _bparts_d.append(f"{_bpfx_d} +{_bval_d}")
-                    if _bparts_d:
-                        _bsurf_d = font_s.render("  |  ".join(_bparts_d), True, (200,200,100))
-                        screen.blit(_bsurf_d, _bsurf_d.get_rect(centerx=_dox_d+_DB_W//2, bottom=_WY+_WH-34))
-
-                # Inventory panel
-                _inv_rects_d = _draw_grid_w(_inv_wl, _iox_d)
+                _inv_rects_d = _draw_grid_chest(_inv_wl, _iox_d)
                 if not _inv_wl:
-                    _ei_s = font_s.render("Inventário vazio", True, (110,95,65))
+                    _ei_s = font_s.render("Inventario vazio", True, (110,95,65))
                     screen.blit(_ei_s, _ei_s.get_rect(centerx=_iox_d+_PNL_W//2, top=_iy0_d+10))
 
-                # Tooltip helper
-                def _tip_d(itm_d2, anchor_d):
-                    _tc_d = itm_d2.get("category",""); _ti_d = itm_d2.get("idx",0)
-                    _tst_d = ITEM_SHOP_STATS.get(_tc_d,[{}]); _tst_d = _tst_d[_ti_d] if _ti_d < len(_tst_d) else {}
-                    if not _tst_d: return
-                    _tls_d = [_tst_d.get("name",_tc_d)]
-                    _ta_d = _tst_d.get("atk",0); _td_d = _tst_d.get("def",0)
-                    if _ta_d: _tls_d.append(f"ATQ: +{_ta_d}")
-                    if _td_d: _tls_d.append(f"DEF: +{_td_d}")
-                    _ttw_d = max(font_s.size(_l)[0] for _l in _tls_d)+16
-                    _tth_d = len(_tls_d)*20+12
-                    _ttx_d = min(anchor_d.right+4, SCREEN_W-_ttw_d-4)
-                    _tty_d = max(4, anchor_d.top)
-                    _ts_d = pygame.Surface((_ttw_d,_tth_d), pygame.SRCALPHA); _ts_d.fill((18,14,10,230))
-                    screen.blit(_ts_d, (_ttx_d,_tty_d))
-                    pygame.draw.rect(screen, _GOLD_W, pygame.Rect(_ttx_d,_tty_d,_ttw_d,_tth_d), 1, border_radius=4)
-                    for _tli_d, _tll_d in enumerate(_tls_d):
-                        _tc_d2 = _GOLD_W if _tli_d==0 else (200,190,160)
-                        if "ATQ" in _tll_d: _tc_d2=(220,100,60)
-                        elif "DEF" in _tll_d: _tc_d2=(80,160,220)
-                        screen.blit(font_s.render(_tll_d,True,_tc_d2), (_ttx_d+8,_tty_d+6+_tli_d*20))
+                def _tip_chest(itm_c, anchor_c):
+                    _tc = itm_c.get("category",""); _ti = itm_c.get("idx",0)
+                    _tst = ITEM_SHOP_STATS.get(_tc,[{}]); _tst = _tst[_ti] if _ti<len(_tst) else {}
+                    if not _tst: return
+                    _tls = [_tst.get("name",_tc)]
+                    _ta = _tst.get("atk",0); _td = _tst.get("def",0)
+                    if _ta: _tls.append("ATQ: +%d" % _ta)
+                    if _td: _tls.append("DEF: +%d" % _td)
+                    _ttw = max(font_s.size(_l)[0] for _l in _tls)+16; _tth = len(_tls)*20+12
+                    _ttx = min(anchor_c.right+4, SCREEN_W-_ttw-4); _tty = max(4, anchor_c.top)
+                    _ts = pygame.Surface((_ttw,_tth), pygame.SRCALPHA); _ts.fill((18,14,10,230))
+                    screen.blit(_ts, (_ttx,_tty))
+                    pygame.draw.rect(screen, _GOLD_W, pygame.Rect(_ttx,_tty,_ttw,_tth), 1, border_radius=4)
+                    for _tli, _tll in enumerate(_tls):
+                        _tc2 = _GOLD_W if _tli==0 else (200,190,160)
+                        if "ATQ" in _tll: _tc2=(220,100,60)
+                        elif "DEF" in _tll: _tc2=(80,160,220)
+                        screen.blit(font_s.render(_tll,True,_tc2), (_ttx+8,_tty+6+_tli*20))
+                for _ci5,_cr5 in enumerate(_chest_rects_d):
+                    if _cr5.collidepoint(m_pos) and _ci5<len(_chest_w): _tip_chest(_chest_w[_ci5], _cr5)
+                for _ii5,_ir5 in enumerate(_inv_rects_d):
+                    if _ir5.collidepoint(m_pos) and _ii5<len(_inv_wl): _tip_chest(_inv_wl[_ii5], _ir5)
+                _hint_c = font_s.render("Arraste itens | F / ESC -- Fechar", True, (90,80,58))
+                screen.blit(_hint_c, _hint_c.get_rect(centerx=_WX+_WW//2, bottom=_WY+_WH-6))
 
-                for _ci5, _cr5 in enumerate(_chest_rects_d):
-                    if _cr5.collidepoint(m_pos) and _ci5 < len(_chest_w): _tip_d(_chest_w[_ci5], _cr5)
-                for _ii5, _ir5 in enumerate(_inv_rects_d):
-                    if _ir5.collidepoint(m_pos) and _ii5 < len(_inv_wl): _tip_d(_inv_wl[_ii5], _ir5)
-                if _dox_d is not None:
-                    for _sk5, _sr5 in _diab_rects_d.items():
-                        if _sr5.collidepoint(m_pos) and _equip_w.get(_sk5): _tip_d(_equip_w[_sk5], _sr5)
-
-                # Hint / drag indicator
-                if _drag_item:
-                    _dn_d = _drag_item["item"]
-                    _dcat_d = _dn_d.get("category",""); _didx_d = _dn_d.get("idx",0)
-                    _dst_d = ITEM_SHOP_STATS.get(_dcat_d,[{}]); _dst_d = _dst_d[_didx_d] if _didx_d < len(_dst_d) else {}
-                    _dnm_d = _dst_d.get("name",_dcat_d)
-                    _dh_s_d = font_s.render(f"Selecionado: {_dnm_d[:22]}  — clique no destino  |  ESC = cancelar", True, (255,225,80))
-                else:
-                    _dh_s_d = font_s.render("Clique para selecionar  |  F / I / ESC — Fechar", True, (100,90,65))
-                screen.blit(_dh_s_d, _dh_s_d.get_rect(centerx=_WX+_WW//2, bottom=_WY+_WH-6))
+            # ── Item flutuando no cursor durante drag ──────────────────────
+            if _drag_active and _drag_item is not None:
+                _df_item = _drag_item["item"]
+                _df_cat  = _df_item.get("category",""); _df_idx = _df_item.get("idx",0)
+                _df_size = 44
+                _df_cdat = ITEM_SHOP_CATEGORIES.get(_df_cat,{})
+                _df_fn   = "%s (%d).png" % (_df_cdat.get("prefix",_df_cat), _df_idx+1)
+                _df_key  = (_df_fn, _df_size)
+                if _df_key not in _item_shop_img_cache:
+                    _df_fp = os.path.join("assets","ui","itens", _df_fn)
+                    if os.path.exists(_df_fp):
+                        try:
+                            _df_raw = pygame.image.load(_df_fp).convert_alpha()
+                            _item_shop_img_cache[_df_key] = pygame.transform.smoothscale(_df_raw, (_df_size,_df_size))
+                        except Exception: _item_shop_img_cache[_df_key] = None
+                    else: _item_shop_img_cache[_df_key] = None
+                _df_img = _item_shop_img_cache.get(_df_key)
+                _df_mx, _df_my = m_pos
+                # Sombra do item arrastado
+                _df_shadow = pygame.Surface((_df_size+4, _df_size+4), pygame.SRCALPHA)
+                _df_shadow.fill((0,0,0,100))
+                screen.blit(_df_shadow, (_df_mx - _df_size//2 + 3, _df_my - _df_size//2 + 3))
+                # Fundo levemente transparente
+                _df_bg = pygame.Surface((_df_size, _df_size), pygame.SRCALPHA)
+                _df_bg.fill((20,16,12,160))
+                screen.blit(_df_bg, (_df_mx-_df_size//2, _df_my-_df_size//2))
+                if _df_img:
+                    _df_surf = _df_img.copy(); _df_surf.set_alpha(210)
+                    screen.blit(_df_surf, (_df_mx-_df_size//2, _df_my-_df_size//2))
+                pygame.draw.rect(screen, (220,190,80),
+                                 pygame.Rect(_df_mx-_df_size//2, _df_my-_df_size//2, _df_size, _df_size),
+                                 1, border_radius=3)
 
             # ── Janela de Status do Personagem (C) ──────────────────────────
             if hub_status_open and player is not None:
