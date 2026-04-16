@@ -50,14 +50,14 @@ The project is actively evolving and aims to balance gameplay quality with clean
 
 ## Playable Characters
 
-| Character | HP | Speed | Playstyle | Ultimate |
-|---|---|---|---|---|
-| Warrior | 8 | 280 | Melee + mid-range projectiles | Fury: increased fire rate and damage |
-| Hunter | 5 | 340 | Fast projectiles, high crit | Burst: cone spread shot |
-| Mage | 6 | 260 | Magic orbs + area aura | Temporal Freeze: freezes all nearby enemies |
-| Vampire | 7 | 300 | Projectiles + life steal | Vampirism |
-| Demon | 6 | 290 | Multi-projectile burst | Abyss Flames |
-| Golem | 9 | 240 | Pure melee, highest HP | Earth Strike: 16 melee slashes in two rings |
+| Character | HP | Speed | Damage | Mana | Ultimate |
+|---|---|---|---|---|---|
+| Warrior | 100 | 280 | 25 | 50 | Warrior's Fury |
+| Hunter | 63 | 340 | 38 | 75 | Arrow Rain |
+| Mage | 75 | 260 | 25 | 200 | Temporal Freeze |
+| Vampire | 88 | 300 | 38 | 100 | Shadow Storm |
+| Demon | 75 | 290 | 38 | 100 | Infernal Flame |
+| Golem | 113 | 240 | 50 | 50 | Earth Strike |
 
 All characters are unlocked by default.
 
@@ -65,32 +65,34 @@ All characters are unlocked by default.
 
 ### Enemies — All difficulties
 
-| Type | HP | Speed | Spawn | Description |
+| Type | Base HP | Base Speed | Spawn | Description |
 |---|---|---|---|---|
-| Bat | 1 | 145 | 0s | Fast, sinusoidal movement |
-| Runner | 2 | 150 | 0s | Fast straight-line chaser |
-| Tank | 10 | 65 | 30s | High HP, slow, melee |
-| Shooter | 3 | 90 | 30s | Ranged projectile attacker |
-| Goblin | 3 | 160 | 1 min | Fast with moderate zigzag |
-| Beholder | 8 | 85 | 1.5 min | Floating, smooth movement |
-| Orc | 12 | 75 | 3 min | Large (168px), tanky melee |
-| Elite | +50% | base | 30s+ | Reinforced variant with guaranteed gold drop |
+| Bat | 28 | 145 | 0s | Fast, sinusoidal movement |
+| Runner | 50 | 150 | 0s | Fast straight-line chaser |
+| Tank | 260 | 65 | 30s | High HP, slow, melee |
+| Shooter | 80 | 90 | 30s | Ranged projectile attacker |
+| Goblin | 80 | 160 | 1 min | Fast with moderate zigzag |
+| Beholder | 200 | 85 | 1.5 min | Floating, smooth movement |
+| Orc | 300 | 75 | 3 min | Large, tanky melee |
+| Elite | 1500 | 85 | 30s+ | Reinforced variant with guaranteed gold drop |
+
+> HP and speed scale with the difficulty multiplier and game time (+20% HP/damage per minute up to 6×).
 
 ### Enemies — Hard / Hardcore only
 
-| Type | HP | Speed | Spawn | Description |
+| Type | Base HP | Base Speed | Spawn | Description |
 |---|---|---|---|---|
-| Slime | 5 | 110 | 30s | Balanced standard enemy |
-| Minotaur | 8 | 130 | 30s | Melee, direct pursuit |
-| Rat | 6 | 135 | 2 min | Large (220px), aggressive zigzag |
+| Slime | 130 | 110 | 30s | Balanced enemy with dark aura |
+| Minotaur | 200 | 130 | 30s | Melee, direct pursuit |
+| Rat | 150 | 135 | 2 min | Large (220px), aggressive zigzag |
 
 ### Bosses
 
-| Type | HP | Spawn | Description |
+| Type | Base HP | Spawn | Description |
 |---|---|---|---|
-| Mini Boss | 300+ | ~10s | Own health bar, scales with time |
+| Mini Boss | 6000 | ~10 min | Own health bar, scales with time (+30% × time_scale) |
 | Boss | scalable | 5 min (every 5 min) | Multi-phase, grows stronger each wave |
-| Agis | 800+ | 2 min (summoning seal) | Slow boss, long-range double-orb attack + area magic every 5s |
+| Agis | 10000 | 2 min (summoning seal) | Slow boss, double-orb attack + 8-orb area magic every 5s (+25% × time_scale) |
 
 **Agis** is summoned through an animated seal (`doom_agis.png`) that appears near the player before spawning. Has a basic ranged projectile (purple double orb) and an area spell that fires 8 orbs in all directions. Drops a chest + 15 coins on death.
 
@@ -99,6 +101,7 @@ All characters are unlocked by default.
 ### Core modules
 
 - `jogo_final.py`: entry point and main game loop.
+- `balance.py`: progression formulas — XP curve, enemy scaling, upgrade costs, drop rates.
 - `characters.py`: character classes, skills, and ultimates.
 - `enemies.py`: enemies, AI, animations, and enemy projectiles.
 - `hud.py`: HUD, visual theme, and UI components.
@@ -244,6 +247,7 @@ On Windows, without activating the venv:
 ```text
 underworld-hero-survivor/
 |- jogo_final.py
+|- balance.py
 |- characters.py
 |- enemies.py
 |- spatial_index.py
@@ -268,7 +272,7 @@ underworld-hero-survivor/
 - Expand biomes and enemy variation.
 - [x] Boss Agis — summoning seal, long-range attack, and area magic.
 - Add new bosses and combat phases.
-- Refine progression and upgrade economy balancing.
+- [x] Balance system for progression and economy (`balance.py`).
 - Publish a distributable Windows build.
 
 ## Contributing

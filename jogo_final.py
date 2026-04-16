@@ -5,6 +5,7 @@ import os
 import json
 import threading
 from datetime import datetime, timedelta
+import balance as _bal
 
 from characters import CharacterCombatContext, CharacterDependencies, create_player
 import hud as dark_hud
@@ -978,7 +979,6 @@ PACTOS = {
     "NENHUM":     {"name": "SEM PACTO",       "desc": "Sem modificadores.",                     "hp": 0,  "color": (200, 200, 200)},
     "VELOCIDADE": {"name": "PACTO DA PRESSA",  "desc": "Inimigos 50% mais rápidos, +50% Ouro.",  "hp": 0,  "color": (255, 200, 0)},
     "FRÁGIL":     {"name": "PACTO FRÁGIL",     "desc": "Começa com -2 HP máximo, +30% XP.",       "hp": -2, "color": (255, 100, 100)},
-    "SOMBRA":     {"name": "PACTO DA SOMBRA",  "desc": "Inimigos invisíveis, +80% Ouro.",          "hp": 0,  "color": (150, 0, 200)},
 }
 
 # Dados dos biomas / backgrounds
@@ -3217,11 +3217,13 @@ def main():
         bg_btns.append(btn)
 
     pause_btns = [
-        Button(0.5, 0.55, BTN_W, BTN_H, "CONTINUAR",    font_m, color=(30, 80, 30)),
-        Button(0.5, 0.68, BTN_W, BTN_H, "MENU PRINCIPAL", font_m, color=(80, 30, 30)),
+        Button(0.5, 0.50, BTN_W, BTN_H, "CONTINUAR",        font_m, color=(30, 80, 30)),
+        Button(0.5, 0.62, BTN_W, BTN_H, "VOLTAR PARA ROOM", font_m, color=(30, 50, 90)),
+        Button(0.5, 0.74, BTN_W, BTN_H, "MENU PRINCIPAL",   font_m, color=(80, 30, 30)),
     ]
     pause_btns[0].sprite_idx = 0
-    pause_btns[1].sprite_idx = 6
+    pause_btns[1].sprite_idx = 2
+    pause_btns[2].sprite_idx = 6
     pause_save_btns = [
         Button(0.70, 0.54, BTN_SM_W, BTN_H, "SALVAR SLOT 1", font_s, color=(35, 80, 35)),
         Button(0.70, 0.61, BTN_SM_W, BTN_H, "SALVAR SLOT 2", font_s, color=(35, 80, 35)),
@@ -3521,8 +3523,9 @@ def main():
                             # Slots de equipamento (posições relativas à imagem 1128×1254)
                             _dd_eqslots = {
                                 "helmet": (295,143,110,104), "weapon": (141,266,106,105),
-                                "armor":  (295,253,110,123), "shield": (457,266,106,105),
-                                "legs":   (295,381,110,104), "boots":  (295,509,110,104),
+                                "shield": (457,266,106,105),
+                                "armor":  (295,381,110,104),
+                                "legs":   (295,509,110,104), "boots":  (295,637,110,100),
                             }
                             # Testar clique em slots de equipamento
                             _dd_hit_eq = None
@@ -3534,14 +3537,12 @@ def main():
                                     _dd_hit_eq = _sk_dd; break
                             # Testar clique em slots do inventário (grade 8×5)
                             _dd_COLS = 8
-                            _dd_gx0  = _dd_PX + int(52*_dd_sc)
-                            _dd_gy0  = _dd_PY + int(805*_dd_sc)
-                            _dd_sw   = int(121*_dd_sc)
-                            _dd_sh   = int(85*_dd_sc)
-                            _dd_gapx = int(10*_dd_sc)
-                            _dd_gapy = int(6*_dd_sc)
-                            _dd_stepx = _dd_sw + _dd_gapx
-                            _dd_stepy = _dd_sh + _dd_gapy
+                            _dd_gx0   = _dd_PX + int(53*_dd_sc)
+                            _dd_gy0   = _dd_PY + int(807*_dd_sc)
+                            _dd_sw    = int(93*_dd_sc)
+                            _dd_sh    = int(85*_dd_sc)
+                            _dd_stepx = int(95*_dd_sc)
+                            _dd_stepy = int(88*_dd_sc)
                             _dd_hit_inv = -1
                             for _di_dd in range(len(_dd_inv)):
                                 _col_dd = _di_dd % _dd_COLS
@@ -3955,7 +3956,14 @@ def main():
                         if pause_btns[0].rect.collidepoint(click_pos):
                             if snd_click: snd_click.play()
                             state = "PLAYING"
-                        elif pause_btns[1].rect.collidepoint(click_pos):
+                        elif pause_btns[1].rect.collidepoint(click_pos):  # VOLTAR PARA ROOM
+                            if snd_click: snd_click.play()
+                            save_data["gold"] = save_data.get("gold", 0) + int(run_gold_collected)
+                            run_gold_collected = 0.0
+                            clear_current_run_state()
+                            save_game()
+                            state = "HUB"
+                        elif pause_btns[2].rect.collidepoint(click_pos):  # MENU PRINCIPAL
                             if snd_click: snd_click.play()
                             save_run_slot(0)
                             clear_current_run_state()
@@ -3997,17 +4005,18 @@ def main():
                     _dd_PY_u   = (SCREEN_H - _dd_PH_u) // 2
                     _dd_eqslots_u = {
                         "helmet": (295,143,110,104), "weapon": (141,266,106,105),
-                        "armor":  (295,253,110,123), "shield": (457,266,106,105),
-                        "legs":   (295,381,110,104), "boots":  (295,509,110,104),
+                        "shield": (457,266,106,105),
+                        "armor":  (295,381,110,104),
+                        "legs":   (295,509,110,104), "boots":  (295,637,110,100),
                     }
                     # Inventário grid
-                    _dd_COLS_u = 8
-                    _dd_gx0_u  = _dd_PX_u + int(52*_dd_sc_u)
-                    _dd_gy0_u  = _dd_PY_u + int(805*_dd_sc_u)
-                    _dd_sw_u   = int(121*_dd_sc_u)
-                    _dd_sh_u   = int(85*_dd_sc_u)
-                    _dd_stepx_u = _dd_sw_u + int(10*_dd_sc_u)
-                    _dd_stepy_u = _dd_sh_u + int(6*_dd_sc_u)
+                    _dd_COLS_u  = 8
+                    _dd_gx0_u   = _dd_PX_u + int(53*_dd_sc_u)
+                    _dd_gy0_u   = _dd_PY_u + int(807*_dd_sc_u)
+                    _dd_sw_u    = int(93*_dd_sc_u)
+                    _dd_sh_u    = int(85*_dd_sc_u)
+                    _dd_stepx_u = int(95*_dd_sc_u)
+                    _dd_stepy_u = int(88*_dd_sc_u)
 
                     # Testar drop em slot de equipamento
                     for _sk_du, (ex,ey,ew,eh) in _dd_eqslots_u.items():
@@ -4240,7 +4249,7 @@ def main():
         # 3. Atualização da Lógica do Jogo
         if state == "PLAYING" and player and player.hp > 0:
 
-            current_xp_to_level = int(80 + (level-1)*22 + ((level-1)**1.12)*6)
+            current_xp_to_level = _bal.xp_to_level(level)
 
             keys = pygame.key.get_pressed()
             
@@ -4265,9 +4274,9 @@ def main():
 
             update_skill_feed(dt)
 
-            time_scale = 1.0 + (game_time / 60.0) * 0.20
-            
-            current_spawn_rate = max(0.1, SPAWN_EVERY_BASE - (game_time / 500.0)) 
+            time_scale = _bal.enemy_scale(game_time)
+
+            current_spawn_rate = _bal.spawn_interval(game_time)
             
             biome_type = BG_DATA[selected_bg]["type"]
             player.update(
@@ -5793,10 +5802,10 @@ def main():
                 _ie_eqdef = {
                     "helmet": (295,143,110,104),
                     "weapon": (141,266,106,105),
-                    "armor":  (295,253,110,123),
                     "shield": (457,266,106,105),
-                    "legs":   (295,381,110,104),
-                    "boots":  (295,509,110,104),
+                    "armor":  (295,381,110,104),
+                    "legs":   (295,509,110,104),
+                    "boots":  (295,637,110,100),
                 }
                 _ie_labels = {"helmet":"Capacete","weapon":"Arma","armor":"Armadura",
                               "shield":"Escudo","legs":"Calças","boots":"Botas"}
@@ -5832,15 +5841,13 @@ def main():
                         pygame.draw.rect(screen, (100, 90, 60), _sr_ie, 1, border_radius=4)
 
                 # ── Grade de inventário (8 colunas × 5 linhas) ────────────
-                _ie_COLS = 8
-                _ie_gx0  = _ie_PX + int(52  * _ie_sc)
-                _ie_gy0  = _ie_PY + int(805 * _ie_sc)
-                _ie_sw   = int(121 * _ie_sc)
-                _ie_sh   = int(85  * _ie_sc)
-                _ie_gapx = int(10  * _ie_sc)
-                _ie_gapy = int(6   * _ie_sc)
-                _ie_stpx = _ie_sw + _ie_gapx
-                _ie_stpy = _ie_sh + _ie_gapy
+                _ie_COLS  = 8
+                _ie_gx0   = _ie_PX + int(53  * _ie_sc)
+                _ie_gy0   = _ie_PY + int(807 * _ie_sc)
+                _ie_sw    = int(93  * _ie_sc)
+                _ie_sh    = int(85  * _ie_sc)
+                _ie_stpx  = int(95  * _ie_sc)
+                _ie_stpy  = int(88  * _ie_sc)
                 _ie_isize = min(_ie_sw, _ie_sh) - 8
 
                 for _ii_ie in range(_ie_COLS * 5):
@@ -6524,16 +6531,16 @@ def main():
                 msg = font_l.render("JOGO PAUSADO", True, UI_THEME["old_gold"])
                 screen.blit(msg, (SCREEN_W//2 - msg.get_width()//2, SCREEN_H * 0.15))
                     
-                panel_w, panel_h = 450, 550
+                panel_w, panel_h = 450, 660
                 panel_x = int(SCREEN_W * 0.15)
-                panel_y = int(SCREEN_H * 0.3)
+                panel_y = int(SCREEN_H * 0.22)
                 panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-                    
+
                 draw_dark_panel(screen, panel_rect, alpha=190, border_color=UI_THEME["old_gold"])
-                    
+
                 stat_title = font_m.render("STATUS DO HEROI", True, UI_THEME["old_gold"])
-                screen.blit(stat_title, stat_title.get_rect(center=(panel_rect.centerx, panel_rect.y + 40)))
-                    
+                screen.blit(stat_title, stat_title.get_rect(center=(panel_rect.centerx, panel_rect.y + 30)))
+
                 stats_lines = [
                         f"VIDA MÁXIMA: {int(PLAYER_MAX_HP)}",
                         f"VELOCIDADE: {int(PLAYER_SPEED)}",
@@ -6541,17 +6548,51 @@ def main():
                         f"CRÍTICO: {int(CRIT_CHANCE*100)}%",
                         f"PROJÉTEIS (QTD): {PROJ_COUNT}",
                         f"PERFURAÇÃO: {PROJ_PIERCE}",
-                        f"TEMPO DE RECARGA: {SHOT_COOLDOWN:.2f}s",
-                        f"RAIO DE EXPLOSÃO: {EXPLOSION_RADIUS}",
+                        f"RECARGA: {SHOT_COOLDOWN:.2f}s",
+                        f"RAIO EXPLOSÃO: {EXPLOSION_RADIUS}",
                         f"DANO DE AURA: {AURA_DMG}",
-                        f"QTD DE ORBES: {ORB_COUNT}",
+                        f"ORBES: {ORB_COUNT}",
                         f"ALCANCE (ÍMÃ): {int(PICKUP_RANGE)}"
                     ]
-                    
-                start_y = panel_rect.y + 100
+
+                start_y = panel_rect.y + 70
                 for idx, line in enumerate(stats_lines):
                         line_txt = font_s.render(line, True, UI_THEME["mist"])
-                        screen.blit(line_txt, (panel_rect.x + 30, start_y + (idx * 40)))
+                        screen.blit(line_txt, (panel_rect.x + 30, start_y + (idx * 35)))
+
+                # ── Seção de equipamentos ──────────────────────────────────────
+                _p_eq_sep_y = start_y + len(stats_lines) * 35 + 10
+                pygame.draw.line(screen, UI_THEME.get("faded_gold", (120,95,40)),
+                                 (panel_rect.x + 20, _p_eq_sep_y),
+                                 (panel_rect.x + panel_w - 20, _p_eq_sep_y), 1)
+                _p_eq_sep_y += 8
+                _p_eq_title = font_s.render("EQUIPAMENTO", True, UI_THEME["old_gold"])
+                screen.blit(_p_eq_title, _p_eq_title.get_rect(
+                    center=(panel_rect.centerx, _p_eq_sep_y + _p_eq_title.get_height()//2)))
+                _p_eq_sep_y += _p_eq_title.get_height() + 6
+
+                _p_cid  = player.char_id if player else 0
+                _p_ceq  = save_data.get("char_equipped", {}).get(str(_p_cid), {})
+                _p_eqw  = _p_ceq.get("weapon")
+                _p_eqs  = _p_ceq.get("shield")
+                _p_watk = ITEM_SHOP_STATS.get(_p_eqw["category"],[{}]*(_p_eqw["idx"]+1))[_p_eqw["idx"]].get("atk",0) if _p_eqw else 0
+                _p_wnam = ITEM_SHOP_STATS.get(_p_eqw["category"],[{}]*(_p_eqw["idx"]+1))[_p_eqw["idx"]].get("name","") if _p_eqw else ""
+                _p_sdef = ITEM_SHOP_STATS.get(_p_eqs["category"],[{}]*(_p_eqs["idx"]+1))[_p_eqs["idx"]].get("def",0) if _p_eqs else 0
+                _p_snam = ITEM_SHOP_STATS.get(_p_eqs["category"],[{}]*(_p_eqs["idx"]+1))[_p_eqs["idx"]].get("name","") if _p_eqs else ""
+                _p_eq_lines = [
+                    ("Arma",    _p_wnam if _p_wnam else "Sem arma",  f"+{_p_watk} ATQ" if _p_watk else ""),
+                    ("Escudo",  _p_snam if _p_snam else "Sem escudo", f"+{_p_sdef} DEF" if _p_sdef else ""),
+                ]
+                for _lbl, _nm, _bonus in _p_eq_lines:
+                    _lbl_s = font_s.render(_lbl + ":", True, (160, 140, 80))
+                    screen.blit(_lbl_s, (panel_rect.x + 30, _p_eq_sep_y))
+                    _nm_col = (220, 200, 140) if _nm != "Sem arma" and _nm != "Sem escudo" else (90, 80, 60)
+                    _nm_s = font_s.render(_nm[:22], True, _nm_col)
+                    screen.blit(_nm_s, (panel_rect.x + 110, _p_eq_sep_y))
+                    if _bonus:
+                        _bon_s = font_s.render(_bonus, True, (100, 220, 100))
+                        screen.blit(_bon_s, (panel_rect.x + panel_w - 20 - _bon_s.get_width(), _p_eq_sep_y))
+                    _p_eq_sep_y += 30
 
                 for b in pause_btns: 
                         b.check_hover(m_pos, snd_hover)

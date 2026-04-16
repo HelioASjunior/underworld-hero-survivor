@@ -49,7 +49,7 @@ _DUNGEON_DECO_CFGS = [
         grid    = 640,
         prob    = 0.52,
         spd     = 0.55,
-        size    = (160, 160),
+        size    = (210, 210),
         files   = ["pentagrama1.png", "pentagrama2.png"],
         collide = False,
     ),
@@ -58,7 +58,7 @@ _DUNGEON_DECO_CFGS = [
         grid    = 950,
         prob    = 0.28,
         spd     = 0.80,
-        size    = (140, 140),
+        size    = (190, 190),
         files   = ["BDS1.png", "BDS2.png"],
         collide = True,
     ),
@@ -67,7 +67,7 @@ _DUNGEON_DECO_CFGS = [
         grid    = 1200,
         prob    = 0.26,
         spd     = 0.0,
-        size    = (220, 220),
+        size    = (290, 290),
         files   = ["dinosaur.png"],
         collide = False,
     ),
@@ -77,7 +77,7 @@ _DUNGEON_DECO_CFGS = [
         grid        = 1100,
         prob        = 0.22,
         spd         = 0.18,          # animado (6 frames)
-        size        = (160, 160),
+        size        = (210, 210),
         sheet       = "statue.png",
         frame_w     = 80,
         frame_h     = 80,
@@ -89,7 +89,7 @@ _DUNGEON_DECO_CFGS = [
         grid        = 850,
         prob        = 0.28,
         spd         = 0.16,          # animado (6 frames: base → espinhos surgindo)
-        size        = (120, 100),
+        size        = (160, 135),
         sheet       = "espinhos.png",
         frame_w     = 48,            # 288px ÷ 6 frames = 48px cada
         frame_h     = 64,
@@ -101,7 +101,7 @@ _DUNGEON_DECO_CFGS = [
         grid    = 750,
         prob    = 0.32,
         spd     = 0.0,   # imagem única — tira completa de espíritos (sem frame splitting)
-        size    = (320, 40),
+        size    = (420, 55),
         files   = ["ghost.png"],
         collide = False,
     ),

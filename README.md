@@ -49,14 +49,14 @@ Destaques gerais:
 
 ## Personagens
 
-| Personagem | HP | Velocidade | Estilo | Ultimate |
-|---|---|---|---|---|
-| Guerreiro | 8 | 280 | Corpo a corpo + projéteis | Fúria: aumenta cadência e dano |
-| Caçador | 5 | 340 | Projéteis rápidos, alto crítico | Rajada: disparo em cone |
-| Mago | 6 | 260 | Aura + orbes mágicos | Congelamento Temporal: congela inimigos em área |
-| Vampire | 7 | 300 | Projéteis + regen de vida | Vampirismo |
-| Demônio | 6 | 290 | Projéteis múltiplos, burst | Chamas do Abismo |
-| Golem | 9 | 240 | Melee puro, alto HP | Golpe da Terra: 16 slashes em área |
+| Personagem | HP | Velocidade | Dano | Mana | Ultimate |
+|---|---|---|---|---|---|
+| Guerreiro | 100 | 280 | 25 | 50 | Fúria do Guerreiro |
+| Caçador | 63 | 340 | 38 | 75 | Chuva de Flechas |
+| Mago | 75 | 260 | 25 | 200 | Congelamento Temporal |
+| Vampire | 88 | 300 | 38 | 100 | Tempestade Sombria |
+| Demônio | 75 | 290 | 38 | 100 | Chama Infernal |
+| Golem | 113 | 240 | 50 | 50 | Golpe da Terra |
 
 Todos os personagens estão desbloqueados por padrão. Cada personagem possui spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar e atacar carregadas via `characters.py`.
 
@@ -66,32 +66,34 @@ Todos os personagens estão desbloqueados por padrão. Cada personagem possui sp
 
 ### Inimigos — Todas as dificuldades
 
-| Tipo | HP | Vel. | Aparição | Descrição |
+| Tipo | HP base | Vel. base | Aparição | Descrição |
 |---|---|---|---|---|
-| Bat | 1 | 145 | 0s | Morcego com movimento senoidal |
-| Runner | 2 | 150 | 0s | Corredor rápido em linha reta |
-| Tank | 10 | 65 | 30s | Alto HP, lento, corpo a corpo |
-| Shooter | 3 | 90 | 30s | Atira projéteis à distância |
-| Goblin | 3 | 160 | 1 min | Rápido com zigzag moderado |
-| Beholder | 8 | 85 | 1.5 min | Flutuante, movimento suave |
-| Orc | 12 | 75 | 3 min | Grande (168px), corpo a corpo tanque |
-| Elite | +50% | base | 30s+ | Versão reforçada com drop de ouro garantido |
+| Bat | 28 | 145 | 0s | Morcego com movimento senoidal |
+| Runner | 50 | 150 | 0s | Corredor rápido em linha reta |
+| Tank | 260 | 65 | 30s | Alto HP, lento, corpo a corpo |
+| Shooter | 80 | 90 | 30s | Atira projéteis à distância |
+| Goblin | 80 | 160 | 1 min | Rápido com zigzag moderado |
+| Beholder | 200 | 85 | 1.5 min | Flutuante, movimento suave |
+| Orc | 300 | 75 | 3 min | Grande, corpo a corpo tanque |
+| Elite | 1500 | 85 | 30s+ | Versão reforçada com drop de ouro garantido |
+
+> HP e velocidade escalam com o multiplicador de dificuldade e com o tempo de jogo (+20 % de HP/dano por minuto até 6×).
 
 ### Inimigos — Somente Difícil / Hardcore
 
-| Tipo | HP | Vel. | Aparição | Descrição |
+| Tipo | HP base | Vel. base | Aparição | Descrição |
 |---|---|---|---|---|
-| Slime | 5 | 110 | 30s | Inimigo padrão equilibrado |
-| Minotauro | 8 | 130 | 30s | Corpo a corpo, perseguição direta |
-| Rat | 6 | 135 | 2 min | Grande (220px), zigzag agressivo |
+| Slime | 130 | 110 | 30s | Inimigo equilibrado com aura escura |
+| Minotauro | 200 | 130 | 30s | Corpo a corpo, perseguição direta |
+| Rat | 150 | 135 | 2 min | Grande (220px), zigzag agressivo |
 
 ### Chefes
 
-| Tipo | HP | Aparição | Descrição |
+| Tipo | HP base | Aparição | Descrição |
 |---|---|---|---|
-| Mini Boss | 300+ | ~10s | Barra de vida própria, escala com tempo |
+| Mini Boss | 6000 | ~10 min | Barra de vida própria, escala com tempo (+30 % × time_scale) |
 | Chefe | escalável | 5 min (a cada 5 min) | Multi-fase, fica mais forte a cada onda |
-| Agis | 800+ | 2 min (selo de invocação) | Boss lento, ataque de orbe à distância + magia em área a cada 5s |
+| Agis | 10000 | 2 min (selo de invocação) | Boss lento, orbe dupla + magia em área a cada 5s (+25 % × time_scale) |
 
 **Agis** é invocado por um selo animado (`doom_agis.png`) que aparece próximo ao herói ~30s antes do spawn. Possui ataque básico de projétil (orbe dupla roxa) e magia em área que dispara 8 orbes em todas as direções. Dropa baú + 15 moedas ao morrer.
 
@@ -118,7 +120,6 @@ Modificadores opcionais escolhidos antes da run:
 | Sem Pacto | Nenhum modificador | — |
 | Pacto da Pressa | Inimigos 50% mais rápidos | +50% Ouro |
 | Pacto Frágil | -2 HP máximo | +30% XP |
-| Pacto da Sombra | Inimigos invisíveis | +80% Ouro |
 
 ### Dificuldades
 
@@ -167,7 +168,8 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `jogo_final.py` | Loop principal, estados de jogo, UI, constantes de balanceamento |
+| `jogo_final.py` | Loop principal, estados de jogo, UI |
+| `balance.py` | Fórmulas de progressão: XP, escala de inimigos, custo de upgrades, drop rates |
 | `characters.py` | Classes de personagem, habilidades e ultimates |
 | `enemies.py` | Inimigos, IA direcional, spritesheets, projéteis inimigos |
 | `hud.py` | HUD in-game, tema visual, notificações de upgrade |
@@ -450,6 +452,7 @@ python benchmark_spatial.py
 ```text
 underworld-hero-survivor/
 ├── jogo_final.py            # Loop principal e estados de jogo
+├── balance.py               # Fórmulas de balanceamento e progressão
 ├── characters.py            # Personagens jogáveis
 ├── enemies.py               # Inimigos, IA e animações
 ├── hud.py                   # HUD e interface in-game
@@ -495,7 +498,7 @@ underworld-hero-survivor/
 - [x] Boss Agis — invocação por selo, ataque à distância e magia em área.
 - [ ] Novos chefes com fases e ataques adicionais.
 - [ ] Sistema de conquistas com recompensas visuais.
-- [ ] Balanceamento contínuo de progressão e economia.
+- [x] Sistema de balanceamento contínuo de progressão e economia (`balance.py`).
 - [ ] Build distribuível para Windows (.exe).
 - [x] Suporte a controle gamepad.
 - [x] Migrar para Pygame-CE (concluído com sucesso).
