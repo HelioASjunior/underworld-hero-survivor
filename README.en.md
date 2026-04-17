@@ -47,6 +47,32 @@ The project is actively evolving and aims to balance gameplay quality with clean
 - Persistent video/audio/controls/accessibility settings in `settings.json`.
 - Global save + run slots in `save_v2.json` and `run_slot_*.json`.
 - Real-time performance debug overlay (F3).
+- Item shop with 4 tabs: Weapons, Armors, Utilities, Sell — including 46 armor pieces across 4 slots.
+- Full drag-and-drop equip system for weapons, shields, helmets, body armor, legs, and boots.
+- Armor damage resistance system: each equipped piece reduces incoming damage (DEF / 600, capped at 55%).
+- All UI panels (Hero Room, Status, Inventory) aligned precisely to their image zones.
+- Expanded talent tree panels to fit all talents without overflow.
+
+## Item Shop
+
+The shop has four main tabs:
+
+| Tab | Categories | Items |
+|---|---|---|
+| Weapons | Swords, Axes, Spears, Bows, Staves | 60 |
+| Armors | Helmets (12), Body Armor (12), Legs (12), Boots (10) | 46 |
+| Utilities | (in development) | — |
+| Sell | All inventory items | — |
+
+### Armor System
+
+Each equipped armor piece reduces incoming damage:
+
+```
+DAMAGE_RES = min(0.55, aura_res_upgrades × 0.08 + shield_def / 600 + sum(armor_def) / 600)
+```
+
+The Status panel (C key) displays equipped piece names and the resulting resistance percentage.
 
 ## Playable Characters
 
@@ -208,6 +234,8 @@ Default controls (rebindable in settings):
 | Quick pause menu | Esc |
 | Debug overlay | F3 |
 | Upgrade selection | 1 / 2 / 3 / Enter |
+| Inventory / Equipment | I |
+| Character status | C |
 
 ## Settings, Save, and Persistence
 
@@ -261,6 +289,12 @@ underworld-hero-survivor/
 |  |- fonts/
 |  |- sprite/
 |  |- ui/
+|     |- itens/          # Weapon and shield icons
+|     |- newItens/       # Armor icons
+|        |- capacete/    # h.png to h11.png
+|        |- armor/       # a.png to a11.png
+|        |- calças/      # c.png to c11.png
+|        |- botas/       # b1.png to b10.png
 |- settings.json
 |- save_v2.json
 |- requirements.txt
@@ -269,11 +303,16 @@ underworld-hero-survivor/
 
 ## Roadmap
 
-- Expand biomes and enemy variation.
+- [ ] Expand biomes and enemy variation.
 - [x] Boss Agis — summoning seal, long-range attack, and area magic.
-- Add new bosses and combat phases.
+- [ ] Add new bosses and combat phases.
 - [x] Balance system for progression and economy (`balance.py`).
-- Publish a distributable Windows build.
+- [x] ARMORS shop tab with 46 items across 4 categories (helmets, body armor, legs, boots).
+- [x] Armor damage resistance system for all 4 equip slots.
+- [x] Drag-and-drop equip for all 6 equipment slots (weapon, shield, helmet, armor, legs, boots).
+- [x] Hero Room, Status panel, and Inventory aligned to image UI zones.
+- [x] Expanded talent tree panels to prevent skill overflow.
+- [ ] Publish a distributable Windows build.
 
 ## Contributing
 

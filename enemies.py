@@ -316,10 +316,31 @@ class Enemy(pygame.sprite.Sprite):
             self.speed = base_spd * diff_mults["spd_mult"] * min(1.5, time_scale)
         self.max_hp = self.hp
 
-        # Melee do mini_boss
+        # Dano corpo-a-corpo por tipo (escala com dificuldade)
+        _dmg_m = diff_mults.get("dmg_mult", 1.0)
+        _base_melee = {
+            "runner":    8.0,
+            "tank":      18.0,
+            "elite":     30.0,
+            "slime":     10.0,
+            "minotauro": 22.0,
+            "bat":        6.0,
+            "orc":       20.0,
+            "goblin":     8.0,
+            "beholder":  14.0,
+            "rat":        6.0,
+            "mini_boss": 30.0,
+        }
+        self.melee_dmg = _base_melee.get(kind, 8.0) * _dmg_m
         if kind == "mini_boss":
             self.melee_range = 155
-            self.melee_dmg   = 30 * diff_mults.get("dmg_mult", 1.0)
+
+        # Dano de projétil para shooter / boss (escala com dificuldade)
+        self.proj_dmg = 1.0
+        if kind == "shooter":
+            self.proj_dmg = 15.0 * _dmg_m
+        elif kind == "boss":
+            self.proj_dmg = 10.0 * _dmg_m
 
         # Agis — ataque a distância + magia em área (projéteis criados em jogo_final.py)
         if kind == "agis":
@@ -703,14 +724,14 @@ class Enemy(pygame.sprite.Sprite):
                         angle = (360 / num) * i
                         vel   = pygame.Vector2(1, 0).rotate(angle) * 350.0
                         enemy_projectiles.add(
-                            enemy_projectile_cls(self.pos, vel, 1.0, loader, shooter_proj_image))
+                            enemy_projectile_cls(self.pos, vel, self.proj_dmg, loader, shooter_proj_image))
                 else:
                     rl  = 500 if self.kind == "shooter" else 450
                     sp  = 300.0 if self.kind == "shooter" else 150.0
                     if 0 < dist < rl:
                         vel = (direction / dist) * sp
                         enemy_projectiles.add(
-                            enemy_projectile_cls(self.pos, vel, 0.5, loader, shooter_proj_image))
+                            enemy_projectile_cls(self.pos, vel, self.proj_dmg, loader, shooter_proj_image))
 
         # ================================================================
         # Melee do mini_boss

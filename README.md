@@ -138,10 +138,37 @@ Difícil e Hardcore são desbloqueados por missões específicas.
 - **Floresta**: tilemap composto com tiles animados (fogueira, bandeira).
 - **Gelo** e **Vulcão**: fundos estáticos temáticos com trilha própria.
 
+### Loja de Itens
+
+A loja possui quatro abas principais:
+
+| Aba | Categorias | Total de itens |
+|---|---|---|
+| Armas | Espadas, Machados, Lanças, Arcos, Cajados | 60 |
+| Armaduras | Capacetes (12), Armaduras (12), Calças (12), Botas (10) | 46 |
+| Utilitários | (em desenvolvimento) | — |
+| Vender | Todos os itens do inventário | — |
+
+Itens são comprados com ouro, ficam no inventário e podem ser arrastados para os slots de equipamento (drag-and-drop). Cada categoria tem estatísticas balanceadas com a progressão do jogo:
+
+- **Armas**: aumentam ATK do personagem.
+- **Escudos**: aumentam DEF e contribuem para Resistência a Dano.
+- **Capacetes, Armaduras, Calças e Botas**: cada peça tem valor de DEF que contribui para Resistência a Dano (DEF / 600 por peça, cap total 55%).
+
+### Sistema de Armaduras
+
+Cada peça de armadura equipada reduz o dano recebido:
+
+```
+DAMAGE_RES = min(0.55, aura_res_upgrades × 0.08 + shield_def / 600 + soma(armor_def) / 600)
+```
+
+O painel de Status (tecla C) exibe os nomes das peças equipadas e a porcentagem de Resistência resultante.
+
 ### Missões e Talentos
 
 - Missões com recompensas em ouro.
-- Árvore de talentos permanente aplicada no início de cada run.
+- Árvore de talentos permanente com painel expandido para acomodar todos os talentos por caminho.
 - Unlocks de personagens, dificuldades e cosméticos por conquistas.
 
 ---
@@ -157,6 +184,9 @@ Toda a interface usa sprites ornamentados medievais com fundo transparente (Phot
 | Título e seção de configurações | `config.png` (barra grande + barra pequena) |
 | Painéis de seleção de personagem | `painelguerreiro.png`, `painelcacador.png`, `painelmago.png` |
 | Tela de seleção de dificuldade | `selecionar_dificuldade.png` |
+| Sala do Herói (hub) | `sala_do_heroi.png` — botões Loja, Talentos e Pronto alinhados aos retângulos da imagem |
+| Status do personagem (C) | `status.png` — nome, atributos e equipamentos alinhados às zonas da imagem |
+| Inventário e equipamentos (I) | `inventario.png` — grade de itens + slots de arma, escudo, capacete, armadura, calças e botas |
 
 O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qualquer subpasta de `assets/` e são encontrados pelo nome sem alterar nenhuma chamada de código.
 
@@ -368,6 +398,8 @@ Reconfiguráveis em **Configurações → Controles**:
 | Menu rápido | Esc |
 | Overlay de debug | F3 |
 | Selecionar upgrade | 1 / 2 / 3 ou clique |
+| Abrir inventário / equipamentos | I |
+| Abrir status do personagem | C |
 
 ---
 
@@ -483,7 +515,8 @@ underworld-hero-survivor/
 │       ├── chao/            # Decorações de chão (dungeon)
 │       ├── menu_icons/      # Ícones do menu principal
 │       ├── panels/          # Painéis de seleção de personagem
-│       └── tiles/           # Tiles de bioma (estáticos e animados)
+│       ├── tiles/           # Tiles de bioma (estáticos e animados)
+│       └── newItens/        # Ícones de armaduras (capacete/, armor/, calças/, botas/)
 ├── settings.json            # Configurações salvas
 ├── save_v2.json             # Progresso global
 ├── requirements.txt         # Dependências runtime (pygame-ce, numpy)
@@ -502,6 +535,11 @@ underworld-hero-survivor/
 - [ ] Build distribuível para Windows (.exe).
 - [x] Suporte a controle gamepad.
 - [x] Migrar para Pygame-CE (concluído com sucesso).
+- [x] Aba ARMADURAS na loja com 46 itens em 4 categorias (capacetes, armaduras, calças, botas).
+- [x] Sistema de resistência a dano por armaduras equipadas.
+- [x] Drag-and-drop para todos os slots de equipamento (arma, escudo, capacete, armadura, calças, botas).
+- [x] Painel de status (C) e Sala do Herói alinhados às zonas das imagens de UI.
+- [x] Árvore de talentos com painel expandido para acomodar todos os talentos por caminho.
 - [ ] SDL3 quando Pygame-CE lançar (GPU acceleration e melhor performance).
 - [ ] Multiplayer local (co-op para 2 jogadores).
 

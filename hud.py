@@ -609,6 +609,20 @@ def draw_ui(screen, player, state, font_s, font_m, font_l, hud_scale, high_contr
         time_text = font_s.render(f"{time_m:02}:{time_s:02}  |  KILLS  {kills}", True, UI_THEME["parchment"])
         screen.blit(time_text, time_text.get_rect(center=top_panel.center))
 
+        # Aviso do Boss Agis abaixo do painel de kills
+        _agis_spawn_min = 15
+        if time_m < _agis_spawn_min:
+            _warn_text = f"O BOSS AGIS IRÁ NASCER NO MINUTO {_agis_spawn_min}, SOBREVIVA ATÉ LÁ"
+            _warn_pulse = abs(math.sin(game_time * 1.5))
+            _warn_r = int(220 + 35 * _warn_pulse)
+            _warn_g = int(80 + 40 * _warn_pulse)
+            _warn_surf = font_s.render(_warn_text, True, (_warn_r, _warn_g, 40))
+            _warn_bg = pygame.Surface((_warn_surf.get_width() + 16, _warn_surf.get_height() + 6), pygame.SRCALPHA)
+            _warn_bg.fill((8, 4, 2, 160))
+            _warn_rect = _warn_bg.get_rect(centerx=screen_w // 2, top=top_panel.bottom + 4)
+            screen.blit(_warn_bg, _warn_rect)
+            screen.blit(_warn_surf, _warn_surf.get_rect(center=_warn_rect.center))
+
         # XP bar — altura maior (18px) com nível centralizado dentro da barra.
         XP_BAR_H = 18
         if ui_visual_state["prev_level"] is None:

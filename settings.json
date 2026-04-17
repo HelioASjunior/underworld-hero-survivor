@@ -28,7 +28,7 @@
     },
     "accessibility": {
         "screen_shake": 95,
-        "ui_size": 61,
+        "ui_size": 96,
         "high_contrast": "On"
     }
 }
