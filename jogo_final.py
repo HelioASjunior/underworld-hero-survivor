@@ -7399,26 +7399,28 @@ def main():
                 )
                 if _aura_stale:
                     main._last_aura_range = current_aura_range
-                    _asize = current_aura_range * 2
+                    _asize = int(current_aura_range * 2)
                     _scaled = []
                     for f in aura_frames:
-                        # Usa surface SRCALPHA para premultiplicar alpha e evitar
-                        # quadrados brancos causados por pixels transparentes com RGB != 0
-                        _tmp = pygame.Surface((_asize, _asize), pygame.SRCALPHA)
-                        _tmp.fill((0, 0, 0, 0))
-                        _tmp.blit(pygame.transform.scale(f, (_asize, _asize)), (0, 0))
-                        _scaled.append(_tmp)
+                        _sf = pygame.transform.smoothscale(f, (_asize, _asize))
+                        # Premultiply alpha: zera RGB onde alpha=0 para BLEND_RGB_ADD não
+                        # adicionar branco de pixels transparentes na tela
+                        try:
+                            import numpy as _np
+                            _arr  = pygame.surfarray.pixels3d(_sf)
+                            _alp  = pygame.surfarray.pixels_alpha(_sf)
+                            _arr[:] = (_arr * (_alp[:, :, _np.newaxis] / 255.0)).astype(_np.uint8)
+                            del _arr, _alp
+                        except Exception:
+                            pass  # fallback sem premultiply se numpy falhar
+                        _scaled.append(_sf)
                     main._aura_cache = _scaled
                     if has_buraco_negro:
                         for f in main._aura_cache: f.fill((100, 0, 150), special_flags=pygame.BLEND_RGB_MULT)
 
                 img = main._aura_cache[aura_frame_idx % len(main._aura_cache)]
-                # Overlay intermediário para blending aditivo correto (sem quadrados brancos)
-                if not hasattr(main, "_aura_overlay") or main._aura_overlay.get_size() != (SCREEN_W, SCREEN_H):
-                    main._aura_overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                main._aura_overlay.fill((0, 0, 0, 0))
-                main._aura_overlay.blit(img, img.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
-                screen.blit(main._aura_overlay, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+                screen.blit(img, img.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)),
+                            special_flags=pygame.BLEND_RGB_ADD)
                 
             if ORB_COUNT > 0:
                 if not hasattr(main, "_orb_img_cache") or main._orb_img_cache[0] != has_serras:
