@@ -119,10 +119,10 @@ Hordas são processadas em fila assíncrona (6 inimigos/frame) eliminando travam
 |---|---|---|
 | Dano e Ataque | 30 | +dano, +crítico, execute, cadência |
 | Projéteis | 25 | +projéteis, pierce, ricochete, velocidade |
-| Defesa | 30 | +HP, regen, escudo de espinhos, lifesteal |
-| Velocidade | 20 | +velocidade do herói, dash |
-| Magia / Aura / Orbes | 25 | aura de dano, orbes orbitais, slow |
-| Explosão | 15 | raio, dano em área, corrente |
+| Defesa | 30 | +HP, regen, espinhos, lifesteal, vampirismo |
+| Velocidade | 20 | +velocidade do herói, coleta |
+| Magia / Orbes | 25 | orbes orbitais, explosões mágicas, combinações |
+| Explosão | 15 | raio de explosão, dano em área |
 | Utilidade | 30 | magnetismo, ouro, bônus de XP, cura |
 | Especial | 25 | habilidades raras e combinações únicas |
 | Upgrades clássicos | 18 | Fúria Demoníaca, Barreira de Gelo, etc. |
@@ -181,7 +181,7 @@ Itens são comprados com ouro, ficam no inventário e podem ser arrastados para 
 Cada peça de armadura equipada reduz o dano recebido:
 
 ```
-DAMAGE_RES = min(0.55, aura_res_upgrades × 0.08 + shield_def / 600 + soma(armor_def) / 600)
+DAMAGE_RES = min(0.55, shield_def / 600 + soma(armor_def) / 600)
 ```
 
 O painel de Status (tecla C) exibe os nomes das peças equipadas e a porcentagem de Resistência resultante.

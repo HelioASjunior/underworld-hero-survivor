@@ -52,7 +52,7 @@ The project is actively evolving and aims to balance gameplay quality with clean
 - Armor damage resistance system: each equipped piece reduces incoming damage (DEF / 600, capped at 55%).
 - All UI panels (Hero Room, Status, Inventory) aligned precisely to their image zones.
 - Expanded talent tree panels to fit all talents without overflow.
-- **218 upgrades** across 8 categories; each level-up shows **5 options** to choose from (keys 1–5).
+- **218 upgrades** across 9 categories; each level-up shows **5 options** to choose from (keys 1–5).
 - New run mechanics: lifesteal, gold multiplier, XP bonus.
 
 ## Item Shop
@@ -71,10 +71,30 @@ The shop has four main tabs:
 Each equipped armor piece reduces incoming damage:
 
 ```
-DAMAGE_RES = min(0.55, aura_res_upgrades × 0.08 + shield_def / 600 + sum(armor_def) / 600)
+DAMAGE_RES = min(0.55, shield_def / 600 + sum(armor_def) / 600)
 ```
 
 The Status panel (C key) displays equipped piece names and the resulting resistance percentage.
+
+## Upgrades and Evolutions
+
+Pool of **218 upgrades** with 4 rarities: Common, Rare, Epic, Legendary. Each level-up offers **1 of 5 options** (keys 1–5 or mouse). Synergy system influences which options appear based on your current build.
+
+### Upgrade Categories
+
+| Category | Count | Examples |
+|---|---|---|
+| Damage & Attack | 30 | +damage, +crit, execute, fire rate |
+| Projectiles | 25 | +projectiles, pierce, ricochet, speed |
+| Defense | 30 | +HP, regen, thorns, lifesteal |
+| Speed | 20 | +hero speed, pickup range |
+| Magic / Orbs | 25 | orbital orbs, magic explosions, combos |
+| Explosion | 15 | explosion radius, area damage |
+| Utility | 30 | magnetism, gold, XP bonus, healing |
+| Special | 25 | rare abilities and unique combos |
+| Classic upgrades | 18 | Demonic Fury, Ice Barrier, etc. |
+
+New run mechanics: **Lifesteal**, **Gold Multiplier**, **XP Bonus**.
 
 ## Playable Characters
 
@@ -315,7 +335,7 @@ underworld-hero-survivor/
 - [x] Drag-and-drop equip for all 6 equipment slots (weapon, shield, helmet, armor, legs, boots).
 - [x] Hero Room, Status panel, and Inventory aligned to image UI zones.
 - [x] Expanded talent tree panels to prevent skill overflow.
-- [x] 218 upgrades across 8 categories with synergy system.
+- [x] 218 upgrades across 9 categories with synergy system.
 - [x] 5-option upgrade selection per level-up (keys 1–5).
 - [x] New run mechanics: lifesteal, gold multiplier, XP bonus.
 - [ ] Publish a distributable Windows build.
