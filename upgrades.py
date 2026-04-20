@@ -4,7 +4,9 @@ import random
 def pick_upgrades_with_synergy(pool, current_upgrades, unlocks, default_unlocks, evolutions, upgrade_tags, max_upgrade_level, k=3):
     """Seleciona upgrades levando em conta unlocks, limite de nível e sinergias."""
 
-    available = [u for u in pool if u in unlocks or u in default_unlocks]
+    # pool já representa os upgrades disponíveis (filtrados por UPGRADE_POOL)
+    # Apenas remove desbloqueios de personagens/dificuldades que não são skills
+    available = [u for u in pool if not u.startswith(("CHAR_", "DIFF_"))]
 
     for evo_name, evo_data in evolutions.items():
         if (
