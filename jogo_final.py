@@ -4611,10 +4611,8 @@ def main():
                             state = "MENU"
 
                     elif state == "UPGRADE":
-                        for i in range(len(up_keys)):
-                            y_pos = SCREEN_H*0.3 + i*150
-                            rect = pygame.Rect(SCREEN_W/2 - 300, y_pos, 600, 120)
-                            if rect.collidepoint(click_pos):
+                        for i, rect in enumerate(up_options):
+                            if i < len(up_keys) and rect.collidepoint(click_pos):
                                 if snd_click: snd_click.play()
                                 apply_upgrade(up_keys[i])
                                 up_options = []
@@ -4980,6 +4978,7 @@ def main():
             current_spawn_rate = _bal.spawn_interval(game_time)
             
             biome_type = BG_DATA[selected_bg]["type"]
+            player.base_speed = PLAYER_SPEED
             player.update(
                 dt,
                 keys,
