@@ -75,6 +75,7 @@ Todos os personagens estão desbloqueados por padrão. Cada personagem possui sp
 | Goblin | 80 | 160 | 1 min | Rápido com zigzag moderado |
 | Beholder | 200 | 85 | 1.5 min | Flutuante, movimento suave |
 | Orc | 300 | 75 | 3 min | Grande, corpo a corpo tanque |
+| Slime Fire | 280 | 125 | 2 min | Arrancada de fogo (2.8× vel), alto dano de contato |
 | Elite | 1500 | 85 | 30s+ | Versão reforçada com drop de ouro garantido |
 
 > HP e velocidade escalam com o multiplicador de dificuldade e com o tempo de jogo (+20 % de HP/dano por minuto até 6×).

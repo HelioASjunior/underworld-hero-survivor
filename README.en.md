@@ -100,6 +100,7 @@ All characters are unlocked by default.
 | Goblin | 80 | 160 | 1 min | Fast with moderate zigzag |
 | Beholder | 200 | 85 | 1.5 min | Floating, smooth movement |
 | Orc | 300 | 75 | 3 min | Large, tanky melee |
+| Slime Fire | 280 | 125 | 2 min | Fire burst charges (2.8× speed), high contact damage |
 | Elite | 1500 | 85 | 30s+ | Reinforced variant with guaranteed gold drop |
 
 > HP and speed scale with the difficulty multiplier and game time (+20% HP/damage per minute up to 6×).

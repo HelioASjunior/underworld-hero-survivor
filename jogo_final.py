@@ -4722,13 +4722,22 @@ def main():
                         spawn_list.append("orc")
                         spawn_weights.append(20)
 
+                    # Slime Fire — a partir de 2 min em todas as dificuldades
+                    if game_time >= 120:
+                        spawn_list.append("slime_fire")
+                        spawn_weights.append(15)
+
                     if selected_difficulty in ["DIFÍCIL", "HARDCORE"]:
                         spawn_list.extend(["slime", "minotauro"])
                         spawn_weights.extend([15, 15])
-                        # Rat — apenas nas dificuldades harder, a partir de 2 min
+                        # Rat e Slime Fire com peso extra em dificuldades harder
                         if game_time >= 120:
                             spawn_list.append("rat")
                             spawn_weights.append(20)
+                            # slime_fire já está na lista base; soma peso extra
+                            sf_idx = spawn_list.index("slime_fire") if "slime_fire" in spawn_list else -1
+                            if sf_idx >= 0:
+                                spawn_weights[sf_idx] += 10
 
                     chosen_enemy = random.choices(spawn_list, weights=spawn_weights, k=1)[0]
                     elite_chance = min(0.15, 0.03 + (game_time / 480.0) * 0.05)
@@ -6486,8 +6495,8 @@ def main():
 
             # ── Janela de Status do Personagem (C) ──────────────────────────
             if hub_status_open and player is not None:
-                _ST_W  = 280
-                _ST_H  = min(480, int(SCREEN_H * 0.72))
+                _ST_W  = 310
+                _ST_H  = min(500, int(SCREEN_H * 0.76))
                 _ST_X  = 10
                 _ST_Y  = (SCREEN_H - _ST_H) // 2
                 _GOLD  = UI_THEME.get("old_gold", (200, 170, 60))
@@ -6549,13 +6558,20 @@ def main():
                             _eq_armor_names[_arm_lbl] = _arsts[_aridx].get("name","")
                 _def_pct = min(55, int(save_data["perm_upgrades"].get("aura_res", 0) * 8 + (_bonus_def + _bonus_armor_def) / 6.0))
 
+                # Margens exatas da borda interna do frame status.png
+                # Original 1024px: borda esq x=140, borda dir x=880
+                # Escalado p/ 310px: x=43 (esq) a x=267 (dir) → usar _ST_MX=47 e _ST_RX=263
+                _ST_MX = _ST_X + 47          # margem esquerda dentro do frame
+                _ST_RX = _ST_X + _ST_W - 48  # borda direita para right-align
+
                 # Linha de stat
                 def _draw_stat(label, value_str, lbl_col, val_col, y_off):
                     _ls = font_s.render(label, True, lbl_col)
                     _vs = font_s.render(value_str, True, val_col)
-                    screen.blit(_ls, (_ST_X + 22, _ST_Y + y_off))
-                    screen.blit(_vs, (_vs.get_rect(right=_ST_X + _ST_W - 22, top=_ST_Y + y_off)))
+                    screen.blit(_ls, (_ST_MX, _ST_Y + y_off))
+                    screen.blit(_vs, (_vs.get_rect(right=_ST_RX, top=_ST_Y + y_off)))
 
+                # Stats — seção superior do frame (abaixo da 1ª divisória ~y=47px)
                 _sy = int(_ST_H * 0.10)
                 _draw_stat("HP", f"{CHAR_DATA.get(player.char_id,{}).get('hp', player.base_hp)}", (200, 80, 80), (240, 140, 140), _sy)
                 _sy += 22
@@ -6576,28 +6592,29 @@ def main():
                 _draw_stat("VEL", str(CHAR_DATA.get(player.char_id, {}).get("speed", 280)), (100, 180, 100), (140, 220, 140), _sy); _sy += 22
                 _draw_stat("HP atual", f"{int(player.hp)}", (160, 80, 80), (200, 110, 110), _sy); _sy += 24
 
-                # Equipamento ativo
+                # Equipamento — seção inferior do frame (abaixo da 2ª divisória ~y=61.6%)
                 _sy = max(_sy, int(_ST_H * 0.63))
                 _eq_lbl = font_s.render("Equipamento", True, (160, 140, 90))
                 screen.blit(_eq_lbl, _eq_lbl.get_rect(centerx=_ST_X + _ST_W // 2, top=_ST_Y + _sy)); _sy += 20
                 if _eq_weapon_name:
-                    _ew_s = font_s.render("Arma: " + _eq_weapon_name[:16], True, (220, 170, 70))
-                    screen.blit(_ew_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                    _ew_s = font_s.render("Arma: " + _eq_weapon_name[:12], True, (220, 170, 70))
+                    screen.blit(_ew_s, (_ST_MX, _ST_Y + _sy)); _sy += 20
                 else:
                     _ew_s = font_s.render("Sem arma", True, (110, 100, 70))
-                    screen.blit(_ew_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                    screen.blit(_ew_s, (_ST_MX, _ST_Y + _sy)); _sy += 20
                 if _eq_shield_name:
-                    _es_s = font_s.render("Escudo: " + _eq_shield_name[:14], True, (100, 170, 220))
-                    screen.blit(_es_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                    _es_s = font_s.render("Escudo: " + _eq_shield_name[:10], True, (100, 170, 220))
+                    screen.blit(_es_s, (_ST_MX, _ST_Y + _sy)); _sy += 20
                 else:
                     _es_s = font_s.render("Sem escudo", True, (70, 110, 140))
-                    screen.blit(_es_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
+                    screen.blit(_es_s, (_ST_MX, _ST_Y + _sy)); _sy += 20
                 for _albl, _aname in _eq_armor_names.items():
-                    _ea_s = font_s.render(f"  {_aname[:18]}", True, (160, 180, 140))
-                    screen.blit(_ea_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 18
+                    _ea_s = font_s.render(_aname[:16], True, (160, 180, 140))
+                    screen.blit(_ea_s, (_ST_MX, _ST_Y + _sy)); _sy += 18
 
+                # Dica de fechar — dentro do frame (borda inferior ~97% da altura)
                 _st_close = font_s.render("C / ESC — Fechar", True, (100, 90, 65))
-                screen.blit(_st_close, _st_close.get_rect(centerx=_ST_X + _ST_W // 2, bottom=_ST_Y + _ST_H - 6))
+                screen.blit(_st_close, _st_close.get_rect(centerx=_ST_X + _ST_W // 2, bottom=_ST_Y + _ST_H - 22))
 
             # ── Painel lateral direito (Sala do Herói) ──────────────────────
             _hp_x = int(SCREEN_W * 0.84)

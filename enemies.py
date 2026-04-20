@@ -144,6 +144,22 @@ SPRITESHEET_CONFIGS = {
         "attack_range": 0,
         "gold_drops": 15,
     },
+    "slime_fire": {
+        # slimefire_run.png: 512×256 → 8 cols × 4 rows, frame 64×64
+        # slimefire_att.png: 640×256 → 10 cols × 4 rows, frame 64×64
+        # slimefire_dt.png:  640×256 → 10 cols × 4 rows (animação de morte, reservada)
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3 (mesmo padrão do goblin)
+        "walk_sheet":     "sprite/monster/New Monster/slimefire_run",
+        "atk_sheet":      "sprite/monster/New Monster/slimefire_att",
+        "frame_w": 64, "frame_h": 64,
+        "walk_frames": 8,
+        "atk_frames":  10,
+        "atk_sheet_cols": 10,
+        "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
+        "size": (145, 145),
+        "attack_range": 120,
+        "gold_drops": 2,
+    },
 }
 
 
@@ -283,20 +299,21 @@ class Enemy(pygame.sprite.Sprite):
         # --- Stats base ---
         # HP aumentado ~2x para manter equilíbrio com bônus de itens equipados
         stats = {
-            "runner":    (50,    150),
-            "tank":      (260,    65),
-            "elite":     (1500,   85),
-            "shooter":   (80,     90),
-            "boss":      (boss_max_hp, 95),
-            "slime":     (130,   110),
-            "minotauro": (200,   130),
-            "bat":       (28,    145),
-            "orc":       (300,    75),
-            "mini_boss": (6000,   85),
-            "goblin":    (80,    160),
-            "beholder":  (200,    85),
-            "rat":       (150,   135),
-            "agis":      (10000,  45),
+            "runner":     (50,    150),
+            "tank":       (260,    65),
+            "elite":      (1500,   85),
+            "shooter":    (80,     90),
+            "boss":       (boss_max_hp, 95),
+            "slime":      (130,   110),
+            "minotauro":  (200,   130),
+            "bat":        (28,    145),
+            "orc":        (300,    75),
+            "mini_boss":  (6000,   85),
+            "goblin":     (80,    160),
+            "beholder":   (200,    85),
+            "rat":        (150,   135),
+            "agis":       (10000,  45),
+            "slime_fire": (280,   125),
         }
         base_hp, base_spd = stats.get(kind, (2, 100))
 
@@ -319,17 +336,18 @@ class Enemy(pygame.sprite.Sprite):
         # Dano corpo-a-corpo por tipo (escala com dificuldade)
         _dmg_m = diff_mults.get("dmg_mult", 1.0)
         _base_melee = {
-            "runner":    8.0,
-            "tank":      18.0,
-            "elite":     30.0,
-            "slime":     10.0,
-            "minotauro": 22.0,
-            "bat":        6.0,
-            "orc":       20.0,
-            "goblin":     8.0,
-            "beholder":  14.0,
-            "rat":        6.0,
-            "mini_boss": 30.0,
+            "runner":     8.0,
+            "tank":       18.0,
+            "elite":      30.0,
+            "slime":      10.0,
+            "minotauro":  22.0,
+            "bat":         6.0,
+            "orc":        20.0,
+            "goblin":      8.0,
+            "beholder":   14.0,
+            "rat":         6.0,
+            "mini_boss":  30.0,
+            "slime_fire": 18.0,
         }
         self.melee_dmg = _base_melee.get(kind, 8.0) * _dmg_m
         if kind == "mini_boss":
@@ -644,6 +662,22 @@ class Enemy(pygame.sprite.Sprite):
                             if not self._atk_active:
                                 self._trigger_atk_anim()
 
+                # SLIME FIRE — arrancada de fogo: periodicamente triplica velocidade
+                elif self.kind == "slime_fire":
+                    self._charge_timer -= dt
+                    if self._charge_timer <= 0 and not self._charging:
+                        self._charge_timer    = random.uniform(2.5, 4.5)
+                        self._charging        = True
+                        self._charge_active_t = random.uniform(0.35, 0.55)
+                    if self._charging:
+                        self._charge_active_t -= dt
+                        if self._charge_active_t <= 0:
+                            self._charging = False
+                        else:
+                            move_speed *= 2.8
+                            if not self._atk_active:
+                                self._trigger_atk_anim()
+
                 # AGIS — avanço lento com arrancada ocasional
                 elif self.kind == "agis":
                     self._charge_timer -= dt
@@ -764,8 +798,8 @@ class Enemy(pygame.sprite.Sprite):
                 self.agis_area_timer   = 0.0
                 self.pending_agis_area = True
 
-        # BAT / GOBLIN / BEHOLDER / RAT — dispara animação de ataque por proximidade
-        if self.kind in ("bat", "goblin", "beholder", "rat") and self._atk_range > 0 and not self._atk_active:
+        # BAT / GOBLIN / BEHOLDER / RAT / SLIME_FIRE — dispara animação de ataque por proximidade
+        if self.kind in ("bat", "goblin", "beholder", "rat", "slime_fire") and self._atk_range > 0 and not self._atk_active:
             if dist < self._atk_range:
                 self._trigger_atk_anim()
 
