@@ -383,7 +383,7 @@ ACHIEVEMENTS = {
     "DIFF_HARDCORE": {"type": "diff", "name": "HARDCORE", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
 
     "TIRO MÚLTIPLO": {"type": "upg", "name": "TIRO MÚLTIPLO", "desc": "Alcance Nível 10 em uma partida", "req": lambda s: s["max_level_reached"] >= 10},
-    "AURA MÁGICA": {"type": "upg", "name": "AURA MÁGICA", "desc": "Colete 200 Ouro no total", "req": lambda s: True}, # Desbloqueio fácil exemplo
+    "CHAMA ARDENTE": {"type": "upg", "name": "CHAMA ARDENTE", "desc": "Colete 200 Ouro no total", "req": lambda s: True},
     "EXPLOSÃO": {"type": "upg", "name": "EXPLOSÃO", "desc": "Mate 1000 inimigos no total", "req": lambda s: s["total_kills"] >= 1000},
     "ORBES MÁGICOS": {"type": "upg", "name": "ORBES MÁGICOS", "desc": "Jogue 3 partidas", "req": lambda s: s["games_played"] >= 3},
     "PERFURAÇÃO": {"type": "upg", "name": "PERFURAÇÃO", "desc": "Mate 1500 inimigos", "req": lambda s: s["total_kills"] >= 1500},
@@ -621,7 +621,7 @@ TALENT_TREE = {
             "fire_dmg":  {"name": "PIROMANCIA",    "desc": "+10% Dano de Aura",       "cost": [200, 400, 800, 1600, 3200, 6400, 12000, 20000], "max": 8, "icon": "talent_fire"},
             "burn_area": {"name": "TERRA QUEIMADA","desc": "+12% Área de Aura",       "cost": [300, 600, 1200, 2400, 4800, 9600],             "max": 6, "icon": "talent_fire"},
             "inferno":   {"name": "INFERNO",       "desc": "Inimigos na aura pegam fogo", "cost": [1200, 5000, 10000],                        "max": 3, "icon": "talent_fire"},
-            "eternal_flame":{"name": "CHAMA ETERNA","desc": "+3 Dano de Aura fixo",   "cost": [800, 1600, 3200, 6400, 12000],                "max": 5, "icon": "talent_fire"}
+            "eternal_flame":{"name": "FOGUEIRA INFERNAL","desc": "+3 Dano de Aura fixo",   "cost": [800, 1600, 3200, 6400, 12000],                "max": 5, "icon": "talent_fire"}
         }
     }
 }
@@ -903,7 +903,7 @@ ALL_UPGRADES_POOL = {
     "VELOCIDADE ++": "Aumenta a velocidade de movimento em 15%",
     "TIRO RÁPIDO": "Atira com mais frequência",
     "VIDA MÁXIMA": "Aumenta o HP máximo e cura +1",
-    "AURA MÁGICA": "Dano contínuo ao redor do jogador",
+    "CHAMA ARDENTE": "+2 dano e +5% chance crítica",
     "ÍMÃ DE XP": "Aumenta muito o raio de coleta",
     "TIRO MÚLTIPLO": "Atira projéteis adicionais em leque",
     "EXPLOSÃO": "Tiros explodem ao atingir o alvo",
@@ -925,7 +925,7 @@ ALL_UPGRADES_POOL = {
     "PUNHAL SOMBRIO":      "+4 dano de projétil",
     "FLECHA EXPLOSIVA":    "+2 dano e +20 raio de explosão",
     "DESTRUIÇÃO TOTAL":    "+5 dano de projétil",
-    "MAGIA SOMBRIA":       "+3 dano e +2 dano de aura",
+    "LÂMINA DE SOMBRA": "+4 dano e +10% espinhos",
     "SANGUE DO CAÇADOR":   "+2 dano e +8% crítico",
     "FÚRIA SELVAGEM":      "+4 dano de projétil",
     "RUNA AFIADA":         "+3 dano e +5% crítico",
@@ -933,7 +933,7 @@ ALL_UPGRADES_POOL = {
     "TOQUE DO ABISMO":     "+5 dano de projétil",
     "FRAGMENTO DE ALMA":   "+0.20x multiplicador de crítico",
     "MARTELO DO TROVÃO":   "+6 dano de projétil",
-    "CHAMA ETERNA":        "+4 dano e +2 dano de aura",
+    "FOGUEIRA INFERNAL": "+3 dano e +20 raio de explosão",
     "GOLPE CÓSMICO":       "+12% chance de crítico",
     "EXECUTAR O FRACO":    "+10% limiar de execução",
     "FLUXO DE MANA":       "+3 dano e -5% recarga de tiro",
@@ -948,7 +948,7 @@ ALL_UPGRADES_POOL = {
     "GOLPE DO DESTINO":    "+12% execução e +3 dano",
     "MAGIA DUPLA":         "+2 dano e +1 projétil",
     "FRIO MORTAL":         "+4 dano e +8% crítico",
-    "SOPRO DO DRAGÃO":     "+5 dano e +3 dano de aura",
+    "SOPRO VENENOSO": "+4 dano e +3% vampirismo",
     # PROJÉTEIS
     "BALA FANTASMA":       "+1 perfuração de projétil",
     "TEMPESTADE DE SETAS": "+1 projétil adicional",
@@ -1027,32 +1027,32 @@ ALL_UPGRADES_POOL = {
     "VENTO UIVANTE":         "+50 de velocidade",
     "MARÉ VELOZ":            "+30 vel. e +5% crítico",
     "VELOZ COMO O RAIO":     "+70 de velocidade",
-    # MAGIA / AURA / ORBES
+    # MAGIA / ORBES
     "CÍRCULO ARCANO":    "+1 orbe mágico",
-    "CAMPO DE FORÇA":    "+50 raio de aura",
+    "ESCUDO RÚNICO": "+8 HP e +0.3 HP/s regeneração",
     "ORBE DESTRUIDOR":   "+3 dano de orbe",
-    "EXTENSÃO ARCANA":   "+80 raio de aura",
+    "MAGIA ARCANA": "+3 dano e +1 projétil",
     "DUPLO ORBE":        "+1 orbe e +2 dano de orbe",
-    "AURA AMPLIADA":     "+100 raio e +1 dano de aura",
+    "AMPLIFICADOR ARCANO": "+0.20x multiplicador crítico e +5% chance",
     "VÓRTICE MÁGICO":    "+1 orbe e +50 distância orbital",
-    "CAMPO EXPLOSIVO":   "+3 dano aura e +60 raio",
+    "ONDA ÍGNEA": "+50 raio e +4 dano de explosão",
     "SEIS ORBES":        "+2 orbes mágicos",
-    "MAGIA EXPANSIVA":   "+120 raio de aura",
+    "DISPERSÃO MÁGICA": "+1 projétil e +80 vel. projétil",
     "ORBE FANTASMA":     "+1 orbe e +4 dano de orbe",
-    "AUREA DIVINA":      "+5 dano aura e +80 raio",
+    "GRAÇA DIVINA": "+12 HP e +0.5 HP/s regeneração",
     "CÍRCULO DA MORTE":  "+2 orbes e +3 dano de orbe",
-    "CAMPO INFINITO":    "+150 raio de aura",
-    "ESPIRAL ARCANA":    "+1 orbe e +3 dano de aura",
+    "EXECUÇÃO ARCANA": "+8% execução e +8% crítico",
+    "ESPIRAL DE FOGO": "+1 orbe e +3 dano de orbe",
     "ORBES EXPLOSIVOS":  "+1 orbe e +40 raio explosão",
-    "AURA MORTAL":       "+6 dano de aura",
+    "CEIFA ARCANA": "+5 dano e +6% execução",
     "CONSTELAÇÃO":       "+2 orbes e +60 distância orbital",
-    "CAMPO CÓSMICO":     "+200 raio de aura",
+    "VÓRTICE CÓSMICO": "+100 raio de coleta e +15% XP",
     "DANÇA DOS ORBES":   "+2 orbes e +5 dano de orbe",
-    "EXPLOSÃO ARCANA":   "+4 dano aura e +50 explosão",
-    "MAGIA SUPREMA":     "+2 orbes e +100 raio de aura",
-    "SINGULARIDADE":     "+7 dano aura e +80 raio",
+    "DETONAÇÃO MÁGICA": "+60 raio e +5 dano de explosão",
+    "PODER SUPREMO": "+4 dano, +1 orbe e +6% crítico",
+    "PERFURAÇÃO CÓSMICA": "+6 dano e +1 perfuração",
     "NEXO ARCANO":       "+3 orbes mágicos",
-    "CAMPO ETERNO":      "+5 dano aura e +150 raio",
+    "VIDA ETERNA RÚNICA": "+1.5 HP/s e +4% vampirismo",
     # EXPLOSÃO
     "MICRO BOMBA":           "+25 raio de explosão",
     "BOMBA GRANDE":          "+40 raio de explosão",
@@ -1109,12 +1109,12 @@ ALL_UPGRADES_POOL = {
     "CAMPEÃO":             "+10 HP, +2 dano e +0.3 HP/s",
     "LENDA VIVA":          "+5 dano, +5% crítico e +20 vel.",
     "PODER ILIMITADO":     "+6 dano e +30 velocidade",
-    "VANGUARDA":           "+2 dano, +40 aura e +2 orbes",
+    "FORMA SOMBRIA": "+3 dano, +2 orbes e +15 vel.",
     "FANTASMA DA MORTE":   "+3 dano, +1 pierce e +5% crítico",
     "REI DO CAMPO":        "+1 projétil, +1 pierce, +1 ricochet",
     "ESTRATEGISTA":        "+3 dano, +20 HP e -10% recarga",
     "GUERREIRO ETERNO":    "+5 HP, +15 vel. e +0.3 HP/s",
-    "COLOSSO":             "+20 HP, +3 dano e +30 raio aura",
+    "COLOSSO DE FERRO": "+20 HP, +3 dano e +10% espinhos",
     "LÂMINA SOMBRIA":      "+4 dano, +1 pierce e +1 ricochet",
     "BERSERKER FINAL":     "+6 dano, -12% recarga e +1 proj",
     "DOMINADOR":           "+4 dano, +10% crítico e +10% exec.",
@@ -1122,7 +1122,7 @@ ALL_UPGRADES_POOL = {
     "TEMPESTADE MORTAL":   "+2 projéteis, +40 explosão e +3 dano",
     "FORÇA BRUTA":         "+8 dano e +10 HP",
     "AGILIDADE EXTREMA":   "+50 vel. e -12% recarga",
-    "PODER DIVINO":        "+5 dano, +3 aura e +1 orbe",
+    "GOLPE DIVINO": "+4 dano, +1 orbe e +30 raio de explosão",
     "MESTRE DO CAOS":      "+3 projéteis, +2 dano e +5% crit",
     "TRANSCENDÊNCIA":      "+5 dano, +5 HP, +25 vel. e regen",
     "FORMA FINAL":         "+8 dano, +15% crit, +10% exec, +30 vel.",
@@ -1135,7 +1135,7 @@ UPGRADE_TAGS = {
     "TIRO MÚLTIPLO": {"projeteis"},
     "PERFURAÇÃO": {"projeteis"},
     "EXPLOSÃO": {"explosao"},
-    "AURA MÁGICA": {"aura"},
+    "CHAMA ARDENTE":{"dano","critico"},
     "ÍMÃ DE XP": {"magnetismo"},
     "ORBES MÁGICOS": {"orbes"},
     "SORTE": {"critico"},
@@ -1150,14 +1150,14 @@ UPGRADE_TAGS = {
     # novas skills
     "LÂMINA SANGRADA":{"dano"},"GOLPE CERTEIRO":{"critico"},"CRÍTICO LETAL":{"critico"},
     "PUNHAL SOMBRIO":{"dano"},"FLECHA EXPLOSIVA":{"dano","explosao"},"DESTRUIÇÃO TOTAL":{"dano"},
-    "MAGIA SOMBRIA":{"dano","aura"},"SANGUE DO CAÇADOR":{"dano","critico"},"FÚRIA SELVAGEM":{"dano"},
+    "LÂMINA DE SOMBRA":{"dano","defesa"},"SANGUE DO CAÇADOR":{"dano","critico"},"FÚRIA SELVAGEM":{"dano"},
     "RUNA AFIADA":{"dano","critico"},"ESCOLHA DO CARRASCO":{"dano"},"TOQUE DO ABISMO":{"dano"},
-    "FRAGMENTO DE ALMA":{"critico"},"MARTELO DO TROVÃO":{"dano"},"CHAMA ETERNA":{"dano","aura"},
+    "FRAGMENTO DE ALMA":{"critico"},"MARTELO DO TROVÃO":{"dano"},"FOGUEIRA INFERNAL":{"dano","explosao"},
     "GOLPE CÓSMICO":{"critico"},"EXECUTAR O FRACO":{"dano"},"FLUXO DE MANA":{"dano","cadencia"},
     "SETA DO DESTINO":{"critico"},"PODER OCULTO":{"dano"},"HERANÇA SOMBRIA":{"critico","dano"},
     "INSTINTO PREDADOR":{"dano","critico"},"CRISTAL DE DANO":{"dano"},"ESPADA LENDÁRIA":{"dano"},
     "PEDRA DO CAOS":{"dano","critico"},"TIRO PRECISO":{"critico","projeteis"},"GOLPE DO DESTINO":{"dano"},
-    "MAGIA DUPLA":{"dano","projeteis"},"FRIO MORTAL":{"dano","critico"},"SOPRO DO DRAGÃO":{"dano","aura"},
+    "MAGIA DUPLA":{"dano","projeteis"},"FRIO MORTAL":{"dano","critico"},"SOPRO VENENOSO":{"dano","sobrevivencia"},
     "BALA FANTASMA":{"projeteis"},"TEMPESTADE DE SETAS":{"projeteis"},"RICOCHETE DUPLO":{"projeteis"},
     "BALA SÔNICA":{"projeteis"},"RAJADA RÁPIDA":{"cadencia"},"FLECHA TRIPLA":{"projeteis"},
     "PERFURAÇÃO EXTREMA":{"projeteis"},"ECO MÁGICO":{"projeteis"},"VELOCIDADE DE LUZ":{"projeteis"},
@@ -1183,15 +1183,15 @@ UPGRADE_TAGS = {
     "PASSO ESPECTRAL":{"movimento","magnetismo"},"CORRIDA MÁGICA":{"movimento","cadencia"},"IMPULSO DIVINO":{"movimento"},
     "RASTRO DE FOGO":{"movimento","dano"},"ACELERAÇÃO":{"movimento"},"FLUXO ETERNO":{"magnetismo","movimento"},
     "VENTO UIVANTE":{"movimento"},"MARÉ VELOZ":{"movimento","critico"},"VELOZ COMO O RAIO":{"movimento"},
-    "CÍRCULO ARCANO":{"orbes"},"CAMPO DE FORÇA":{"aura"},"ORBE DESTRUIDOR":{"orbes"},
-    "EXTENSÃO ARCANA":{"aura"},"DUPLO ORBE":{"orbes"},"AURA AMPLIADA":{"aura"},
-    "VÓRTICE MÁGICO":{"orbes"},"CAMPO EXPLOSIVO":{"aura","explosao"},"SEIS ORBES":{"orbes"},
-    "MAGIA EXPANSIVA":{"aura"},"ORBE FANTASMA":{"orbes"},"AUREA DIVINA":{"aura"},
-    "CÍRCULO DA MORTE":{"orbes"},"CAMPO INFINITO":{"aura"},"ESPIRAL ARCANA":{"orbes","aura"},
-    "ORBES EXPLOSIVOS":{"orbes","explosao"},"AURA MORTAL":{"aura"},"CONSTELAÇÃO":{"orbes"},
-    "CAMPO CÓSMICO":{"aura"},"DANÇA DOS ORBES":{"orbes"},"EXPLOSÃO ARCANA":{"aura","explosao"},
-    "MAGIA SUPREMA":{"orbes","aura"},"SINGULARIDADE":{"aura"},"NEXO ARCANO":{"orbes"},
-    "CAMPO ETERNO":{"aura"},"MICRO BOMBA":{"explosao"},"BOMBA GRANDE":{"explosao"},
+    "CÍRCULO ARCANO":{"orbes"},"ESCUDO RÚNICO":{"tank","sobrevivencia"},"ORBE DESTRUIDOR":{"orbes"},
+    "MAGIA ARCANA":{"dano","projeteis"},"DUPLO ORBE":{"orbes"},"AMPLIFICADOR ARCANO":{"critico"},
+    "VÓRTICE MÁGICO":{"orbes"},"ONDA ÍGNEA":{"explosao"},"SEIS ORBES":{"orbes"},
+    "DISPERSÃO MÁGICA":{"projeteis"},"ORBE FANTASMA":{"orbes"},"GRAÇA DIVINA":{"tank","sobrevivencia"},
+    "CÍRCULO DA MORTE":{"orbes"},"EXECUÇÃO ARCANA":{"dano","critico"},"ESPIRAL DE FOGO":{"orbes"},
+    "ORBES EXPLOSIVOS":{"orbes","explosao"},"CEIFA ARCANA":{"dano"},"CONSTELAÇÃO":{"orbes"},
+    "VÓRTICE CÓSMICO":{"magnetismo","utilidade"},"DANÇA DOS ORBES":{"orbes"},"DETONAÇÃO MÁGICA":{"explosao"},
+    "PODER SUPREMO":{"dano","orbes","critico"},"PERFURAÇÃO CÓSMICA":{"dano","projeteis"},"NEXO ARCANO":{"orbes"},
+    "VIDA ETERNA RÚNICA":{"sobrevivencia"},"MICRO BOMBA":{"explosao"},"BOMBA GRANDE":{"explosao"},
     "FRAGMENTO EXPLOSIVO":{"explosao"},"DETONAÇÃO":{"explosao"},"BOMBA DE PLASMA":{"explosao"},
     "ONDA EXPLOSIVA":{"explosao"},"CARGA NUCLEAR":{"explosao"},"FRAGMENTO INCENDIÁRIO":{"explosao"},
     "TIRO EXPLOSIVO":{"explosao","dano"},"BOMBA GRAVITACIONAL":{"explosao"},"CADEIA EXPLOSIVA":{"explosao","projeteis"},
@@ -1212,20 +1212,19 @@ UPGRADE_TAGS = {
     "MORTE CERTA":{"dano","critico"},"LOUCURA DE GUERRA":{"dano","movimento"},"EQUILÍBRIO PERFEITO":{"dano","tank","movimento"},
     "ASCENSÃO":{"dano","sobrevivencia","critico"},"MESTRE DAS ARTES":{"projeteis","dano","movimento"},
     "CAMPEÃO":{"tank","dano","sobrevivencia"},"LENDA VIVA":{"dano","critico","movimento"},
-    "PODER ILIMITADO":{"dano","movimento"},"VANGUARDA":{"dano","aura","orbes"},
+    "PODER ILIMITADO":{"dano","movimento"},"FORMA SOMBRIA":{"dano","orbes","movimento"},
     "FANTASMA DA MORTE":{"dano","projeteis","critico"},"REI DO CAMPO":{"projeteis"},
     "ESTRATEGISTA":{"dano","tank","cadencia"},"GUERREIRO ETERNO":{"tank","movimento","sobrevivencia"},
-    "COLOSSO":{"tank","dano","aura"},"LÂMINA SOMBRIA":{"dano","projeteis"},
+    "COLOSSO DE FERRO":{"tank","dano","defesa"},"LÂMINA SOMBRIA":{"dano","projeteis"},
     "BERSERKER FINAL":{"dano","cadencia","projeteis"},"DOMINADOR":{"dano","critico"},
     "REAPER":{"dano"},"TEMPESTADE MORTAL":{"projeteis","explosao","dano"},
     "FORÇA BRUTA":{"dano","tank"},"AGILIDADE EXTREMA":{"movimento","cadencia"},
-    "PODER DIVINO":{"dano","aura","orbes"},"MESTRE DO CAOS":{"projeteis","dano","critico"},
+    "GOLPE DIVINO":{"dano","orbes","explosao"},"MESTRE DO CAOS":{"projeteis","dano","critico"},
     "TRANSCENDÊNCIA":{"dano","tank","movimento","sobrevivencia"},"FORMA FINAL":{"dano","critico","movimento"},
 }
 
 EVOLUTIONS = {
     "BAZUCA": {"base": "TIRO MÚLTIPLO", "passive": "EXPLOSÃO", "desc": "EVOLUÇÃO: Poder de fogo extremo, com dano explosivo ampliado!"},
-    "BURACO NEGRO": {"base": "AURA MÁGICA", "passive": "ÍMÃ DE XP", "desc": "EVOLUÇÃO: Aura magnética que suga e esmaga inimigos!"},
     "SERRAS MÁGICAS": {"base": "ORBES MÁGICOS", "passive": "VELOCIDADE ++", "desc": "EVOLUÇÃO: Orbes giram freneticamente rasgando tudo!"},
     "TESLA": {"base": "TIRO RÁPIDO", "passive": "RICOCHE", "desc": "EVOLUÇÃO: Raios em cadeia entre inimigos!"},
     "CEIFADOR": {"base": "EXECUÇÃO", "passive": "SORTE", "desc": "EVOLUÇÃO: Execução brutal + críticos insanos!"},
@@ -1237,7 +1236,7 @@ UPGRADE_ICONS = {
     "VELOCIDADE ++": "icon_speed",
     "TIRO RÁPIDO": "icon_firespeed",
     "VIDA MÁXIMA": "icon_hp",
-    "AURA MÁGICA": "icon_aura",
+    "CHAMA ARDENTE": "icon_aura",
     "ÍMÃ DE XP": "icon_magnet",
     "TIRO MÚLTIPLO": "icon_multishot",
     "EXPLOSÃO": "icon_explosion",
@@ -1258,11 +1257,11 @@ UPGRADE_ICONS = {
     # ícones das 200 novas skills (icons/newskills/skill N.png e skill icon N.png)
     **{k: f"icons/newskills/skill {i+1}" for i, k in enumerate([
         "LÂMINA SANGRADA","GOLPE CERTEIRO","CRÍTICO LETAL","PUNHAL SOMBRIO","FLECHA EXPLOSIVA",
-        "DESTRUIÇÃO TOTAL","MAGIA SOMBRIA","SANGUE DO CAÇADOR","FÚRIA SELVAGEM","RUNA AFIADA",
-        "ESCOLHA DO CARRASCO","TOQUE DO ABISMO","FRAGMENTO DE ALMA","MARTELO DO TROVÃO","CHAMA ETERNA",
+        "DESTRUIÇÃO TOTAL","LÂMINA DE SOMBRA","SANGUE DO CAÇADOR","FÚRIA SELVAGEM","RUNA AFIADA",
+        "ESCOLHA DO CARRASCO","TOQUE DO ABISMO","FRAGMENTO DE ALMA","MARTELO DO TROVÃO","FOGUEIRA INFERNAL",
         "GOLPE CÓSMICO","EXECUTAR O FRACO","FLUXO DE MANA","SETA DO DESTINO","PODER OCULTO",
         "HERANÇA SOMBRIA","INSTINTO PREDADOR","CRISTAL DE DANO","ESPADA LENDÁRIA","PEDRA DO CAOS",
-        "TIRO PRECISO","GOLPE DO DESTINO","MAGIA DUPLA","FRIO MORTAL","SOPRO DO DRAGÃO",
+        "TIRO PRECISO","GOLPE DO DESTINO","MAGIA DUPLA","FRIO MORTAL","SOPRO VENENOSO",
         "BALA FANTASMA","TEMPESTADE DE SETAS","RICOCHETE DUPLO","BALA SÔNICA","RAJADA RÁPIDA",
         "FLECHA TRIPLA","PERFURAÇÃO EXTREMA","ECO MÁGICO","VELOCIDADE DE LUZ","CHUVA DE FLECHAS",
         "DISPARO VELOZ","FRAGMENTAÇÃO","SETA FANTASMA","ONDA DE CHOQUE","BALA DUPLA",
@@ -1280,11 +1279,11 @@ UPGRADE_ICONS = {
     ])},
     **{k: f"icons/newskills/skill icon {i+1}" for i, k in enumerate([
         "ACELERAÇÃO","FLUXO ETERNO","VENTO UIVANTE","MARÉ VELOZ","VELOZ COMO O RAIO",
-        "CÍRCULO ARCANO","CAMPO DE FORÇA","ORBE DESTRUIDOR","EXTENSÃO ARCANA","DUPLO ORBE",
-        "AURA AMPLIADA","VÓRTICE MÁGICO","CAMPO EXPLOSIVO","SEIS ORBES","MAGIA EXPANSIVA",
-        "ORBE FANTASMA","AUREA DIVINA","CÍRCULO DA MORTE","CAMPO INFINITO","ESPIRAL ARCANA",
-        "ORBES EXPLOSIVOS","AURA MORTAL","CONSTELAÇÃO","CAMPO CÓSMICO","DANÇA DOS ORBES",
-        "EXPLOSÃO ARCANA","MAGIA SUPREMA","SINGULARIDADE","NEXO ARCANO","CAMPO ETERNO",
+        "CÍRCULO ARCANO","ESCUDO RÚNICO","ORBE DESTRUIDOR","MAGIA ARCANA","DUPLO ORBE",
+        "AMPLIFICADOR ARCANO","VÓRTICE MÁGICO","ONDA ÍGNEA","SEIS ORBES","DISPERSÃO MÁGICA",
+        "ORBE FANTASMA","GRAÇA DIVINA","CÍRCULO DA MORTE","EXECUÇÃO ARCANA","ESPIRAL DE FOGO",
+        "ORBES EXPLOSIVOS","CEIFA ARCANA","CONSTELAÇÃO","VÓRTICE CÓSMICO","DANÇA DOS ORBES",
+        "DETONAÇÃO MÁGICA","PODER SUPREMO","PERFURAÇÃO CÓSMICA","NEXO ARCANO","VIDA ETERNA RÚNICA",
         "MICRO BOMBA","BOMBA GRANDE","FRAGMENTO EXPLOSIVO","DETONAÇÃO","BOMBA DE PLASMA",
         "ONDA EXPLOSIVA","CARGA NUCLEAR","FRAGMENTO INCENDIÁRIO","TIRO EXPLOSIVO","BOMBA GRAVITACIONAL",
         "CADEIA EXPLOSIVA","SUPERNOVA","EXPLOSÃO SOMBRIA","DETONADOR EXTREMO","BOMBA FINAL",
@@ -1295,10 +1294,10 @@ UPGRADE_ICONS = {
         "COLETOR MÁGICO","ABUNDÂNCIA","CRESCIMENTO ESPIRITUAL","GEMA DA FORTUNA","CAMINHO DO MESTRE",
         "ORÁCULO","CONHECIMENTO PROIBIDO","HERANÇA DO REI","CAMINHO DO SÁBIO","DÍVIDA DE SANGUE",
         "MORTE CERTA","LOUCURA DE GUERRA","EQUILÍBRIO PERFEITO","ASCENSÃO","MESTRE DAS ARTES",
-        "CAMPEÃO","LENDA VIVA","PODER ILIMITADO","VANGUARDA","FANTASMA DA MORTE",
-        "REI DO CAMPO","ESTRATEGISTA","GUERREIRO ETERNO","COLOSSO","LÂMINA SOMBRIA",
+        "CAMPEÃO","LENDA VIVA","PODER ILIMITADO","FORMA SOMBRIA","FANTASMA DA MORTE",
+        "REI DO CAMPO","ESTRATEGISTA","GUERREIRO ETERNO","COLOSSO DE FERRO","LÂMINA SOMBRIA",
         "BERSERKER FINAL","DOMINADOR","REAPER","TEMPESTADE MORTAL","FORÇA BRUTA",
-        "AGILIDADE EXTREMA","PODER DIVINO","MESTRE DO CAOS","TRANSCENDÊNCIA","FORMA FINAL",
+        "AGILIDADE EXTREMA","GOLPE DIVINO","MESTRE DO CAOS","TRANSCENDÊNCIA","FORMA FINAL",
     ])},
 }
 
@@ -1310,14 +1309,14 @@ UPGRADE_ICONS = {
 NEW_SKILL_EFFECTS = {
     "LÂMINA SANGRADA":{"dmg":3},"GOLPE CERTEIRO":{"crit":0.10},"CRÍTICO LETAL":{"crit_mult":0.25},
     "PUNHAL SOMBRIO":{"dmg":4},"FLECHA EXPLOSIVA":{"dmg":2,"explosion":20},"DESTRUIÇÃO TOTAL":{"dmg":5},
-    "MAGIA SOMBRIA":{"dmg":3,"aura_dmg":2},"SANGUE DO CAÇADOR":{"dmg":2,"crit":0.08},"FÚRIA SELVAGEM":{"dmg":4},
+    "LÂMINA DE SOMBRA":{"dmg":4,"thorns":0.10},"SANGUE DO CAÇADOR":{"dmg":2,"crit":0.08},"FÚRIA SELVAGEM":{"dmg":4},
     "RUNA AFIADA":{"dmg":3,"crit":0.05},"ESCOLHA DO CARRASCO":{"execute":0.08},"TOQUE DO ABISMO":{"dmg":5},
-    "FRAGMENTO DE ALMA":{"crit_mult":0.20},"MARTELO DO TROVÃO":{"dmg":6},"CHAMA ETERNA":{"dmg":4,"aura_dmg":2},
+    "FRAGMENTO DE ALMA":{"crit_mult":0.20},"MARTELO DO TROVÃO":{"dmg":6},"FOGUEIRA INFERNAL":{"dmg":3,"explosion":20},
     "GOLPE CÓSMICO":{"crit":0.12},"EXECUTAR O FRACO":{"execute":0.10},"FLUXO DE MANA":{"dmg":3,"cooldown":0.05},
     "SETA DO DESTINO":{"crit":0.15},"PODER OCULTO":{"dmg":5},"HERANÇA SOMBRIA":{"crit_mult":0.30,"dmg":2},
     "INSTINTO PREDADOR":{"execute":0.08,"crit":0.08},"CRISTAL DE DANO":{"dmg":4},"ESPADA LENDÁRIA":{"dmg":7},
     "PEDRA DO CAOS":{"dmg":3,"crit":0.10},"TIRO PRECISO":{"crit":0.15,"pierce":1},"GOLPE DO DESTINO":{"execute":0.12,"dmg":3},
-    "MAGIA DUPLA":{"dmg":2,"proj":1},"FRIO MORTAL":{"dmg":4,"crit":0.08},"SOPRO DO DRAGÃO":{"dmg":5,"aura_dmg":3},
+    "MAGIA DUPLA":{"dmg":2,"proj":1},"FRIO MORTAL":{"dmg":4,"crit":0.08},"SOPRO VENENOSO":{"dmg":4,"lifesteal":0.03},
     "BALA FANTASMA":{"pierce":1},"TEMPESTADE DE SETAS":{"proj":1},"RICOCHETE DUPLO":{"ricochet":1},
     "BALA SÔNICA":{"proj_speed":80},"RAJADA RÁPIDA":{"cooldown":0.10},"FLECHA TRIPLA":{"proj":2},
     "PERFURAÇÃO EXTREMA":{"pierce":2},"ECO MÁGICO":{"proj":1,"ricochet":1},"VELOCIDADE DE LUZ":{"proj_speed":120},
@@ -1343,15 +1342,15 @@ NEW_SKILL_EFFECTS = {
     "PASSO ESPECTRAL":{"speed":20,"pickup":60},"CORRIDA MÁGICA":{"speed":30,"cooldown":0.05},"IMPULSO DIVINO":{"speed":45},
     "RASTRO DE FOGO":{"speed":35,"dmg":2},"ACELERAÇÃO":{"speed":25},"FLUXO ETERNO":{"pickup":80,"speed":20},
     "VENTO UIVANTE":{"speed":50},"MARÉ VELOZ":{"speed":30,"crit":0.05},"VELOZ COMO O RAIO":{"speed":70},
-    "CÍRCULO ARCANO":{"orb":1},"CAMPO DE FORÇA":{"aura_range":50},"ORBE DESTRUIDOR":{"orb_dmg":3},
-    "EXTENSÃO ARCANA":{"aura_range":80},"DUPLO ORBE":{"orb":1,"orb_dmg":2},"AURA AMPLIADA":{"aura_range":100,"aura_dmg":1},
-    "VÓRTICE MÁGICO":{"orb":1,"orb_dist":50},"CAMPO EXPLOSIVO":{"aura_dmg":3,"aura_range":60},"SEIS ORBES":{"orb":2},
-    "MAGIA EXPANSIVA":{"aura_range":120},"ORBE FANTASMA":{"orb":1,"orb_dmg":4},"AUREA DIVINA":{"aura_dmg":5,"aura_range":80},
-    "CÍRCULO DA MORTE":{"orb":2,"orb_dmg":3},"CAMPO INFINITO":{"aura_range":150},"ESPIRAL ARCANA":{"orb":1,"aura_dmg":3},
-    "ORBES EXPLOSIVOS":{"orb":1,"explosion":40},"AURA MORTAL":{"aura_dmg":6},"CONSTELAÇÃO":{"orb":2,"orb_dist":60},
-    "CAMPO CÓSMICO":{"aura_range":200},"DANÇA DOS ORBES":{"orb":2,"orb_dmg":5},"EXPLOSÃO ARCANA":{"aura_dmg":4,"explosion":50},
-    "MAGIA SUPREMA":{"orb":2,"aura_range":100},"SINGULARIDADE":{"aura_dmg":7,"aura_range":80},"NEXO ARCANO":{"orb":3},
-    "CAMPO ETERNO":{"aura_dmg":5,"aura_range":150},"MICRO BOMBA":{"explosion":25},"BOMBA GRANDE":{"explosion":40},
+    "CÍRCULO ARCANO":{"orb":1},"ESCUDO RÚNICO":{"hp":8,"regen":0.3},"ORBE DESTRUIDOR":{"orb_dmg":3},
+    "MAGIA ARCANA":{"dmg":3,"proj":1},"DUPLO ORBE":{"orb":1,"orb_dmg":2},"AMPLIFICADOR ARCANO":{"crit_mult":0.20,"crit":0.05},
+    "VÓRTICE MÁGICO":{"orb":1,"orb_dist":50},"ONDA ÍGNEA":{"explosion":50,"exp_dmg":4},"SEIS ORBES":{"orb":2},
+    "DISPERSÃO MÁGICA":{"proj":1,"proj_speed":80},"ORBE FANTASMA":{"orb":1,"orb_dmg":4},"GRAÇA DIVINA":{"hp":12,"regen":0.5},
+    "CÍRCULO DA MORTE":{"orb":2,"orb_dmg":3},"EXECUÇÃO ARCANA":{"execute":0.08,"crit":0.08},"ESPIRAL DE FOGO":{"orb":1,"orb_dmg":3},
+    "ORBES EXPLOSIVOS":{"orb":1,"explosion":40},"CEIFA ARCANA":{"dmg":5,"execute":0.06},"CONSTELAÇÃO":{"orb":2,"orb_dist":60},
+    "VÓRTICE CÓSMICO":{"pickup":100,"xp":0.15},"DANÇA DOS ORBES":{"orb":2,"orb_dmg":5},"DETONAÇÃO MÁGICA":{"explosion":60,"exp_dmg":5},
+    "PODER SUPREMO":{"dmg":4,"orb":1,"crit":0.06},"PERFURAÇÃO CÓSMICA":{"dmg":6,"pierce":1},"NEXO ARCANO":{"orb":3},
+    "VIDA ETERNA RÚNICA":{"regen":1.5,"lifesteal":0.04},"MICRO BOMBA":{"explosion":25},"BOMBA GRANDE":{"explosion":40},
     "FRAGMENTO EXPLOSIVO":{"exp_dmg":3},"DETONAÇÃO":{"explosion":60},"BOMBA DE PLASMA":{"exp_dmg":5},
     "ONDA EXPLOSIVA":{"explosion":80,"exp_dmg":4},"CARGA NUCLEAR":{"explosion":100},"FRAGMENTO INCENDIÁRIO":{"exp_dmg":6},
     "TIRO EXPLOSIVO":{"explosion":50,"dmg":2},"BOMBA GRAVITACIONAL":{"explosion":70,"exp_dmg":5},
@@ -1373,14 +1372,14 @@ NEW_SKILL_EFFECTS = {
     "LOUCURA DE GUERRA":{"dmg":3,"speed":20},"EQUILÍBRIO PERFEITO":{"dmg":2,"hp":5,"speed":10},
     "ASCENSÃO":{"dmg":3,"regen":0.3,"crit":0.05},"MESTRE DAS ARTES":{"proj":2,"dmg":2,"speed":20},
     "CAMPEÃO":{"hp":10,"dmg":2,"regen":0.3},"LENDA VIVA":{"dmg":5,"crit":0.05,"speed":20},
-    "PODER ILIMITADO":{"dmg":6,"speed":30},"VANGUARDA":{"dmg":2,"aura_range":40,"orb":2},
+    "PODER ILIMITADO":{"dmg":6,"speed":30},"FORMA SOMBRIA":{"dmg":3,"orb":2,"speed":15},
     "FANTASMA DA MORTE":{"dmg":3,"pierce":1,"crit":0.05},"REI DO CAMPO":{"proj":1,"pierce":1,"ricochet":1},
     "ESTRATEGISTA":{"dmg":3,"hp":20,"cooldown":0.10},"GUERREIRO ETERNO":{"hp":5,"speed":15,"regen":0.3},
-    "COLOSSO":{"hp":20,"dmg":3,"aura_range":30},"LÂMINA SOMBRIA":{"dmg":4,"pierce":1,"ricochet":1},
+    "COLOSSO DE FERRO":{"hp":20,"dmg":3,"thorns":0.10},"LÂMINA SOMBRIA":{"dmg":4,"pierce":1,"ricochet":1},
     "BERSERKER FINAL":{"dmg":6,"cooldown":0.12,"proj":1},"DOMINADOR":{"dmg":4,"crit":0.10,"execute":0.10},
     "REAPER":{"dmg":5,"execute":0.15},"TEMPESTADE MORTAL":{"proj":2,"explosion":40,"dmg":3},
     "FORÇA BRUTA":{"dmg":8,"hp":10},"AGILIDADE EXTREMA":{"speed":50,"cooldown":0.12},
-    "PODER DIVINO":{"dmg":5,"aura_dmg":3,"orb":1},"MESTRE DO CAOS":{"proj":3,"dmg":2,"crit":0.05},
+    "GOLPE DIVINO":{"dmg":4,"orb":1,"explosion":30},"MESTRE DO CAOS":{"proj":3,"dmg":2,"crit":0.05},
     "TRANSCENDÊNCIA":{"dmg":5,"hp":5,"speed":25,"regen":0.3},"FORMA FINAL":{"dmg":8,"crit":0.15,"execute":0.10,"speed":30},
 }
 
@@ -2639,10 +2638,6 @@ def apply_upgrade(key, mult=1.0):
         has_bazuca = True
         push_upgrade_notification(f"{feed_prefix}: {key}", feed_color)
         return
-    elif key == "BURACO NEGRO":
-        has_buraco_negro = True
-        push_upgrade_notification(f"{feed_prefix}: {key}", feed_color)
-        return
     elif key == "SERRAS MÁGICAS":
         has_serras = True
         push_upgrade_notification(f"{feed_prefix}: {key}", feed_color)
@@ -2666,7 +2661,6 @@ def apply_upgrade(key, mult=1.0):
     elif key == "VIDA MÁXIMA":
         PLAYER_MAX_HP += int(2 * mult)
         if player: player.hp = min(player.hp + int(2 * mult), PLAYER_MAX_HP)
-    elif key == "AURA MÁGICA":   AURA_DMG = max(AURA_DMG, 1); AURA_DMG += int(1 * mult)
     elif key == "ÍMÃ DE XP":      PICKUP_RANGE = min(600, PICKUP_RANGE + 80 * mult)
     elif key == "TIRO MÚLTIPLO": PROJ_COUNT = min(8, PROJ_COUNT + 1)
     elif key == "EXPLOSÃO":      EXPLOSION_RADIUS = max(EXPLOSION_RADIUS, 50); EXPLOSION_RADIUS += int(25 * mult)
@@ -2964,18 +2958,7 @@ def load_all_assets():
             hd_th = int(hd_tw * raw_hd.get_height() / raw_hd.get_width())
             diff_screen_imgs["HARDCORE_UNLOCK"] = pygame.transform.smoothscale(raw_hd, (hd_tw, hd_th))
 
-    # fire_shield_1.png … fire_shield_8.png — sequência de 8 frames na pasta sprite/aura/
-    try:
-        _aura_dir = os.path.join(ASSET_DIR, "sprite", "aura")
-        aura_frames = []
-        for _fi in range(1, 9):
-            _fp = os.path.join(_aura_dir, f"fire_shield_{_fi}.png")
-            _fs = pygame.image.load(_fp).convert_alpha()
-            aura_frames.append(_fs)
-        print(f"[ASSETS] fire_shield OK: {len(aura_frames)} frames ({aura_frames[0].get_size()})")
-    except Exception as _e:
-        print(f"[ASSETS] fire_shield fallback: {_e}")
-        aura_frames = loader.load_animation("aura", 4, (400, 400), fallback_colors=((100, 0, 200, 80), (80, 0, 160, 60)))
+    aura_frames = []  # aura removida
     ExplosionAnimation._frame_cache.clear()   # invalida cache ao recarregar assets
     explosion_frames_raw = load_explosion_frames(loader, (128, 128))
     projectile_frames_raw = loader.load_animation("projectile", 4, (40, 20), fallback_colors=((255, 255, 100), (200, 200, 0)))
@@ -5023,41 +5006,6 @@ def main():
                     if attack_feedback.activated and attack_feedback.sound_name:
                         play_sfx(attack_feedback.sound_name)
 
-            if AURA_DMG > 0:
-                aura_anim_timer += dt
-                if aura_anim_timer > 0.1: aura_anim_timer = 0; aura_frame_idx = (aura_frame_idx + 1) % len(aura_frames)
-                aura_t += dt
-                if aura_t >= 0.4: 
-                    aura_t = 0
-                    current_aura_range = AURA_RANGE * 2 if has_buraco_negro else AURA_RANGE
-                    current_aura_range *= BURN_AURA_MULT
-                    current_aura_dmg = AURA_DMG * 3 if has_buraco_negro else AURA_DMG
-                    current_aura_dmg *= FIRE_DMG_MULT
-                    
-                    for e in enemies:
-                        if player.pos.distance_to(e.pos) < current_aura_range:
-                            dmg_dealt = current_aura_dmg
-                            
-                            if HAS_INFERNO:
-                                e.flash_timer = 0.5
-                                dmg_dealt *= 1.25
-                            is_crit = random.random() < CRIT_CHANCE
-                            if is_crit:
-                                dmg_dealt *= 2
-                                hitstop_timer = 0.03
-                            
-                            e.hp -= dmg_dealt
-                            e.flash_timer = 0.1 
-                            damage_texts.add(DamageText(e.pos, dmg_dealt, is_crit, (200, 100, 255))) 
-                            
-                            if has_buraco_negro:
-                                pull_dir = (player.pos - e.pos).normalize() if (player.pos - e.pos).length() > 0 else pygame.Vector2(0,0)
-                                e.knockback += pull_dir * 18.0
-                            
-                            if e.hp <= 0: 
-                                if player.ult_charge < player.ult_max: player.ult_charge += 1
-                                gems.add(Gem(e.pos, loader)); e.kill(); kills += 1
-            
             if ORB_COUNT > 0:
                 rot_speed = 450 if has_serras else 150
                 orb_rot_angle += rot_speed * dt
@@ -7389,39 +7337,6 @@ def main():
                     main._dark_surf_cache = (_ds_key, _ds)
                 screen.blit(main._dark_surf_cache[1], (0, 0))
             
-            if AURA_DMG > 0:
-                current_aura_range = AURA_RANGE * 2 if has_buraco_negro else AURA_RANGE
-                _aura_stale = (
-                    not hasattr(main, "_last_aura_range")
-                    or main._last_aura_range != current_aura_range
-                    or not hasattr(main, "_aura_cache")
-                    or len(main._aura_cache) != len(aura_frames)
-                )
-                if _aura_stale:
-                    main._last_aura_range = current_aura_range
-                    _asize = int(current_aura_range * 2)
-                    _scaled = []
-                    for f in aura_frames:
-                        _sf = pygame.transform.smoothscale(f, (_asize, _asize))
-                        # Premultiply alpha: zera RGB onde alpha=0 para BLEND_RGB_ADD não
-                        # adicionar branco de pixels transparentes na tela
-                        try:
-                            import numpy as _np
-                            _arr  = pygame.surfarray.pixels3d(_sf)
-                            _alp  = pygame.surfarray.pixels_alpha(_sf)
-                            _arr[:] = (_arr * (_alp[:, :, _np.newaxis] / 255.0)).astype(_np.uint8)
-                            del _arr, _alp
-                        except Exception:
-                            pass  # fallback sem premultiply se numpy falhar
-                        _scaled.append(_sf)
-                    main._aura_cache = _scaled
-                    if has_buraco_negro:
-                        for f in main._aura_cache: f.fill((100, 0, 150), special_flags=pygame.BLEND_RGB_MULT)
-
-                img = main._aura_cache[aura_frame_idx % len(main._aura_cache)]
-                screen.blit(img, img.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)),
-                            special_flags=pygame.BLEND_RGB_ADD)
-                
             if ORB_COUNT > 0:
                 if not hasattr(main, "_orb_img_cache") or main._orb_img_cache[0] != has_serras:
                     main._orb_img_cache = (has_serras, pygame.transform.scale(orb_img, (80, 80)) if has_serras else orb_img)
@@ -7616,7 +7531,6 @@ def main():
                         f"PERFURAÇÃO: {PROJ_PIERCE}",
                         f"RECARGA: {SHOT_COOLDOWN:.2f}s",
                         f"RAIO EXPLOSÃO: {EXPLOSION_RADIUS}",
-                        f"DANO DE AURA: {AURA_DMG}",
                         f"ORBES: {ORB_COUNT}",
                         f"ALCANCE (ÍMÃ): {int(PICKUP_RANGE)}"
                     ]
