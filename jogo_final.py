@@ -2964,19 +2964,17 @@ def load_all_assets():
             hd_th = int(hd_tw * raw_hd.get_height() / raw_hd.get_width())
             diff_screen_imgs["HARDCORE_UNLOCK"] = pygame.transform.smoothscale(raw_hd, (hd_tw, hd_th))
 
-    # aura2.png — 576x72, 1 linha × 8 frames de 72x72 px
-    # Carregado diretamente via subsurface para garantir sequência esq→dir.
+    # fire_shield_1.png … fire_shield_8.png — sequência de 8 frames na pasta sprite/aura/
     try:
-        _aura_path = os.path.join(ASSET_DIR, "sprite", "aura2.png")
-        _aura_surf = pygame.image.load(_aura_path).convert_alpha()
-        _aura_fw = 72
-        aura_frames = [
-            _aura_surf.subsurface(pygame.Rect(i * _aura_fw, 0, _aura_fw, _aura_surf.get_height())).copy()
-            for i in range(_aura_surf.get_width() // _aura_fw)
-        ]
-        print(f"[ASSETS] aura2.png OK: {len(aura_frames)} frames de {_aura_fw}x{_aura_surf.get_height()}")
+        _aura_dir = os.path.join(ASSET_DIR, "sprite", "aura")
+        aura_frames = []
+        for _fi in range(1, 9):
+            _fp = os.path.join(_aura_dir, f"fire_shield_{_fi}.png")
+            _fs = pygame.image.load(_fp).convert_alpha()
+            aura_frames.append(_fs)
+        print(f"[ASSETS] fire_shield OK: {len(aura_frames)} frames ({aura_frames[0].get_size()})")
     except Exception as _e:
-        print(f"[ASSETS] aura2.png fallback: {_e}")
+        print(f"[ASSETS] fire_shield fallback: {_e}")
         aura_frames = loader.load_animation("aura", 4, (400, 400), fallback_colors=((100, 0, 200, 80), (80, 0, 160, 60)))
     ExplosionAnimation._frame_cache.clear()   # invalida cache ao recarregar assets
     explosion_frames_raw = load_explosion_frames(loader, (128, 128))
