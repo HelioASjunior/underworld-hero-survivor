@@ -119,7 +119,7 @@ All characters are unlocked by default.
 |---|---|---|---|
 | Mini Boss | 6000 | ~10 min | Own health bar, scales with time (+30% × time_scale) |
 | Boss | scalable | 5 min (every 5 min) | Multi-phase, grows stronger each wave |
-| Agis | 10000 | 2 min (summoning seal) | Slow boss, double-orb attack + 8-orb area magic every 5s (+25% × time_scale) |
+| Agis | 10000 | 15 min (summoning seal) | Slow boss, double-orb attack + 8-orb area magic every 5s (+25% × time_scale) |
 
 **Agis** is summoned through an animated seal (`doom_agis.png`) that appears near the player before spawning. Has a basic ranged projectile (purple double orb) and an area spell that fires 8 orbs in all directions. Drops a chest + 15 coins on death.
 

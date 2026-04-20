@@ -358,6 +358,8 @@ save_data = {
     "char_inventories": {},
     # Equipamentos por personagem — {str(char_id): {slot: {category,idx}|None}}
     "char_equipped": {},
+    # Progressão de fases do Modo Hardcore
+    "hardcore_stages": {"unlocked": 1},
 }
 
 # Definição das Missões Diárias
@@ -416,6 +418,8 @@ def load_save():
                     save_data["chest_items"] = list(save_data["purchased_items"])
                 if "char_inventories" in loaded:
                     save_data["char_inventories"] = loaded["char_inventories"]
+                if "hardcore_stages" in loaded:
+                    save_data["hardcore_stages"].update(loaded["hardcore_stages"])
                 if "char_equipped" in loaded:
                     save_data["char_equipped"] = loaded["char_equipped"]
                 elif "equipped_items" in loaded:
@@ -1141,16 +1145,16 @@ ITEM_SHOP_STATS: dict[str, list[dict]] = {
         {"name": "Calças do Arcanjo",     "def": 78, "price": 1100},
     ],
     "Botas": [
-        {"name": "Botas de Couro",        "def":  3, "price":   50},
-        {"name": "Botas Reforçadas",      "def":  6, "price":   95},
-        {"name": "Botas de Bronze",       "def": 10, "price":  145},
-        {"name": "Botas de Ferro",        "def": 15, "price":  200},
-        {"name": "Botas do Soldado",      "def": 20, "price":  265},
-        {"name": "Botas de Prata",        "def": 26, "price":  340},
-        {"name": "Botas Rúnicas",         "def": 32, "price":  425},
-        {"name": "Botas de Mithril",      "def": 38, "price":  520},
-        {"name": "Botas do Cavaleiro",    "def": 45, "price":  625},
-        {"name": "Botas do Arcanjo",      "def": 52, "price":  740},
+        {"name": "Botas de Couro",        "def":  3, "spd":  5, "price":   50},
+        {"name": "Botas Reforçadas",      "def":  6, "spd":  8, "price":   95},
+        {"name": "Botas de Bronze",       "def": 10, "spd": 10, "price":  145},
+        {"name": "Botas de Ferro",        "def": 15, "spd": 12, "price":  200},
+        {"name": "Botas do Soldado",      "def": 20, "spd": 15, "price":  265},
+        {"name": "Botas de Prata",        "def": 26, "spd": 18, "price":  340},
+        {"name": "Botas Rúnicas",         "def": 32, "spd": 21, "price":  425},
+        {"name": "Botas de Mithril",      "def": 38, "spd": 24, "price":  520},
+        {"name": "Botas do Cavaleiro",    "def": 45, "spd": 27, "price":  625},
+        {"name": "Botas do Arcanjo",      "def": 52, "spd": 30, "price":  740},
     ],
 }
 
@@ -1904,6 +1908,9 @@ chest_loot = []
 chest_ui_timer = 0.0
 new_unlocks_this_session = []
 selected_difficulty = "MÉDIO"
+current_hardcore_stage = 1
+show_stage_victory = False
+_spawn_diff = None  # set by reset_game() before use
 selected_pact = "NENHUM"
 selected_bg = "dungeon"
 current_bg_name = "bg_dungeon"
@@ -2609,6 +2616,7 @@ def reset_game(char_id=0):
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval
     global obstacle_total_placed
     global doom_seals
+    global _spawn_diff, current_hardcore_stage, show_stage_victory
     
     save_data["stats"]["games_played"] += 1
     
@@ -2663,6 +2671,8 @@ def reset_game(char_id=0):
             _astats = ITEM_SHOP_STATS.get(_acat, [])
             if _aidx < len(_astats):
                 DAMAGE_RES = min(0.55, DAMAGE_RES + _astats[_aidx].get("def", 0) / 600.0)
+                if _armor_slot == "boots":
+                    PLAYER_SPEED += _astats[_aidx].get("spd", 0)
     THORNS_PERCENT = pu.get("thorns", 0) * 0.15
     PLAYER_MAX_HP += pu.get("max_hp_up", 0) * 5
     FIRE_DMG_MULT = 1.0 + pu.get("fire_dmg", 0) * 0.10
@@ -2720,8 +2730,18 @@ def reset_game(char_id=0):
     up_options = []
     up_keys = []
     up_rarities = []
+    # Computar dificuldade efetiva com multiplicador de fase Hardcore
+    _spawn_diff = dict(DIFFICULTIES.get(selected_difficulty, DIFFICULTIES["MÉDIO"]))
+    if selected_difficulty == "HARDCORE" and current_hardcore_stage > 1:
+        _stage_mult = 1.0 + (current_hardcore_stage - 1) * 0.15
+        _spawn_diff = dict(_spawn_diff)
+        _spawn_diff["hp_mult"]  = _spawn_diff["hp_mult"]  * _stage_mult
+        _spawn_diff["dmg_mult"] = _spawn_diff["dmg_mult"] * _stage_mult
+        _spawn_diff["spd_mult"] = _spawn_diff["spd_mult"] * _stage_mult
+    show_stage_victory = False
+
     dark_hud.reset_feedback()
-    
+
     # Criar jogador
     player = create_player(loader, char_id, build_character_dependencies())
     push_skill_feed(f"Herói ativo: {CHAR_DATA[player.char_id]['name']}", (255, 220, 120), 5.0)
@@ -3109,6 +3129,7 @@ def main():
     global PLAYER_MAX_HP, PROJECTILE_DMG, SHOT_COOLDOWN, PLAYER_SPEED, PROJECTILE_SPEED, PICKUP_RANGE, AURA_DMG, PROJ_COUNT, PROJ_PIERCE, EXPLOSION_RADIUS, ORB_COUNT, CRIT_CHANCE, EXECUTE_THRESH, HAS_FURY
     global CRIT_DMG_MULT, EXPLOSION_SIZE_MULT, REGEN_RATE, DAMAGE_RES, THORNS_PERCENT, FIRE_DMG_MULT, BURN_AURA_MULT, HAS_CHAOS_BOLT, HAS_INFERNO
     global selected_difficulty, selected_pact, selected_bg, current_bg_name, bg_choices
+    global current_hardcore_stage, show_stage_victory, _spawn_diff
     global player, enemies, projectiles, enemy_projectiles, gems, drops, particles, obstacles, puddles, damage_texts
     global kills, game_time, level, xp, shot_t, aura_t, aura_anim_timer, aura_frame_idx, orb_rot_angle
     global spawn_t, bosses_spawned, session_boss_kills, session_max_level, triggered_hordes
@@ -3581,6 +3602,27 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     click_pos = event.pos
 
+                    # Overlay de vitória de fase Hardcore (prioridade máxima)
+                    if show_stage_victory and hasattr(main, "_sv_btns_rects"):
+                        for _svr, _svact in main._sv_btns_rects:
+                            if _svr.collidepoint(click_pos):
+                                if snd_click: snd_click.play()
+                                if _svact == "continue":
+                                    show_stage_victory = False
+                                elif _svact == "next":
+                                    if current_hardcore_stage < 10:
+                                        _next = current_hardcore_stage + 1
+                                        if _next > save_data["hardcore_stages"].get("unlocked", 1):
+                                            save_data["hardcore_stages"]["unlocked"] = _next
+                                        current_hardcore_stage = _next
+                                        save_game()
+                                    show_stage_victory = False
+                                    state = "HUB"
+                                elif _svact == "hub":
+                                    show_stage_victory = False
+                                    state = "HUB"
+                                break
+
                     # Diálogo de confirmação de venda (prioridade máxima)
                     if item_shop_sell_confirm is not None and state == "ITEM_SHOP":
                         _scfd_w = 420; _scfd_h = 200
@@ -3788,6 +3830,15 @@ def main():
                         elif _hub_talent_rect.collidepoint(click_pos):
                             hub_return = True
                             state = "SHOP"
+                        # Setas de fase Hardcore
+                        if selected_difficulty == "HARDCORE" and hasattr(main, "_hc_larr"):
+                            _hc_max_unl = save_data.get("hardcore_stages", {}).get("unlocked", 1)
+                            if main._hc_larr.collidepoint(click_pos) and current_hardcore_stage > 1:
+                                current_hardcore_stage -= 1
+                                if snd_click: snd_click.play()
+                            elif main._hc_rarr.collidepoint(click_pos) and current_hardcore_stage < _hc_max_unl:
+                                current_hardcore_stage += 1
+                                if snd_click: snd_click.play()
 
                     elif state == "SAVES":
                         if saves_back_btn.rect.collidepoint(click_pos):
@@ -4440,7 +4491,7 @@ def main():
                     state = "PLAYING"
 
         # 3. Atualização da Lógica do Jogo
-        if state == "PLAYING" and player and player.hp > 0:
+        if state == "PLAYING" and player and player.hp > 0 and not show_stage_victory:
 
             current_xp_to_level = _bal.xp_to_level(level)
 
@@ -4603,7 +4654,7 @@ def main():
                 for _hkind, _hpos in batch:
                     enemies.add(create_enemy(
                         _hkind, _hpos,
-                        DIFFICULTIES[selected_difficulty],
+                        _spawn_diff,
                         time_scale=time_scale,
                     ))
 
@@ -4628,7 +4679,7 @@ def main():
             if game_time >= BOSS_SPAWN_TIME * (bosses_spawned + 1):
                 bosses_spawned += 1
                 boss_pos = player.pos + pygame.Vector2(1200, 0)
-                enemies.add(create_enemy("boss", boss_pos, DIFFICULTIES[selected_difficulty], time_scale=time_scale, boss_tier=bosses_spawned))
+                enemies.add(create_enemy("boss", boss_pos, _spawn_diff, time_scale=time_scale, boss_tier=bosses_spawned))
                 warn_txt = font_l.render("⚠️ ALERTA DE CHEFÃO ⚠️", True, (255, 0, 0))
                 screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
                 play_sfx("ult")
@@ -4637,7 +4688,7 @@ def main():
             if game_time >= MINI_BOSS_SPAWN_TIME and "mini_boss_test" not in triggered_hordes:
                 triggered_hordes.add("mini_boss_test")
                 mb_pos = player.pos + pygame.Vector2(1000, 0)
-                enemies.add(create_enemy("mini_boss", mb_pos, DIFFICULTIES[selected_difficulty], time_scale=time_scale))
+                enemies.add(create_enemy("mini_boss", mb_pos, _spawn_diff, time_scale=time_scale))
                 warn_txt = font_l.render("⚠️ MINI BOSS SURGIU! ⚠️", True, (255, 120, 0))
                 screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
                 play_sfx("ult")
@@ -4657,7 +4708,7 @@ def main():
                 if seal.done:
                     agis_pos = seal.pos.copy()
                     seal.kill()
-                    enemies.add(create_enemy("agis", agis_pos, DIFFICULTIES[selected_difficulty],
+                    enemies.add(create_enemy("agis", agis_pos, _spawn_diff,
                                              time_scale=time_scale, boss_tier=1))
                     warn_txt = font_l.render("⚠️ AGIS SURGIU! ⚠️", True, (220, 0, 255))
                     screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
@@ -4701,7 +4752,7 @@ def main():
                 if game_time < 30:
                     # Fase inicial: bat e runner
                     kind_early = random.choices(["bat", "runner"], weights=[60, 40], k=1)[0]
-                    enemies.add(create_enemy(kind_early, sp, DIFFICULTIES[selected_difficulty], time_scale=time_scale))
+                    enemies.add(create_enemy(kind_early, sp, _spawn_diff, time_scale=time_scale))
                 else:
                     # Pool base
                     spawn_list    = ["runner", "bat", "tank", "shooter"]
@@ -4743,7 +4794,7 @@ def main():
                     elite_chance = min(0.15, 0.03 + (game_time / 480.0) * 0.05)
                     is_elite     = random.random() < elite_chance
 
-                    enemies.add(create_enemy(chosen_enemy, sp, DIFFICULTIES[selected_difficulty], time_scale=time_scale, is_elite=is_elite))
+                    enemies.add(create_enemy(chosen_enemy, sp, _spawn_diff, time_scale=time_scale, is_elite=is_elite))
 
             enemies.update(
                 dt,
@@ -4766,7 +4817,7 @@ def main():
             for e in list(enemies):
                 if e.kind != "agis":
                     continue
-                agis_dmg = 1.5 * DIFFICULTIES[selected_difficulty].get("dmg_mult", 1.0)
+                agis_dmg = 1.5 * _spawn_diff.get("dmg_mult", 1.0)
 
                 # Ataque básico — 1 projétil direto ao jogador
                 if getattr(e, "pending_agis_shot", False):
@@ -4965,6 +5016,8 @@ def main():
                                 for gi in range(gold_count):
                                     offset = pygame.Vector2(random.randint(-80, 80), random.randint(-80, 80))
                                     drops.add(create_drop(hit.pos + offset, "coin"))
+                                if selected_difficulty == "HARDCORE":
+                                    show_stage_victory = True
                             elif hit.kind == "mini_boss":
                                 # Mini boss conta como kill de boss e dropa várias moedas
                                 session_boss_kills += 1
@@ -5018,7 +5071,7 @@ def main():
             for d in list(drops):
                 if d.rect.colliderect(player.rect):
                     if d.kind == "coin":
-                        coin_value = 50 * DIFFICULTIES[selected_difficulty]["gold_mult"]
+                        coin_value = 50 * _spawn_diff.get("gold_mult", 1.0)
                         run_gold_collected += coin_value
                         save_data["gold"] += coin_value
                         update_mission_progress("gold", coin_value)
@@ -6339,8 +6392,19 @@ def main():
                     _ie_stat("Resistência", "%d%%" % _ie_def_pct, (80,130,200), (100,200,255), _ie_sy); _ie_sy += 22
                 else:
                     _ie_stat("DEF", "%d%%" % _ie_def_pct, (80,130,200), (120,180,240), _ie_sy); _ie_sy += 22
-                _ie_stat("VEL", str(CHAR_DATA.get(_ie_cid,{}).get("speed",280)),
-                         (100,180,100), (140,220,140), _ie_sy); _ie_sy += 22
+                _ie_boots_item = _ie_eq.get("boots")
+                _ie_boots_spd = 0
+                if _ie_boots_item:
+                    _ieb_cat = _ie_boots_item.get("category",""); _ieb_idx = _ie_boots_item.get("idx",0)
+                    _ieb_sts = ITEM_SHOP_STATS.get(_ieb_cat,[])
+                    if _ieb_idx < len(_ieb_sts): _ie_boots_spd = _ieb_sts[_ieb_idx].get("spd",0)
+                _ie_base_spd = CHAR_DATA.get(_ie_cid,{}).get("speed",280)
+                if _ie_boots_spd:
+                    _ie_stat("VEL base", str(_ie_base_spd), (100,180,100),(140,220,140), _ie_sy); _ie_sy += 18
+                    _ie_stat("+ Botas", "+%d" % _ie_boots_spd, (100,180,100),(140,220,140), _ie_sy); _ie_sy += 18
+                    _ie_stat("VEL total", str(_ie_base_spd+_ie_boots_spd), (120,210,120),(160,240,160), _ie_sy); _ie_sy += 22
+                else:
+                    _ie_stat("VEL", str(_ie_base_spd), (100,180,100),(140,220,140), _ie_sy); _ie_sy += 22
                 if player:
                     _ie_stat("HP atual", str(int(player.hp)), (160,80,80), (200,110,110), _ie_sy); _ie_sy += 24
 
@@ -6589,7 +6653,21 @@ def main():
                     _draw_stat("Resist.", f"{_def_pct}%", (80, 130, 200), (100, 200, 255), _sy); _sy += 22
                 else:
                     _draw_stat("DEF", f"{_def_pct}%", (80, 130, 200), (120, 180, 240), _sy); _sy += 22
-                _draw_stat("VEL", str(CHAR_DATA.get(player.char_id, {}).get("speed", 280)), (100, 180, 100), (140, 220, 140), _sy); _sy += 22
+                _st_boots_item = _st_equipped.get("boots")
+                _st_boots_spd = 0
+                if _st_boots_item:
+                    _stb_cat = _st_boots_item.get("category", "")
+                    _stb_idx = _st_boots_item.get("idx", 0)
+                    _stb_sts = ITEM_SHOP_STATS.get(_stb_cat, [])
+                    if _stb_idx < len(_stb_sts):
+                        _st_boots_spd = _stb_sts[_stb_idx].get("spd", 0)
+                _st_base_spd = CHAR_DATA.get(player.char_id, {}).get("speed", 280)
+                if _st_boots_spd:
+                    _draw_stat("VEL base", str(_st_base_spd), (100, 180, 100), (140, 220, 140), _sy); _sy += 18
+                    _draw_stat("+ Botas", f"+{_st_boots_spd}", (100, 180, 100), (140, 220, 140), _sy); _sy += 18
+                    _draw_stat("VEL total", str(_st_base_spd + _st_boots_spd), (120, 210, 120), (160, 240, 160), _sy); _sy += 22
+                else:
+                    _draw_stat("VEL", str(_st_base_spd), (100, 180, 100), (140, 220, 140), _sy); _sy += 22
                 _draw_stat("HP atual", f"{int(player.hp)}", (160, 80, 80), (200, 110, 110), _sy); _sy += 24
 
                 # Equipamento — seção inferior do frame (abaixo da 2ª divisória ~y=61.6%)
@@ -6685,6 +6763,30 @@ def main():
                 _cd_text = f"Em {int(hub_countdown_timer) + 1}..."
                 _cd_s = font_s.render(_cd_text, True, (255, 220, 60))
                 screen.blit(_cd_s, _cd_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.55)))
+
+            # Seleção de Fases — apenas no modo Hardcore
+            if selected_difficulty == "HARDCORE":
+                _hc_unlocked = save_data.get("hardcore_stages", {}).get("unlocked", 1)
+                _hc_lbl = font_s.render("Fase Hardcore:", True, (220, 100, 100))
+                screen.blit(_hc_lbl, _hc_lbl.get_rect(centerx=_cx, top=int(SCREEN_H * 0.66)))
+                _hc_arr_y = int(SCREEN_H * 0.72)
+                _hc_larr = pygame.Rect(_cx - 80, _hc_arr_y - 16, 32, 32)
+                _hc_rarr = pygame.Rect(_cx + 48, _hc_arr_y - 16, 32, 32)
+                _hcl_hov = _hc_larr.collidepoint(m_pos)
+                _hcr_hov = _hc_rarr.collidepoint(m_pos)
+                pygame.draw.rect(screen, (160, 60, 60) if _hcl_hov else (100, 40, 40), _hc_larr, border_radius=6)
+                pygame.draw.rect(screen, (160, 60, 60) if _hcr_hov else (100, 40, 40), _hc_rarr, border_radius=6)
+                _hcl_s = font_s.render("<", True, (240, 200, 100))
+                _hcr_s = font_s.render(">", True, (240, 200, 100))
+                screen.blit(_hcl_s, _hcl_s.get_rect(center=_hc_larr.center))
+                screen.blit(_hcr_s, _hcr_s.get_rect(center=_hc_rarr.center))
+                _hc_stage_s = font_m.render(f"{current_hardcore_stage} / {_hc_unlocked}", True, (255, 200, 80))
+                screen.blit(_hc_stage_s, _hc_stage_s.get_rect(centerx=_cx, centery=_hc_arr_y))
+                if _hc_unlocked > 1:
+                    _hc_hint = font_s.render(f"Fases desbloqueadas: {_hc_unlocked}", True, (160, 120, 60))
+                    screen.blit(_hc_hint, _hc_hint.get_rect(centerx=_cx, top=int(SCREEN_H * 0.76)))
+                main._hc_larr = _hc_larr
+                main._hc_rarr = _hc_rarr
 
             # Dicas de tecla
             _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
@@ -6823,10 +6925,13 @@ def main():
             damage_texts.draw(screen) 
 
             if 'darkness_timer' in locals() and darkness_timer > 0:
-                dark_surf = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                dark_surf.fill((0, 0, 0, 230))
-                pygame.draw.circle(dark_surf, (0, 0, 0, 0), (SCREEN_W//2, SCREEN_H//2), 250)
-                screen.blit(dark_surf, (0, 0))
+                _ds_key = (SCREEN_W, SCREEN_H)
+                if not hasattr(main, "_dark_surf_cache") or main._dark_surf_cache[0] != _ds_key:
+                    _ds = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    _ds.fill((0, 0, 0, 230))
+                    pygame.draw.circle(_ds, (0, 0, 0, 0), (SCREEN_W//2, SCREEN_H//2), 250)
+                    main._dark_surf_cache = (_ds_key, _ds)
+                screen.blit(main._dark_surf_cache[1], (0, 0))
             
             if AURA_DMG > 0:
                 current_aura_range = AURA_RANGE * 2 if has_buraco_negro else AURA_RANGE
@@ -6983,9 +7088,44 @@ def main():
                     click_txt = font_s.render("CLIQUE EM UMA OPÇÃO PARA APLICAR", True, (255, 220, 120))
                     screen.blit(click_txt, click_txt.get_rect(center=(SCREEN_W//2, box_rect.bottom + 75)))
 
+            if show_stage_victory:
+                if not hasattr(main, "_svo"): main._svo = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                main._svo.fill((0, 0, 0, 200))
+                screen.blit(main._svo, (0, 0))
+                _sv_bw, _sv_bh = 420, 320
+                _sv_bx = SCREEN_W // 2 - _sv_bw // 2
+                _sv_by = SCREEN_H // 2 - _sv_bh // 2
+                pygame.draw.rect(screen, (30, 20, 10), (_sv_bx, _sv_by, _sv_bw, _sv_bh), border_radius=14)
+                pygame.draw.rect(screen, (200, 160, 50), (_sv_bx, _sv_by, _sv_bw, _sv_bh), 3, border_radius=14)
+                _sv_title = font_l.render("AGIS DERROTADO!", True, (255, 215, 0))
+                screen.blit(_sv_title, _sv_title.get_rect(centerx=SCREEN_W // 2, top=_sv_by + 18))
+                _sv_sub = font_s.render(f"Fase {current_hardcore_stage} / 10 — Modo Hardcore", True, (200, 160, 100))
+                screen.blit(_sv_sub, _sv_sub.get_rect(centerx=SCREEN_W // 2, top=_sv_by + 60))
+                _sv_btn_w, _sv_btn_h = 340, 48
+                _sv_btn_x = SCREEN_W // 2 - _sv_btn_w // 2
+                _sv_btns = [
+                    (_sv_btn_x, _sv_by + 120, _sv_btn_w, _sv_btn_h, "Continuar na fase atual", (60, 180, 60), "continue"),
+                    (_sv_btn_x, _sv_by + 182, _sv_btn_w, _sv_btn_h, "Proximo Nivel", (60, 120, 200), "next"),
+                    (_sv_btn_x, _sv_by + 244, _sv_btn_w, _sv_btn_h, "Ir para ROOM", (160, 80, 60), "hub"),
+                ]
+                if not hasattr(main, "_sv_btns_rects"): main._sv_btns_rects = []
+                main._sv_btns_rects = []
+                for _bx2, _by2, _bw2, _bh2, _blbl, _bcol, _bact in _sv_btns:
+                    _br = pygame.Rect(_bx2, _by2, _bw2, _bh2)
+                    main._sv_btns_rects.append((_br, _bact))
+                    _bhov = _br.collidepoint(m_pos)
+                    _bfill = tuple(min(255, c + 40) for c in _bcol) if _bhov else _bcol
+                    pygame.draw.rect(screen, _bfill, _br, border_radius=8)
+                    pygame.draw.rect(screen, (220, 190, 80), _br, 2, border_radius=8)
+                    _bsurf = font_s.render(_blbl, True, (240, 230, 200))
+                    screen.blit(_bsurf, _bsurf.get_rect(center=_br.center))
+                if current_hardcore_stage >= 10:
+                    _sv_max = font_s.render("Parabens! Todas as fases concluidas!", True, (255, 215, 0))
+                    screen.blit(_sv_max, _sv_max.get_rect(centerx=SCREEN_W // 2, bottom=_sv_by + _sv_bh - 12))
+
             if state == "PAUSED":
                 overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                overlay.fill((UI_THEME["void_black"][0], UI_THEME["void_black"][1], UI_THEME["void_black"][2], 195)) 
+                overlay.fill((UI_THEME["void_black"][0], UI_THEME["void_black"][1], UI_THEME["void_black"][2], 195))
                 screen.blit(overlay, (0, 0))
                     
                 msg = font_l.render("JOGO PAUSADO", True, UI_THEME["old_gold"])
