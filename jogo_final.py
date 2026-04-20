@@ -6295,7 +6295,17 @@ def main():
                     if _ie_eq_s["idx"] < len(_sst):
                         _ie_bon_def = _sst[_ie_eq_s["idx"]].get("def", 0)
                         _ie_sname   = _sst[_ie_eq_s["idx"]].get("name", "")
-                _ie_def_pct = min(80, int(save_data["perm_upgrades"].get("aura_res", 0) * 10 + _ie_bon_def / 3.0))
+                _ie_bon_armor = 0
+                _ie_armor_names = {}
+                for _ie_aslot, _ie_albl in [("helmet","Capacete"),("armor","Armadura"),("legs","Calcas"),("boots","Botas")]:
+                    _ie_aitem = _ie_eq.get(_ie_aslot)
+                    if _ie_aitem:
+                        _ie_ac = _ie_aitem.get("category",""); _ie_ai = _ie_aitem.get("idx",0)
+                        _ie_as = ITEM_SHOP_STATS.get(_ie_ac,[])
+                        if _ie_ai < len(_ie_as):
+                            _ie_bon_armor += _ie_as[_ie_ai].get("def",0)
+                            _ie_armor_names[_ie_albl] = _ie_as[_ie_ai].get("name","")
+                _ie_def_pct = min(80, int(save_data["perm_upgrades"].get("aura_res", 0) * 10 + (_ie_bon_def + _ie_bon_armor) / 3.0))
 
                 def _ie_stat(label, val_str, lbl_col, val_col, y_off):
                     _ls = font_s.render(label, True, lbl_col)
@@ -6312,8 +6322,11 @@ def main():
                     _ie_stat("TOTAL", str(_ie_base_atk+_ie_bon_atk), (220,180,80), (255,210,60), _ie_sy); _ie_sy += 22
                 else:
                     _ie_stat("ATQ", str(_ie_base_atk), (180,140,80), (220,180,120), _ie_sy); _ie_sy += 22
-                if _ie_bon_def:
-                    _ie_stat("DEF escudo", str(_ie_bon_def), (80,130,200), (120,180,240), _ie_sy); _ie_sy += 20
+                if _ie_bon_def or _ie_bon_armor:
+                    if _ie_bon_def:
+                        _ie_stat("DEF escudo", "+%d" % _ie_bon_def, (80,130,200), (120,180,240), _ie_sy); _ie_sy += 18
+                    if _ie_bon_armor:
+                        _ie_stat("DEF armadura", "+%d" % _ie_bon_armor, (80,130,200), (120,180,240), _ie_sy); _ie_sy += 18
                     _ie_stat("Resistência", "%d%%" % _ie_def_pct, (80,130,200), (100,200,255), _ie_sy); _ie_sy += 22
                 else:
                     _ie_stat("DEF", "%d%%" % _ie_def_pct, (80,130,200), (120,180,240), _ie_sy); _ie_sy += 22
@@ -6333,7 +6346,10 @@ def main():
                 screen.blit(_wlbl, (_ie_sx0, _ie_sy0+_ie_sy)); _ie_sy += 20
                 _slbl = font_s.render(("Escudo: " + _ie_sname[:14]) if _ie_sname else "Sem escudo", True,
                                       (100,170,220) if _ie_sname else (70,100,130))
-                screen.blit(_slbl, (_ie_sx0, _ie_sy0+_ie_sy))
+                screen.blit(_slbl, (_ie_sx0, _ie_sy0+_ie_sy)); _ie_sy += 20
+                for _ie_albl_s, _ie_aname_s in _ie_armor_names.items():
+                    _ie_ar_s = font_s.render(_ie_aname_s[:20], True, (160, 180, 140))
+                    screen.blit(_ie_ar_s, (_ie_sx0, _ie_sy0+_ie_sy)); _ie_sy += 18
 
                 # Dica de fechar
                 _ie_hint = font_s.render("I / ESC — Fechar", True, (90,80,58))
@@ -6541,37 +6557,40 @@ def main():
                     screen.blit(_vs, (_vs.get_rect(right=_ST_X + _ST_W - 22, top=_ST_Y + y_off)))
 
                 _sy = int(_ST_H * 0.10)
-                _draw_stat("❤  HP", f"{CHAR_DATA.get(player.char_id,{}).get('hp', player.base_hp)}", (200, 80, 80), (240, 140, 140), _sy)
+                _draw_stat("HP", f"{CHAR_DATA.get(player.char_id,{}).get('hp', player.base_hp)}", (200, 80, 80), (240, 140, 140), _sy)
                 _sy += 22
                 if _bonus_atk:
-                    _draw_stat("⚔  ATQ base", str(_base_atk), (180, 140, 80), (220, 180, 120), _sy); _sy += 20
-                    _draw_stat("   + Arma",   f"+{_bonus_atk}", (180, 140, 80), (255, 160, 60), _sy); _sy += 20
-                    _draw_stat("   TOTAL",    str(_base_atk + _bonus_atk), (220, 180, 80), (255, 210, 60), _sy); _sy += 22
+                    _draw_stat("ATQ base", str(_base_atk), (180, 140, 80), (220, 180, 120), _sy); _sy += 20
+                    _draw_stat("+ Arma",   f"+{_bonus_atk}", (180, 140, 80), (255, 160, 60), _sy); _sy += 20
+                    _draw_stat("TOTAL",    str(_base_atk + _bonus_atk), (220, 180, 80), (255, 210, 60), _sy); _sy += 22
                 else:
-                    _draw_stat("⚔  ATQ", str(_base_atk), (180, 140, 80), (220, 180, 120), _sy); _sy += 22
-                if _bonus_def:
-                    _draw_stat("🛡  DEF (escudo)", f"{_bonus_def}", (80, 130, 200), (120, 180, 240), _sy); _sy += 20
-                    _draw_stat("   Resist.",       f"{_def_pct}%", (80, 130, 200), (100, 200, 255), _sy); _sy += 22
+                    _draw_stat("ATQ", str(_base_atk), (180, 140, 80), (220, 180, 120), _sy); _sy += 22
+                if _bonus_def or _bonus_armor_def:
+                    if _bonus_def:
+                        _draw_stat("DEF escudo", f"+{_bonus_def}", (80, 130, 200), (120, 180, 240), _sy); _sy += 18
+                    if _bonus_armor_def:
+                        _draw_stat("DEF armadura", f"+{_bonus_armor_def}", (80, 130, 200), (120, 180, 240), _sy); _sy += 18
+                    _draw_stat("Resist.", f"{_def_pct}%", (80, 130, 200), (100, 200, 255), _sy); _sy += 22
                 else:
-                    _draw_stat("🛡  DEF", f"{_def_pct}%", (80, 130, 200), (120, 180, 240), _sy); _sy += 22
-                _draw_stat("💨  VEL", str(CHAR_DATA.get(player.char_id, {}).get("speed", 280)), (100, 180, 100), (140, 220, 140), _sy); _sy += 22
-                _draw_stat("❤  HP atual", f"{int(player.hp)}", (160, 80, 80), (200, 110, 110), _sy); _sy += 24
+                    _draw_stat("DEF", f"{_def_pct}%", (80, 130, 200), (120, 180, 240), _sy); _sy += 22
+                _draw_stat("VEL", str(CHAR_DATA.get(player.char_id, {}).get("speed", 280)), (100, 180, 100), (140, 220, 140), _sy); _sy += 22
+                _draw_stat("HP atual", f"{int(player.hp)}", (160, 80, 80), (200, 110, 110), _sy); _sy += 24
 
                 # Equipamento ativo
                 _sy = max(_sy, int(_ST_H * 0.63))
                 _eq_lbl = font_s.render("Equipamento", True, (160, 140, 90))
                 screen.blit(_eq_lbl, _eq_lbl.get_rect(centerx=_ST_X + _ST_W // 2, top=_ST_Y + _sy)); _sy += 20
                 if _eq_weapon_name:
-                    _ew_s = font_s.render(f"⚔ {_eq_weapon_name[:18]}", True, (220, 170, 70))
+                    _ew_s = font_s.render("Arma: " + _eq_weapon_name[:16], True, (220, 170, 70))
                     screen.blit(_ew_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
                 else:
-                    _ew_s = font_s.render("⚔ Sem arma", True, (110, 100, 70))
+                    _ew_s = font_s.render("Sem arma", True, (110, 100, 70))
                     screen.blit(_ew_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
                 if _eq_shield_name:
-                    _es_s = font_s.render(f"🛡 {_eq_shield_name[:18]}", True, (100, 170, 220))
+                    _es_s = font_s.render("Escudo: " + _eq_shield_name[:14], True, (100, 170, 220))
                     screen.blit(_es_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
                 else:
-                    _es_s = font_s.render("🛡 Sem escudo", True, (70, 110, 140))
+                    _es_s = font_s.render("Sem escudo", True, (70, 110, 140))
                     screen.blit(_es_s, (_ST_X + 10, _ST_Y + _sy)); _sy += 20
                 for _albl, _aname in _eq_armor_names.items():
                     _ea_s = font_s.render(f"  {_aname[:18]}", True, (160, 180, 140))
