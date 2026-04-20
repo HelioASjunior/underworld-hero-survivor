@@ -52,6 +52,8 @@ The project is actively evolving and aims to balance gameplay quality with clean
 - Armor damage resistance system: each equipped piece reduces incoming damage (DEF / 600, capped at 55%).
 - All UI panels (Hero Room, Status, Inventory) aligned precisely to their image zones.
 - Expanded talent tree panels to fit all talents without overflow.
+- **218 upgrades** across 8 categories; each level-up shows **5 options** to choose from (keys 1–5).
+- New run mechanics: lifesteal, gold multiplier, XP bonus.
 
 ## Item Shop
 
@@ -234,7 +236,7 @@ Default controls (rebindable in settings):
 | Pause | P |
 | Quick pause menu | Esc |
 | Debug overlay | F3 |
-| Upgrade selection | 1 / 2 / 3 / Enter |
+| Upgrade selection | 1 / 2 / 3 / 4 / 5 / Enter |
 | Inventory / Equipment | I |
 | Character status | C |
 
@@ -313,6 +315,9 @@ underworld-hero-survivor/
 - [x] Drag-and-drop equip for all 6 equipment slots (weapon, shield, helmet, armor, legs, boots).
 - [x] Hero Room, Status panel, and Inventory aligned to image UI zones.
 - [x] Expanded talent tree panels to prevent skill overflow.
+- [x] 218 upgrades across 8 categories with synergy system.
+- [x] 5-option upgrade selection per level-up (keys 1–5).
+- [x] New run mechanics: lifesteal, gold multiplier, XP bonus.
 - [ ] Publish a distributable Windows build.
 
 ## Contributing

@@ -106,11 +106,31 @@ Hordas são processadas em fila assíncrona (6 inimigos/frame) eliminando travam
 
 ### Upgrades e Evoluções
 
-- Pool de upgrades com 4 raridades: Comum, Raro, Épico, Lendário.
+- Pool de **218 upgrades** com 4 raridades: Comum, Raro, Épico, Lendário.
+- A cada nível o jogador escolhe **1 entre 5 opções** (teclas 1–5 ou mouse).
 - Sinergia: upgrades anteriores influenciam as opções oferecidas.
 - Evoluções desbloqueiam versões aprimoradas ao atingir nível máximo.
 - `TREVO SORTE` aumenta a raridade das próximas ofertas.
 - Notificações visuais com fade-out ao aplicar upgrades.
+
+#### Categorias de Upgrades (218 no total)
+
+| Categoria | Quantidade | Exemplos de efeitos |
+|---|---|---|
+| Dano e Ataque | 30 | +dano, +crítico, execute, cadência |
+| Projéteis | 25 | +projéteis, pierce, ricochete, velocidade |
+| Defesa | 30 | +HP, regen, escudo de espinhos, lifesteal |
+| Velocidade | 20 | +velocidade do herói, dash |
+| Magia / Aura / Orbes | 25 | aura de dano, orbes orbitais, slow |
+| Explosão | 15 | raio, dano em área, corrente |
+| Utilidade | 30 | magnetismo, ouro, bônus de XP, cura |
+| Especial | 25 | habilidades raras e combinações únicas |
+| Upgrades clássicos | 18 | Fúria Demoníaca, Barreira de Gelo, etc. |
+
+Novos mecânicos introduzidos pelos upgrades:
+- **Lifesteal** — percentual do dano causado devolvido como HP.
+- **Multiplicador de ouro** — aumenta o valor de moedas coletadas na run.
+- **Bônus de XP** — aumenta XP ganho por gemas durante a run.
 
 ### Pactos
 
@@ -398,7 +418,7 @@ Reconfiguráveis em **Configurações → Controles**:
 | Pausar / Retomar | P |
 | Menu rápido | Esc |
 | Overlay de debug | F3 |
-| Selecionar upgrade | 1 / 2 / 3 ou clique |
+| Selecionar upgrade | 1 / 2 / 3 / 4 / 5 ou clique |
 | Abrir inventário / equipamentos | I |
 | Abrir status do personagem | C |
 
@@ -541,6 +561,9 @@ underworld-hero-survivor/
 - [x] Drag-and-drop para todos os slots de equipamento (arma, escudo, capacete, armadura, calças, botas).
 - [x] Painel de status (C) e Sala do Herói alinhados às zonas das imagens de UI.
 - [x] Árvore de talentos com painel expandido para acomodar todos os talentos por caminho.
+- [x] 218 upgrades divididos em 8 categorias com sistema de sinergia.
+- [x] Seleção de 5 upgrades por nível (teclas 1–5).
+- [x] Novas mecânicas de run: lifesteal, multiplicador de ouro, bônus de XP.
 - [ ] SDL3 quando Pygame-CE lançar (GPU acceleration e melhor performance).
 - [ ] Multiplayer local (co-op para 2 jogadores).
 

@@ -917,6 +917,215 @@ ALL_UPGRADES_POOL = {
     "CAPA INVISÍVEL": "10% de chance de inimigos não te notarem",
     "LUVA EXPULSÃO": "Aumenta muito o empurrão (Knockback)",
     "TREVO SORTE": "Aumenta a raridade dos upgrades",
+    # ── 200 novas skills ─────────────────────────────────────────────────────
+    # DANO E ATAQUE
+    "LÂMINA SANGRADA":     "+3 dano de projétil",
+    "GOLPE CERTEIRO":      "+10% chance de crítico",
+    "CRÍTICO LETAL":       "+0.25x multiplicador de crítico",
+    "PUNHAL SOMBRIO":      "+4 dano de projétil",
+    "FLECHA EXPLOSIVA":    "+2 dano e +20 raio de explosão",
+    "DESTRUIÇÃO TOTAL":    "+5 dano de projétil",
+    "MAGIA SOMBRIA":       "+3 dano e +2 dano de aura",
+    "SANGUE DO CAÇADOR":   "+2 dano e +8% crítico",
+    "FÚRIA SELVAGEM":      "+4 dano de projétil",
+    "RUNA AFIADA":         "+3 dano e +5% crítico",
+    "ESCOLHA DO CARRASCO": "+8% limiar de execução",
+    "TOQUE DO ABISMO":     "+5 dano de projétil",
+    "FRAGMENTO DE ALMA":   "+0.20x multiplicador de crítico",
+    "MARTELO DO TROVÃO":   "+6 dano de projétil",
+    "CHAMA ETERNA":        "+4 dano e +2 dano de aura",
+    "GOLPE CÓSMICO":       "+12% chance de crítico",
+    "EXECUTAR O FRACO":    "+10% limiar de execução",
+    "FLUXO DE MANA":       "+3 dano e -5% recarga de tiro",
+    "SETA DO DESTINO":     "+15% chance de crítico",
+    "PODER OCULTO":        "+5 dano de projétil",
+    "HERANÇA SOMBRIA":     "+0.30x crítico e +2 dano",
+    "INSTINTO PREDADOR":   "+8% execução e +8% crítico",
+    "CRISTAL DE DANO":     "+4 dano de projétil",
+    "ESPADA LENDÁRIA":     "+7 dano de projétil",
+    "PEDRA DO CAOS":       "+3 dano e +10% crítico",
+    "TIRO PRECISO":        "+15% crítico e +1 perfuração",
+    "GOLPE DO DESTINO":    "+12% execução e +3 dano",
+    "MAGIA DUPLA":         "+2 dano e +1 projétil",
+    "FRIO MORTAL":         "+4 dano e +8% crítico",
+    "SOPRO DO DRAGÃO":     "+5 dano e +3 dano de aura",
+    # PROJÉTEIS
+    "BALA FANTASMA":       "+1 perfuração de projétil",
+    "TEMPESTADE DE SETAS": "+1 projétil adicional",
+    "RICOCHETE DUPLO":     "+1 ricochete de projétil",
+    "BALA SÔNICA":         "+80 velocidade de projétil",
+    "RAJADA RÁPIDA":       "-10% recarga de tiro",
+    "FLECHA TRIPLA":       "+2 projéteis adicionais",
+    "PERFURAÇÃO EXTREMA":  "+2 perfurações de projétil",
+    "ECO MÁGICO":          "+1 projétil e +1 ricochete",
+    "VELOCIDADE DE LUZ":   "+120 velocidade de projétil",
+    "CHUVA DE FLECHAS":    "+1 projétil e +1 perfuração",
+    "DISPARO VELOZ":       "-12% recarga de tiro",
+    "FRAGMENTAÇÃO":        "+1 projétil e +30 raio explosão",
+    "SETA FANTASMA":       "+1 perfuração e +60 vel. projétil",
+    "ONDA DE CHOQUE":      "+1 projétil e +1 ricochete",
+    "BALA DUPLA":          "+2 projéteis adicionais",
+    "RICOCHETE MÁGICO":    "+2 ricochetes de projétil",
+    "DISPARO RÁPIDO":      "-15% recarga de tiro",
+    "CASCATA":             "+1 projétil e +1 perfuração",
+    "RAJADA SUPERSÔNICA":  "+150 velocidade de projétil",
+    "FLECHA MÁGICA":       "+1 projétil e +8% crítico",
+    "PERFURAÇÃO TOTAL":    "+3 perfurações de projétil",
+    "TIRO VELOZ":          "-8% recarga de tiro",
+    "MULTIPLICAÇÃO":       "+2 projéteis adicionais",
+    "ECO BALÍSTICO":       "+100 vel. projétil e +1 pierce",
+    "TEMPESTADE TOTAL":    "+2 projéteis e +2 perfurações",
+    # DEFESA
+    "ESCUDO DE FERRO":        "+5 HP máximo",
+    "CURA RÁPIDA":            "+0.3 HP/s de regeneração",
+    "ARMADURA ANTIGA":        "+8 HP máximo",
+    "ESPINHOS DE AÇO":        "+12% dano de espinhos",
+    "VIDA DUPLA":             "+10 HP máximo",
+    "REGENERAÇÃO LENTA":      "+0.5 HP/s de regeneração",
+    "MURALHA DE PEDRA":       "+12 HP máximo",
+    "PELE DE DRAGÃO":         "+18% dano de espinhos",
+    "RECUPERAÇÃO RÁPIDA":     "+0.8 HP/s de regeneração",
+    "FORÇA VITAL":            "+15 HP máximo",
+    "SANGUE VAMPIRO":         "+2% de vampirismo",
+    "ESCUDO MÍSTICO":         "+5 HP máximo e +0.2 HP/s",
+    "TRONCO DE CARVALHO":     "+20 HP máximo",
+    "DRENO DE VIDA":          "+3% de vampirismo",
+    "ARMADURA DIVINA":        "+25 HP máximo",
+    "REGENERAÇÃO MÍSTICA":    "+1.0 HP/s de regeneração",
+    "DRENAGEM SOMBRIA":       "+5% de vampirismo",
+    "CURA ABENÇOADA":         "Restaura 30% do HP atual",
+    "VIDA ETERNA":            "+30 HP máximo",
+    "ESPINHOS MORTAIS":       "+22% dano de espinhos",
+    "ABSORÇÃO VITAL":         "+4% de vampirismo",
+    "ROCHA INQUEBRANTÁVEL":   "+35 HP máximo",
+    "REGENERAÇÃO EXTREMA":    "+1.5 HP/s de regeneração",
+    "BARREIRA ARCANA":        "+8 HP máximo e +0.4 HP/s",
+    "VAMPIRO SOMBRIO":        "+6% de vampirismo",
+    "COLETE DE AÇO":          "+5 HP máximo",
+    "FONTE DE VIDA":          "+2.0 HP/s de regeneração",
+    "ESSÊNCIA VITAL":         "+20 HP máximo e +0.5 HP/s",
+    "RESISTÊNCIA TOTAL":      "+10 HP e +10% espinhos",
+    "MANTO PROTETOR":         "+4% vampirismo e +0.3 HP/s",
+    # VELOCIDADE
+    "BOTAS VELOZES":         "+20 de velocidade",
+    "ASAS DO VENTO":         "+30 de velocidade",
+    "CORRER É VIVER":        "+15 vel. e +40 raio coleta",
+    "REFLEXOS AGUÇADOS":     "+25 de velocidade",
+    "MOVIMENTO FANTASMA":    "+35 de velocidade",
+    "ÍMPETO DO GUERREIRO":   "+20 vel. e -8% recarga",
+    "TURBILHÃO":             "+40 de velocidade",
+    "PASSO DO ASSASSINO":    "+15 vel. e +5% crítico",
+    "DANÇA DA MORTE":        "+50 de velocidade",
+    "VENTO CORTANTE":        "+25 vel. e +50 raio coleta",
+    "RELÂMPAGO":             "+60 de velocidade",
+    "PASSO ESPECTRAL":       "+20 vel. e +60 raio coleta",
+    "CORRIDA MÁGICA":        "+30 vel. e -5% recarga",
+    "IMPULSO DIVINO":        "+45 de velocidade",
+    "RASTRO DE FOGO":        "+35 vel. e +2 dano",
+    "ACELERAÇÃO":            "+25 de velocidade",
+    "FLUXO ETERNO":          "+80 raio coleta e +20 vel.",
+    "VENTO UIVANTE":         "+50 de velocidade",
+    "MARÉ VELOZ":            "+30 vel. e +5% crítico",
+    "VELOZ COMO O RAIO":     "+70 de velocidade",
+    # MAGIA / AURA / ORBES
+    "CÍRCULO ARCANO":    "+1 orbe mágico",
+    "CAMPO DE FORÇA":    "+50 raio de aura",
+    "ORBE DESTRUIDOR":   "+3 dano de orbe",
+    "EXTENSÃO ARCANA":   "+80 raio de aura",
+    "DUPLO ORBE":        "+1 orbe e +2 dano de orbe",
+    "AURA AMPLIADA":     "+100 raio e +1 dano de aura",
+    "VÓRTICE MÁGICO":    "+1 orbe e +50 distância orbital",
+    "CAMPO EXPLOSIVO":   "+3 dano aura e +60 raio",
+    "SEIS ORBES":        "+2 orbes mágicos",
+    "MAGIA EXPANSIVA":   "+120 raio de aura",
+    "ORBE FANTASMA":     "+1 orbe e +4 dano de orbe",
+    "AUREA DIVINA":      "+5 dano aura e +80 raio",
+    "CÍRCULO DA MORTE":  "+2 orbes e +3 dano de orbe",
+    "CAMPO INFINITO":    "+150 raio de aura",
+    "ESPIRAL ARCANA":    "+1 orbe e +3 dano de aura",
+    "ORBES EXPLOSIVOS":  "+1 orbe e +40 raio explosão",
+    "AURA MORTAL":       "+6 dano de aura",
+    "CONSTELAÇÃO":       "+2 orbes e +60 distância orbital",
+    "CAMPO CÓSMICO":     "+200 raio de aura",
+    "DANÇA DOS ORBES":   "+2 orbes e +5 dano de orbe",
+    "EXPLOSÃO ARCANA":   "+4 dano aura e +50 explosão",
+    "MAGIA SUPREMA":     "+2 orbes e +100 raio de aura",
+    "SINGULARIDADE":     "+7 dano aura e +80 raio",
+    "NEXO ARCANO":       "+3 orbes mágicos",
+    "CAMPO ETERNO":      "+5 dano aura e +150 raio",
+    # EXPLOSÃO
+    "MICRO BOMBA":           "+25 raio de explosão",
+    "BOMBA GRANDE":          "+40 raio de explosão",
+    "FRAGMENTO EXPLOSIVO":   "+3 dano de explosão",
+    "DETONAÇÃO":             "+60 raio de explosão",
+    "BOMBA DE PLASMA":       "+5 dano de explosão",
+    "ONDA EXPLOSIVA":        "+80 raio e +4 dano de explosão",
+    "CARGA NUCLEAR":         "+100 raio de explosão",
+    "FRAGMENTO INCENDIÁRIO": "+6 dano de explosão",
+    "TIRO EXPLOSIVO":        "+50 raio explosão e +2 dano",
+    "BOMBA GRAVITACIONAL":   "+70 raio e +5 dano explosão",
+    "CADEIA EXPLOSIVA":      "+30 raio, +1 ricochet, +3 exp dmg",
+    "SUPERNOVA":             "+120 raio de explosão",
+    "EXPLOSÃO SOMBRIA":      "+8 dano de explosão",
+    "DETONADOR EXTREMO":     "+90 raio e +6 dano explosão",
+    "BOMBA FINAL":           "+150 raio e +10 dano explosão",
+    # UTILIDADE
+    "COLETOR DE GEMAS":          "+100 raio de coleta",
+    "FORTUNA DO AVENTUREIRO":    "+20% ouro na run",
+    "EXPERIÊNCIA ACELERADA":     "+15% bônus de XP",
+    "IMÃ SUPREMO":               "+150 raio de coleta",
+    "COFRE DO AVENTUREIRO":      "+30% ouro na run",
+    "APRENDIZADO RÁPIDO":        "+20% bônus de XP",
+    "CAMPOS MAGNÉTICOS":         "+200 raio de coleta",
+    "OURO DO REI":               "+40% ouro na run",
+    "SÁBIO DO MUNDO":            "+25% bônus de XP",
+    "MAGNETISMO MÁXIMO":         "+250 raio de coleta",
+    "TESOURO ANTIGO":            "+50% ouro na run",
+    "INICIAÇÃO ARCANA":          "+30% bônus de XP",
+    "VÓRTICE DE GEMAS":          "+180 raio de coleta",
+    "GANÂNCIA ILIMITADA":        "+60% ouro na run",
+    "MENTOR ESPIRITUAL":         "+35% bônus de XP",
+    "SORTE DO VIAJANTE":         "+5% crítico e +10% ouro",
+    "PRESENÇA MAGNÉTICA":        "+120 raio e +10% ouro",
+    "TOQUE DO ALQUIMISTA":       "+15% ouro e +0.5 HP/s",
+    "DÁDIVA DOS DEUSES":         "+20% XP e +0.5 HP/s",
+    "SÍMBOLO DA PROSPERIDADE":   "+25% ouro e +5% crítico",
+    "COLETOR MÁGICO":            "+80 raio e +10% XP",
+    "ABUNDÂNCIA":                "+20% ouro e +5 HP",
+    "CRESCIMENTO ESPIRITUAL":    "+15% XP e +0.3 HP/s",
+    "GEMA DA FORTUNA":           "+8% crítico e +80 raio",
+    "CAMINHO DO MESTRE":         "+20% XP e +5% crítico",
+    "ORÁCULO":                   "+10% ouro, +10% XP e +0.2 HP/s",
+    "CONHECIMENTO PROIBIDO":     "+30% XP e +2 dano",
+    "HERANÇA DO REI":            "+30% ouro e +5 HP",
+    "CAMINHO DO SÁBIO":          "+20% XP e +20 velocidade",
+    "DÍVIDA DE SANGUE":          "+10% vampirismo e +12% espinhos",
+    # ESPECIAL
+    "MORTE CERTA":         "+10% execução e +10% crítico",
+    "LOUCURA DE GUERRA":   "+3 dano e +20 velocidade",
+    "EQUILÍBRIO PERFEITO": "+2 dano, +5 HP e +10 vel.",
+    "ASCENSÃO":            "+3 dano, +0.3 HP/s e +5% crítico",
+    "MESTRE DAS ARTES":    "+2 projéteis, +2 dano e +20 vel.",
+    "CAMPEÃO":             "+10 HP, +2 dano e +0.3 HP/s",
+    "LENDA VIVA":          "+5 dano, +5% crítico e +20 vel.",
+    "PODER ILIMITADO":     "+6 dano e +30 velocidade",
+    "VANGUARDA":           "+2 dano, +40 aura e +2 orbes",
+    "FANTASMA DA MORTE":   "+3 dano, +1 pierce e +5% crítico",
+    "REI DO CAMPO":        "+1 projétil, +1 pierce, +1 ricochet",
+    "ESTRATEGISTA":        "+3 dano, +20 HP e -10% recarga",
+    "GUERREIRO ETERNO":    "+5 HP, +15 vel. e +0.3 HP/s",
+    "COLOSSO":             "+20 HP, +3 dano e +30 raio aura",
+    "LÂMINA SOMBRIA":      "+4 dano, +1 pierce e +1 ricochet",
+    "BERSERKER FINAL":     "+6 dano, -12% recarga e +1 proj",
+    "DOMINADOR":           "+4 dano, +10% crítico e +10% exec.",
+    "REAPER":              "+5 dano e +15% execução",
+    "TEMPESTADE MORTAL":   "+2 projéteis, +40 explosão e +3 dano",
+    "FORÇA BRUTA":         "+8 dano e +10 HP",
+    "AGILIDADE EXTREMA":   "+50 vel. e -12% recarga",
+    "PODER DIVINO":        "+5 dano, +3 aura e +1 orbe",
+    "MESTRE DO CAOS":      "+3 projéteis, +2 dano e +5% crit",
+    "TRANSCENDÊNCIA":      "+5 dano, +5 HP, +25 vel. e regen",
+    "FORMA FINAL":         "+8 dano, +15% crit, +10% exec, +30 vel.",
 }
 
 UPGRADE_TAGS = {
@@ -938,6 +1147,80 @@ UPGRADE_TAGS = {
     "CAPA INVISÍVEL": {"sobrevivencia"},
     "LUVA EXPULSÃO": {"defesa"},
     "TREVO SORTE": {"utilidade"},
+    # novas skills
+    "LÂMINA SANGRADA":{"dano"},"GOLPE CERTEIRO":{"critico"},"CRÍTICO LETAL":{"critico"},
+    "PUNHAL SOMBRIO":{"dano"},"FLECHA EXPLOSIVA":{"dano","explosao"},"DESTRUIÇÃO TOTAL":{"dano"},
+    "MAGIA SOMBRIA":{"dano","aura"},"SANGUE DO CAÇADOR":{"dano","critico"},"FÚRIA SELVAGEM":{"dano"},
+    "RUNA AFIADA":{"dano","critico"},"ESCOLHA DO CARRASCO":{"dano"},"TOQUE DO ABISMO":{"dano"},
+    "FRAGMENTO DE ALMA":{"critico"},"MARTELO DO TROVÃO":{"dano"},"CHAMA ETERNA":{"dano","aura"},
+    "GOLPE CÓSMICO":{"critico"},"EXECUTAR O FRACO":{"dano"},"FLUXO DE MANA":{"dano","cadencia"},
+    "SETA DO DESTINO":{"critico"},"PODER OCULTO":{"dano"},"HERANÇA SOMBRIA":{"critico","dano"},
+    "INSTINTO PREDADOR":{"dano","critico"},"CRISTAL DE DANO":{"dano"},"ESPADA LENDÁRIA":{"dano"},
+    "PEDRA DO CAOS":{"dano","critico"},"TIRO PRECISO":{"critico","projeteis"},"GOLPE DO DESTINO":{"dano"},
+    "MAGIA DUPLA":{"dano","projeteis"},"FRIO MORTAL":{"dano","critico"},"SOPRO DO DRAGÃO":{"dano","aura"},
+    "BALA FANTASMA":{"projeteis"},"TEMPESTADE DE SETAS":{"projeteis"},"RICOCHETE DUPLO":{"projeteis"},
+    "BALA SÔNICA":{"projeteis"},"RAJADA RÁPIDA":{"cadencia"},"FLECHA TRIPLA":{"projeteis"},
+    "PERFURAÇÃO EXTREMA":{"projeteis"},"ECO MÁGICO":{"projeteis"},"VELOCIDADE DE LUZ":{"projeteis"},
+    "CHUVA DE FLECHAS":{"projeteis"},"DISPARO VELOZ":{"cadencia"},"FRAGMENTAÇÃO":{"projeteis","explosao"},
+    "SETA FANTASMA":{"projeteis"},"ONDA DE CHOQUE":{"projeteis"},"BALA DUPLA":{"projeteis"},
+    "RICOCHETE MÁGICO":{"projeteis"},"DISPARO RÁPIDO":{"cadencia"},"CASCATA":{"projeteis"},
+    "RAJADA SUPERSÔNICA":{"projeteis"},"FLECHA MÁGICA":{"projeteis","critico"},"PERFURAÇÃO TOTAL":{"projeteis"},
+    "TIRO VELOZ":{"cadencia"},"MULTIPLICAÇÃO":{"projeteis"},"ECO BALÍSTICO":{"projeteis"},
+    "TEMPESTADE TOTAL":{"projeteis"},"ESCUDO DE FERRO":{"tank"},"CURA RÁPIDA":{"sobrevivencia"},
+    "ARMADURA ANTIGA":{"tank"},"ESPINHOS DE AÇO":{"defesa"},"VIDA DUPLA":{"tank"},
+    "REGENERAÇÃO LENTA":{"sobrevivencia"},"MURALHA DE PEDRA":{"tank"},"PELE DE DRAGÃO":{"defesa"},
+    "RECUPERAÇÃO RÁPIDA":{"sobrevivencia"},"FORÇA VITAL":{"tank"},"SANGUE VAMPIRO":{"sobrevivencia"},
+    "ESCUDO MÍSTICO":{"tank","sobrevivencia"},"TRONCO DE CARVALHO":{"tank"},"DRENO DE VIDA":{"sobrevivencia"},
+    "ARMADURA DIVINA":{"tank"},"REGENERAÇÃO MÍSTICA":{"sobrevivencia"},"DRENAGEM SOMBRIA":{"sobrevivencia"},
+    "CURA ABENÇOADA":{"sobrevivencia"},"VIDA ETERNA":{"tank"},"ESPINHOS MORTAIS":{"defesa"},
+    "ABSORÇÃO VITAL":{"sobrevivencia"},"ROCHA INQUEBRANTÁVEL":{"tank"},"REGENERAÇÃO EXTREMA":{"sobrevivencia"},
+    "BARREIRA ARCANA":{"tank","sobrevivencia"},"VAMPIRO SOMBRIO":{"sobrevivencia"},"COLETE DE AÇO":{"tank"},
+    "FONTE DE VIDA":{"sobrevivencia"},"ESSÊNCIA VITAL":{"tank","sobrevivencia"},"RESISTÊNCIA TOTAL":{"tank","defesa"},
+    "MANTO PROTETOR":{"sobrevivencia"},"BOTAS VELOZES":{"movimento"},"ASAS DO VENTO":{"movimento"},
+    "CORRER É VIVER":{"movimento","magnetismo"},"REFLEXOS AGUÇADOS":{"movimento"},"MOVIMENTO FANTASMA":{"movimento"},
+    "ÍMPETO DO GUERREIRO":{"movimento","cadencia"},"TURBILHÃO":{"movimento"},"PASSO DO ASSASSINO":{"movimento","critico"},
+    "DANÇA DA MORTE":{"movimento"},"VENTO CORTANTE":{"movimento","magnetismo"},"RELÂMPAGO":{"movimento"},
+    "PASSO ESPECTRAL":{"movimento","magnetismo"},"CORRIDA MÁGICA":{"movimento","cadencia"},"IMPULSO DIVINO":{"movimento"},
+    "RASTRO DE FOGO":{"movimento","dano"},"ACELERAÇÃO":{"movimento"},"FLUXO ETERNO":{"magnetismo","movimento"},
+    "VENTO UIVANTE":{"movimento"},"MARÉ VELOZ":{"movimento","critico"},"VELOZ COMO O RAIO":{"movimento"},
+    "CÍRCULO ARCANO":{"orbes"},"CAMPO DE FORÇA":{"aura"},"ORBE DESTRUIDOR":{"orbes"},
+    "EXTENSÃO ARCANA":{"aura"},"DUPLO ORBE":{"orbes"},"AURA AMPLIADA":{"aura"},
+    "VÓRTICE MÁGICO":{"orbes"},"CAMPO EXPLOSIVO":{"aura","explosao"},"SEIS ORBES":{"orbes"},
+    "MAGIA EXPANSIVA":{"aura"},"ORBE FANTASMA":{"orbes"},"AUREA DIVINA":{"aura"},
+    "CÍRCULO DA MORTE":{"orbes"},"CAMPO INFINITO":{"aura"},"ESPIRAL ARCANA":{"orbes","aura"},
+    "ORBES EXPLOSIVOS":{"orbes","explosao"},"AURA MORTAL":{"aura"},"CONSTELAÇÃO":{"orbes"},
+    "CAMPO CÓSMICO":{"aura"},"DANÇA DOS ORBES":{"orbes"},"EXPLOSÃO ARCANA":{"aura","explosao"},
+    "MAGIA SUPREMA":{"orbes","aura"},"SINGULARIDADE":{"aura"},"NEXO ARCANO":{"orbes"},
+    "CAMPO ETERNO":{"aura"},"MICRO BOMBA":{"explosao"},"BOMBA GRANDE":{"explosao"},
+    "FRAGMENTO EXPLOSIVO":{"explosao"},"DETONAÇÃO":{"explosao"},"BOMBA DE PLASMA":{"explosao"},
+    "ONDA EXPLOSIVA":{"explosao"},"CARGA NUCLEAR":{"explosao"},"FRAGMENTO INCENDIÁRIO":{"explosao"},
+    "TIRO EXPLOSIVO":{"explosao","dano"},"BOMBA GRAVITACIONAL":{"explosao"},"CADEIA EXPLOSIVA":{"explosao","projeteis"},
+    "SUPERNOVA":{"explosao"},"EXPLOSÃO SOMBRIA":{"explosao"},"DETONADOR EXTREMO":{"explosao"},
+    "BOMBA FINAL":{"explosao"},"COLETOR DE GEMAS":{"magnetismo"},"FORTUNA DO AVENTUREIRO":{"utilidade"},
+    "EXPERIÊNCIA ACELERADA":{"utilidade"},"IMÃ SUPREMO":{"magnetismo"},"COFRE DO AVENTUREIRO":{"utilidade"},
+    "APRENDIZADO RÁPIDO":{"utilidade"},"CAMPOS MAGNÉTICOS":{"magnetismo"},"OURO DO REI":{"utilidade"},
+    "SÁBIO DO MUNDO":{"utilidade"},"MAGNETISMO MÁXIMO":{"magnetismo"},"TESOURO ANTIGO":{"utilidade"},
+    "INICIAÇÃO ARCANA":{"utilidade"},"VÓRTICE DE GEMAS":{"magnetismo"},"GANÂNCIA ILIMITADA":{"utilidade"},
+    "MENTOR ESPIRITUAL":{"utilidade"},"SORTE DO VIAJANTE":{"critico","utilidade"},"PRESENÇA MAGNÉTICA":{"magnetismo","utilidade"},
+    "TOQUE DO ALQUIMISTA":{"utilidade","sobrevivencia"},"DÁDIVA DOS DEUSES":{"utilidade","sobrevivencia"},
+    "SÍMBOLO DA PROSPERIDADE":{"utilidade","critico"},"COLETOR MÁGICO":{"magnetismo","utilidade"},
+    "ABUNDÂNCIA":{"utilidade","tank"},"CRESCIMENTO ESPIRITUAL":{"utilidade","sobrevivencia"},
+    "GEMA DA FORTUNA":{"critico","magnetismo"},"CAMINHO DO MESTRE":{"utilidade","critico"},
+    "ORÁCULO":{"utilidade","sobrevivencia"},"CONHECIMENTO PROIBIDO":{"utilidade","dano"},
+    "HERANÇA DO REI":{"utilidade","tank"},"CAMINHO DO SÁBIO":{"utilidade","movimento"},
+    "DÍVIDA DE SANGUE":{"sobrevivencia","defesa"},
+    "MORTE CERTA":{"dano","critico"},"LOUCURA DE GUERRA":{"dano","movimento"},"EQUILÍBRIO PERFEITO":{"dano","tank","movimento"},
+    "ASCENSÃO":{"dano","sobrevivencia","critico"},"MESTRE DAS ARTES":{"projeteis","dano","movimento"},
+    "CAMPEÃO":{"tank","dano","sobrevivencia"},"LENDA VIVA":{"dano","critico","movimento"},
+    "PODER ILIMITADO":{"dano","movimento"},"VANGUARDA":{"dano","aura","orbes"},
+    "FANTASMA DA MORTE":{"dano","projeteis","critico"},"REI DO CAMPO":{"projeteis"},
+    "ESTRATEGISTA":{"dano","tank","cadencia"},"GUERREIRO ETERNO":{"tank","movimento","sobrevivencia"},
+    "COLOSSO":{"tank","dano","aura"},"LÂMINA SOMBRIA":{"dano","projeteis"},
+    "BERSERKER FINAL":{"dano","cadencia","projeteis"},"DOMINADOR":{"dano","critico"},
+    "REAPER":{"dano"},"TEMPESTADE MORTAL":{"projeteis","explosao","dano"},
+    "FORÇA BRUTA":{"dano","tank"},"AGILIDADE EXTREMA":{"movimento","cadencia"},
+    "PODER DIVINO":{"dano","aura","orbes"},"MESTRE DO CAOS":{"projeteis","dano","critico"},
+    "TRANSCENDÊNCIA":{"dano","tank","movimento","sobrevivencia"},"FORMA FINAL":{"dano","critico","movimento"},
 }
 
 EVOLUTIONS = {
@@ -971,8 +1254,136 @@ UPGRADE_ICONS = {
     "CAPA INVISÍVEL": "item_capa",
     "LUVA EXPULSÃO": "item_luva",
     "TREVO SORTE": "item_trevo",
-    "SYNERGY_MIDAS": "synergy_midas"
+    "SYNERGY_MIDAS": "synergy_midas",
+    # ícones das 200 novas skills (icons/newskills/skill N.png e skill icon N.png)
+    **{k: f"icons/newskills/skill {i+1}" for i, k in enumerate([
+        "LÂMINA SANGRADA","GOLPE CERTEIRO","CRÍTICO LETAL","PUNHAL SOMBRIO","FLECHA EXPLOSIVA",
+        "DESTRUIÇÃO TOTAL","MAGIA SOMBRIA","SANGUE DO CAÇADOR","FÚRIA SELVAGEM","RUNA AFIADA",
+        "ESCOLHA DO CARRASCO","TOQUE DO ABISMO","FRAGMENTO DE ALMA","MARTELO DO TROVÃO","CHAMA ETERNA",
+        "GOLPE CÓSMICO","EXECUTAR O FRACO","FLUXO DE MANA","SETA DO DESTINO","PODER OCULTO",
+        "HERANÇA SOMBRIA","INSTINTO PREDADOR","CRISTAL DE DANO","ESPADA LENDÁRIA","PEDRA DO CAOS",
+        "TIRO PRECISO","GOLPE DO DESTINO","MAGIA DUPLA","FRIO MORTAL","SOPRO DO DRAGÃO",
+        "BALA FANTASMA","TEMPESTADE DE SETAS","RICOCHETE DUPLO","BALA SÔNICA","RAJADA RÁPIDA",
+        "FLECHA TRIPLA","PERFURAÇÃO EXTREMA","ECO MÁGICO","VELOCIDADE DE LUZ","CHUVA DE FLECHAS",
+        "DISPARO VELOZ","FRAGMENTAÇÃO","SETA FANTASMA","ONDA DE CHOQUE","BALA DUPLA",
+        "RICOCHETE MÁGICO","DISPARO RÁPIDO","CASCATA","RAJADA SUPERSÔNICA","FLECHA MÁGICA",
+        "PERFURAÇÃO TOTAL","TIRO VELOZ","MULTIPLICAÇÃO","ECO BALÍSTICO","TEMPESTADE TOTAL",
+        "ESCUDO DE FERRO","CURA RÁPIDA","ARMADURA ANTIGA","ESPINHOS DE AÇO","VIDA DUPLA",
+        "REGENERAÇÃO LENTA","MURALHA DE PEDRA","PELE DE DRAGÃO","RECUPERAÇÃO RÁPIDA","FORÇA VITAL",
+        "SANGUE VAMPIRO","ESCUDO MÍSTICO","TRONCO DE CARVALHO","DRENO DE VIDA","ARMADURA DIVINA",
+        "REGENERAÇÃO MÍSTICA","DRENAGEM SOMBRIA","CURA ABENÇOADA","VIDA ETERNA","ESPINHOS MORTAIS",
+        "ABSORÇÃO VITAL","ROCHA INQUEBRANTÁVEL","REGENERAÇÃO EXTREMA","BARREIRA ARCANA","VAMPIRO SOMBRIO",
+        "COLETE DE AÇO","FONTE DE VIDA","ESSÊNCIA VITAL","RESISTÊNCIA TOTAL","MANTO PROTETOR",
+        "BOTAS VELOZES","ASAS DO VENTO","CORRER É VIVER","REFLEXOS AGUÇADOS","MOVIMENTO FANTASMA",
+        "ÍMPETO DO GUERREIRO","TURBILHÃO","PASSO DO ASSASSINO","DANÇA DA MORTE","VENTO CORTANTE",
+        "RELÂMPAGO","PASSO ESPECTRAL","CORRIDA MÁGICA","IMPULSO DIVINO","RASTRO DE FOGO",
+    ])},
+    **{k: f"icons/newskills/skill icon {i+1}" for i, k in enumerate([
+        "ACELERAÇÃO","FLUXO ETERNO","VENTO UIVANTE","MARÉ VELOZ","VELOZ COMO O RAIO",
+        "CÍRCULO ARCANO","CAMPO DE FORÇA","ORBE DESTRUIDOR","EXTENSÃO ARCANA","DUPLO ORBE",
+        "AURA AMPLIADA","VÓRTICE MÁGICO","CAMPO EXPLOSIVO","SEIS ORBES","MAGIA EXPANSIVA",
+        "ORBE FANTASMA","AUREA DIVINA","CÍRCULO DA MORTE","CAMPO INFINITO","ESPIRAL ARCANA",
+        "ORBES EXPLOSIVOS","AURA MORTAL","CONSTELAÇÃO","CAMPO CÓSMICO","DANÇA DOS ORBES",
+        "EXPLOSÃO ARCANA","MAGIA SUPREMA","SINGULARIDADE","NEXO ARCANO","CAMPO ETERNO",
+        "MICRO BOMBA","BOMBA GRANDE","FRAGMENTO EXPLOSIVO","DETONAÇÃO","BOMBA DE PLASMA",
+        "ONDA EXPLOSIVA","CARGA NUCLEAR","FRAGMENTO INCENDIÁRIO","TIRO EXPLOSIVO","BOMBA GRAVITACIONAL",
+        "CADEIA EXPLOSIVA","SUPERNOVA","EXPLOSÃO SOMBRIA","DETONADOR EXTREMO","BOMBA FINAL",
+        "COLETOR DE GEMAS","FORTUNA DO AVENTUREIRO","EXPERIÊNCIA ACELERADA","IMÃ SUPREMO","COFRE DO AVENTUREIRO",
+        "APRENDIZADO RÁPIDO","CAMPOS MAGNÉTICOS","OURO DO REI","SÁBIO DO MUNDO","MAGNETISMO MÁXIMO",
+        "TESOURO ANTIGO","INICIAÇÃO ARCANA","VÓRTICE DE GEMAS","GANÂNCIA ILIMITADA","MENTOR ESPIRITUAL",
+        "SORTE DO VIAJANTE","PRESENÇA MAGNÉTICA","TOQUE DO ALQUIMISTA","DÁDIVA DOS DEUSES","SÍMBOLO DA PROSPERIDADE",
+        "COLETOR MÁGICO","ABUNDÂNCIA","CRESCIMENTO ESPIRITUAL","GEMA DA FORTUNA","CAMINHO DO MESTRE",
+        "ORÁCULO","CONHECIMENTO PROIBIDO","HERANÇA DO REI","CAMINHO DO SÁBIO","DÍVIDA DE SANGUE",
+        "MORTE CERTA","LOUCURA DE GUERRA","EQUILÍBRIO PERFEITO","ASCENSÃO","MESTRE DAS ARTES",
+        "CAMPEÃO","LENDA VIVA","PODER ILIMITADO","VANGUARDA","FANTASMA DA MORTE",
+        "REI DO CAMPO","ESTRATEGISTA","GUERREIRO ETERNO","COLOSSO","LÂMINA SOMBRIA",
+        "BERSERKER FINAL","DOMINADOR","REAPER","TEMPESTADE MORTAL","FORÇA BRUTA",
+        "AGILIDADE EXTREMA","PODER DIVINO","MESTRE DO CAOS","TRANSCENDÊNCIA","FORMA FINAL",
+    ])},
 }
+
+# Efeitos das 200 novas skills — processados por dispatch em apply_upgrade()
+# Chaves: dmg, crit, crit_mult, execute, pierce, proj, ricochet, proj_speed,
+#         cooldown, hp, regen, thorns, lifesteal, speed, pickup,
+#         aura_dmg, aura_range, orb, orb_dmg, orb_dist, explosion, exp_dmg,
+#         gold, xp, heal
+NEW_SKILL_EFFECTS = {
+    "LÂMINA SANGRADA":{"dmg":3},"GOLPE CERTEIRO":{"crit":0.10},"CRÍTICO LETAL":{"crit_mult":0.25},
+    "PUNHAL SOMBRIO":{"dmg":4},"FLECHA EXPLOSIVA":{"dmg":2,"explosion":20},"DESTRUIÇÃO TOTAL":{"dmg":5},
+    "MAGIA SOMBRIA":{"dmg":3,"aura_dmg":2},"SANGUE DO CAÇADOR":{"dmg":2,"crit":0.08},"FÚRIA SELVAGEM":{"dmg":4},
+    "RUNA AFIADA":{"dmg":3,"crit":0.05},"ESCOLHA DO CARRASCO":{"execute":0.08},"TOQUE DO ABISMO":{"dmg":5},
+    "FRAGMENTO DE ALMA":{"crit_mult":0.20},"MARTELO DO TROVÃO":{"dmg":6},"CHAMA ETERNA":{"dmg":4,"aura_dmg":2},
+    "GOLPE CÓSMICO":{"crit":0.12},"EXECUTAR O FRACO":{"execute":0.10},"FLUXO DE MANA":{"dmg":3,"cooldown":0.05},
+    "SETA DO DESTINO":{"crit":0.15},"PODER OCULTO":{"dmg":5},"HERANÇA SOMBRIA":{"crit_mult":0.30,"dmg":2},
+    "INSTINTO PREDADOR":{"execute":0.08,"crit":0.08},"CRISTAL DE DANO":{"dmg":4},"ESPADA LENDÁRIA":{"dmg":7},
+    "PEDRA DO CAOS":{"dmg":3,"crit":0.10},"TIRO PRECISO":{"crit":0.15,"pierce":1},"GOLPE DO DESTINO":{"execute":0.12,"dmg":3},
+    "MAGIA DUPLA":{"dmg":2,"proj":1},"FRIO MORTAL":{"dmg":4,"crit":0.08},"SOPRO DO DRAGÃO":{"dmg":5,"aura_dmg":3},
+    "BALA FANTASMA":{"pierce":1},"TEMPESTADE DE SETAS":{"proj":1},"RICOCHETE DUPLO":{"ricochet":1},
+    "BALA SÔNICA":{"proj_speed":80},"RAJADA RÁPIDA":{"cooldown":0.10},"FLECHA TRIPLA":{"proj":2},
+    "PERFURAÇÃO EXTREMA":{"pierce":2},"ECO MÁGICO":{"proj":1,"ricochet":1},"VELOCIDADE DE LUZ":{"proj_speed":120},
+    "CHUVA DE FLECHAS":{"proj":1,"pierce":1},"DISPARO VELOZ":{"cooldown":0.12},"FRAGMENTAÇÃO":{"proj":1,"explosion":30},
+    "SETA FANTASMA":{"pierce":1,"proj_speed":60},"ONDA DE CHOQUE":{"proj":1,"ricochet":1},"BALA DUPLA":{"proj":2},
+    "RICOCHETE MÁGICO":{"ricochet":2},"DISPARO RÁPIDO":{"cooldown":0.15},"CASCATA":{"proj":1,"pierce":1},
+    "RAJADA SUPERSÔNICA":{"proj_speed":150},"FLECHA MÁGICA":{"proj":1,"crit":0.08},"PERFURAÇÃO TOTAL":{"pierce":3},
+    "TIRO VELOZ":{"cooldown":0.08},"MULTIPLICAÇÃO":{"proj":2},"ECO BALÍSTICO":{"proj_speed":100,"pierce":1},
+    "TEMPESTADE TOTAL":{"proj":2,"pierce":2},"ESCUDO DE FERRO":{"hp":5},"CURA RÁPIDA":{"regen":0.3},
+    "ARMADURA ANTIGA":{"hp":8},"ESPINHOS DE AÇO":{"thorns":0.12},"VIDA DUPLA":{"hp":10},
+    "REGENERAÇÃO LENTA":{"regen":0.5},"MURALHA DE PEDRA":{"hp":12},"PELE DE DRAGÃO":{"thorns":0.18},
+    "RECUPERAÇÃO RÁPIDA":{"regen":0.8},"FORÇA VITAL":{"hp":15},"SANGUE VAMPIRO":{"lifesteal":0.02},
+    "ESCUDO MÍSTICO":{"hp":5,"regen":0.2},"TRONCO DE CARVALHO":{"hp":20},"DRENO DE VIDA":{"lifesteal":0.03},
+    "ARMADURA DIVINA":{"hp":25},"REGENERAÇÃO MÍSTICA":{"regen":1.0},"DRENAGEM SOMBRIA":{"lifesteal":0.05},
+    "CURA ABENÇOADA":{"heal":0.30},"VIDA ETERNA":{"hp":30},"ESPINHOS MORTAIS":{"thorns":0.22},
+    "ABSORÇÃO VITAL":{"lifesteal":0.04},"ROCHA INQUEBRANTÁVEL":{"hp":35},"REGENERAÇÃO EXTREMA":{"regen":1.5},
+    "BARREIRA ARCANA":{"hp":8,"regen":0.4},"VAMPIRO SOMBRIO":{"lifesteal":0.06},"COLETE DE AÇO":{"hp":5},
+    "FONTE DE VIDA":{"regen":2.0},"ESSÊNCIA VITAL":{"hp":20,"regen":0.5},"RESISTÊNCIA TOTAL":{"hp":10,"thorns":0.10},
+    "MANTO PROTETOR":{"lifesteal":0.04,"regen":0.3},"BOTAS VELOZES":{"speed":20},"ASAS DO VENTO":{"speed":30},
+    "CORRER É VIVER":{"speed":15,"pickup":40},"REFLEXOS AGUÇADOS":{"speed":25},"MOVIMENTO FANTASMA":{"speed":35},
+    "ÍMPETO DO GUERREIRO":{"speed":20,"cooldown":0.08},"TURBILHÃO":{"speed":40},"PASSO DO ASSASSINO":{"speed":15,"crit":0.05},
+    "DANÇA DA MORTE":{"speed":50},"VENTO CORTANTE":{"speed":25,"pickup":50},"RELÂMPAGO":{"speed":60},
+    "PASSO ESPECTRAL":{"speed":20,"pickup":60},"CORRIDA MÁGICA":{"speed":30,"cooldown":0.05},"IMPULSO DIVINO":{"speed":45},
+    "RASTRO DE FOGO":{"speed":35,"dmg":2},"ACELERAÇÃO":{"speed":25},"FLUXO ETERNO":{"pickup":80,"speed":20},
+    "VENTO UIVANTE":{"speed":50},"MARÉ VELOZ":{"speed":30,"crit":0.05},"VELOZ COMO O RAIO":{"speed":70},
+    "CÍRCULO ARCANO":{"orb":1},"CAMPO DE FORÇA":{"aura_range":50},"ORBE DESTRUIDOR":{"orb_dmg":3},
+    "EXTENSÃO ARCANA":{"aura_range":80},"DUPLO ORBE":{"orb":1,"orb_dmg":2},"AURA AMPLIADA":{"aura_range":100,"aura_dmg":1},
+    "VÓRTICE MÁGICO":{"orb":1,"orb_dist":50},"CAMPO EXPLOSIVO":{"aura_dmg":3,"aura_range":60},"SEIS ORBES":{"orb":2},
+    "MAGIA EXPANSIVA":{"aura_range":120},"ORBE FANTASMA":{"orb":1,"orb_dmg":4},"AUREA DIVINA":{"aura_dmg":5,"aura_range":80},
+    "CÍRCULO DA MORTE":{"orb":2,"orb_dmg":3},"CAMPO INFINITO":{"aura_range":150},"ESPIRAL ARCANA":{"orb":1,"aura_dmg":3},
+    "ORBES EXPLOSIVOS":{"orb":1,"explosion":40},"AURA MORTAL":{"aura_dmg":6},"CONSTELAÇÃO":{"orb":2,"orb_dist":60},
+    "CAMPO CÓSMICO":{"aura_range":200},"DANÇA DOS ORBES":{"orb":2,"orb_dmg":5},"EXPLOSÃO ARCANA":{"aura_dmg":4,"explosion":50},
+    "MAGIA SUPREMA":{"orb":2,"aura_range":100},"SINGULARIDADE":{"aura_dmg":7,"aura_range":80},"NEXO ARCANO":{"orb":3},
+    "CAMPO ETERNO":{"aura_dmg":5,"aura_range":150},"MICRO BOMBA":{"explosion":25},"BOMBA GRANDE":{"explosion":40},
+    "FRAGMENTO EXPLOSIVO":{"exp_dmg":3},"DETONAÇÃO":{"explosion":60},"BOMBA DE PLASMA":{"exp_dmg":5},
+    "ONDA EXPLOSIVA":{"explosion":80,"exp_dmg":4},"CARGA NUCLEAR":{"explosion":100},"FRAGMENTO INCENDIÁRIO":{"exp_dmg":6},
+    "TIRO EXPLOSIVO":{"explosion":50,"dmg":2},"BOMBA GRAVITACIONAL":{"explosion":70,"exp_dmg":5},
+    "CADEIA EXPLOSIVA":{"explosion":30,"ricochet":1,"exp_dmg":3},"SUPERNOVA":{"explosion":120},
+    "EXPLOSÃO SOMBRIA":{"exp_dmg":8},"DETONADOR EXTREMO":{"explosion":90,"exp_dmg":6},"BOMBA FINAL":{"explosion":150,"exp_dmg":10},
+    "COLETOR DE GEMAS":{"pickup":100},"FORTUNA DO AVENTUREIRO":{"gold":0.20},"EXPERIÊNCIA ACELERADA":{"xp":0.15},
+    "IMÃ SUPREMO":{"pickup":150},"COFRE DO AVENTUREIRO":{"gold":0.30},"APRENDIZADO RÁPIDO":{"xp":0.20},
+    "CAMPOS MAGNÉTICOS":{"pickup":200},"OURO DO REI":{"gold":0.40},"SÁBIO DO MUNDO":{"xp":0.25},
+    "MAGNETISMO MÁXIMO":{"pickup":250},"TESOURO ANTIGO":{"gold":0.50},"INICIAÇÃO ARCANA":{"xp":0.30},
+    "VÓRTICE DE GEMAS":{"pickup":180},"GANÂNCIA ILIMITADA":{"gold":0.60},"MENTOR ESPIRITUAL":{"xp":0.35},
+    "SORTE DO VIAJANTE":{"crit":0.05,"gold":0.10},"PRESENÇA MAGNÉTICA":{"pickup":120,"gold":0.10},
+    "TOQUE DO ALQUIMISTA":{"gold":0.15,"regen":0.5},"DÁDIVA DOS DEUSES":{"xp":0.20,"regen":0.5},
+    "SÍMBOLO DA PROSPERIDADE":{"gold":0.25,"crit":0.05},"COLETOR MÁGICO":{"pickup":80,"xp":0.10},
+    "ABUNDÂNCIA":{"gold":0.20,"hp":5},"CRESCIMENTO ESPIRITUAL":{"xp":0.15,"regen":0.3},
+    "GEMA DA FORTUNA":{"crit":0.08,"pickup":80},"CAMINHO DO MESTRE":{"xp":0.20,"crit":0.05},
+    "ORÁCULO":{"gold":0.10,"xp":0.10,"regen":0.2},"CONHECIMENTO PROIBIDO":{"xp":0.30,"dmg":2},
+    "HERANÇA DO REI":{"gold":0.30,"hp":5},"CAMINHO DO SÁBIO":{"xp":0.20,"speed":20},
+    "DÍVIDA DE SANGUE":{"lifesteal":0.10,"thorns":0.12},"MORTE CERTA":{"execute":0.10,"crit":0.10},
+    "LOUCURA DE GUERRA":{"dmg":3,"speed":20},"EQUILÍBRIO PERFEITO":{"dmg":2,"hp":5,"speed":10},
+    "ASCENSÃO":{"dmg":3,"regen":0.3,"crit":0.05},"MESTRE DAS ARTES":{"proj":2,"dmg":2,"speed":20},
+    "CAMPEÃO":{"hp":10,"dmg":2,"regen":0.3},"LENDA VIVA":{"dmg":5,"crit":0.05,"speed":20},
+    "PODER ILIMITADO":{"dmg":6,"speed":30},"VANGUARDA":{"dmg":2,"aura_range":40,"orb":2},
+    "FANTASMA DA MORTE":{"dmg":3,"pierce":1,"crit":0.05},"REI DO CAMPO":{"proj":1,"pierce":1,"ricochet":1},
+    "ESTRATEGISTA":{"dmg":3,"hp":20,"cooldown":0.10},"GUERREIRO ETERNO":{"hp":5,"speed":15,"regen":0.3},
+    "COLOSSO":{"hp":20,"dmg":3,"aura_range":30},"LÂMINA SOMBRIA":{"dmg":4,"pierce":1,"ricochet":1},
+    "BERSERKER FINAL":{"dmg":6,"cooldown":0.12,"proj":1},"DOMINADOR":{"dmg":4,"crit":0.10,"execute":0.10},
+    "REAPER":{"dmg":5,"execute":0.15},"TEMPESTADE MORTAL":{"proj":2,"explosion":40,"dmg":3},
+    "FORÇA BRUTA":{"dmg":8,"hp":10},"AGILIDADE EXTREMA":{"speed":50,"cooldown":0.12},
+    "PODER DIVINO":{"dmg":5,"aura_dmg":3,"orb":1},"MESTRE DO CAOS":{"proj":3,"dmg":2,"crit":0.05},
+    "TRANSCENDÊNCIA":{"dmg":5,"hp":5,"speed":25,"regen":0.3},"FORMA FINAL":{"dmg":8,"crit":0.15,"execute":0.10,"speed":30},
+}
+
 RARITY = {
     "COMUM": {"chance": 0.72, "mult": 1.0, "color": (200,200,200)},
     "RARO":  {"chance": 0.23, "mult": 1.35, "color": (80,170,255)},
@@ -1215,6 +1626,9 @@ EXPLOSION_SIZE_MULT = 1.0
 REGEN_RATE = 0.0
 DAMAGE_RES = 0.0
 THORNS_PERCENT = 0.0
+LIFESTEAL_PCT  = 0.0   # % do dano devolvido como HP (run upgrade)
+GOLD_RUN_MULT  = 1.0   # multiplicador de ouro por run
+XP_BONUS_PCT   = 0.0   # bônus percentual de XP por run
 FIRE_DMG_MULT = 1.0
 BURN_AURA_MULT = 1.0
 HAS_CHAOS_BOLT = False
@@ -2209,10 +2623,11 @@ def apply_upgrade(key, mult=1.0):
     """Aplica um upgrade ao jogador, modificando as variáveis globais."""
     global PLAYER_MAX_HP, PROJECTILE_DMG, SHOT_COOLDOWN, PLAYER_SPEED
     global PROJECTILE_SPEED, PICKUP_RANGE, AURA_DMG, AURA_RANGE
-    global PROJ_COUNT, PROJ_PIERCE, EXPLOSION_RADIUS, ORB_COUNT
+    global PROJ_COUNT, PROJ_PIERCE, EXPLOSION_RADIUS, ORB_COUNT, EXPLOSION_DMG
     global CRIT_CHANCE, EXECUTE_THRESH, HAS_FURY, player, player_upgrades
     global has_bazuca, has_buraco_negro, has_serras, has_tesla, has_ceifador, has_berserk
-    global PROJ_RICOCHET
+    global PROJ_RICOCHET, CRIT_DMG_MULT, REGEN_RATE, THORNS_PERCENT
+    global LIFESTEAL_PCT, GOLD_RUN_MULT, XP_BONUS_PCT, ORB_DMG, ORB_DISTANCE
 
     feed_color = UI_THEME["old_gold"] if key in EVOLUTIONS else UI_THEME["faded_gold"]
     feed_prefix = "Evolução" if key in EVOLUTIONS else "Upgrade"
@@ -2266,6 +2681,36 @@ def apply_upgrade(key, mult=1.0):
     elif key == "CAPA INVISÍVEL": pass  # Efeito passivo tratado no Enemy.update
     elif key == "LUVA EXPULSÃO": pass  # Efeito passivo tratado no knockback
     elif key == "TREVO SORTE":   pass  # Efeito passivo em roll_rarity
+    elif key in NEW_SKILL_EFFECTS:
+        eff = NEW_SKILL_EFFECTS[key]
+        if "dmg"       in eff: PROJECTILE_DMG += int(eff["dmg"] * mult)
+        if "crit"      in eff: CRIT_CHANCE = min(0.95, CRIT_CHANCE + eff["crit"] * mult)
+        if "crit_mult" in eff: CRIT_DMG_MULT += eff["crit_mult"] * mult
+        if "execute"   in eff: EXECUTE_THRESH = min(0.50, EXECUTE_THRESH + eff["execute"] * mult)
+        if "pierce"    in eff: PROJ_PIERCE += int(eff["pierce"])
+        if "proj"      in eff: PROJ_COUNT = min(10, PROJ_COUNT + int(eff["proj"]))
+        if "ricochet"  in eff: PROJ_RICOCHET += int(eff["ricochet"])
+        if "proj_speed"in eff: PROJECTILE_SPEED = min(1500, PROJECTILE_SPEED + eff["proj_speed"] * mult)
+        if "cooldown"  in eff: SHOT_COOLDOWN = max(0.05, SHOT_COOLDOWN * (1 - eff["cooldown"] * mult))
+        if "hp"        in eff:
+            PLAYER_MAX_HP += int(eff["hp"] * mult)
+            if player: player.hp = min(player.hp + int(eff["hp"] * mult), PLAYER_MAX_HP)
+        if "regen"     in eff: REGEN_RATE += eff["regen"] * mult
+        if "thorns"    in eff: THORNS_PERCENT = min(0.80, THORNS_PERCENT + eff["thorns"] * mult)
+        if "lifesteal" in eff: LIFESTEAL_PCT = min(0.50, LIFESTEAL_PCT + eff["lifesteal"] * mult)
+        if "speed"     in eff: PLAYER_SPEED = min(700, PLAYER_SPEED + eff["speed"] * mult)
+        if "pickup"    in eff: PICKUP_RANGE = min(800, PICKUP_RANGE + eff["pickup"] * mult)
+        if "aura_dmg"  in eff: AURA_DMG = max(AURA_DMG, 1); AURA_DMG += int(eff["aura_dmg"] * mult)
+        if "aura_range"in eff: AURA_RANGE = min(600, AURA_RANGE + int(eff["aura_range"] * mult))
+        if "orb"       in eff: ORB_COUNT = min(8, ORB_COUNT + int(eff["orb"]))
+        if "orb_dmg"   in eff: ORB_DMG += int(eff["orb_dmg"] * mult)
+        if "orb_dist"  in eff: ORB_DISTANCE = min(400, ORB_DISTANCE + int(eff["orb_dist"] * mult))
+        if "explosion" in eff: EXPLOSION_RADIUS = max(EXPLOSION_RADIUS, 50); EXPLOSION_RADIUS += int(eff["explosion"] * mult)
+        if "exp_dmg"   in eff: EXPLOSION_DMG += int(eff["exp_dmg"] * mult)
+        if "gold"      in eff: GOLD_RUN_MULT += eff["gold"] * mult
+        if "xp"        in eff: XP_BONUS_PCT += eff["xp"] * mult
+        if "heal"      in eff:
+            if player: player.hp = min(PLAYER_MAX_HP, player.hp + int(PLAYER_MAX_HP * eff["heal"]))
 
     push_upgrade_notification(f"{feed_prefix}: {key}", feed_color)
 
@@ -2428,7 +2873,7 @@ def load_all_assets():
         dungeon_deco_manager.load_frames()
     menu_bg_img = loader.load_image("menu_bg", (SCREEN_W, SCREEN_H), ((10, 5, 20), (5, 0, 10)))
     menu_btn_sprites, menu_btn_sprites_hover = load_menu_btn_sprites(350, 46)
-    skill_card_sprites, skill_card_sprites_hover = load_skill_card_sprites(600, 130)
+    skill_card_sprites, skill_card_sprites_hover = load_skill_card_sprites(560, 108)
     config_title_spr, config_tag_spr = load_config_sprites(420, 58, 280, 36)
 
     # Logo do jogo
@@ -2611,7 +3056,8 @@ def reset_game(char_id=0):
     global EXPLOSION_RADIUS, ORB_COUNT, CRIT_CHANCE, EXECUTE_THRESH, HAS_FURY
     global CRIT_DMG_MULT, EXPLOSION_SIZE_MULT, REGEN_RATE, DAMAGE_RES
     global THORNS_PERCENT, FIRE_DMG_MULT, BURN_AURA_MULT, HAS_CHAOS_BOLT, HAS_INFERNO
-    global PROJ_RICOCHET
+    global PROJ_RICOCHET, ORB_DMG, ORB_DISTANCE, EXPLOSION_DMG
+    global LIFESTEAL_PCT, GOLD_RUN_MULT, XP_BONUS_PCT
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval
     global obstacle_total_placed
@@ -2674,6 +3120,12 @@ def reset_game(char_id=0):
                 if _armor_slot == "boots":
                     PLAYER_SPEED += _astats[_aidx].get("spd", 0)
     THORNS_PERCENT = pu.get("thorns", 0) * 0.15
+    LIFESTEAL_PCT  = 0.0
+    GOLD_RUN_MULT  = 1.0
+    XP_BONUS_PCT   = 0.0
+    ORB_DMG        = 6
+    ORB_DISTANCE   = 180
+    EXPLOSION_DMG  = 5
     PLAYER_MAX_HP += pu.get("max_hp_up", 0) * 5
     FIRE_DMG_MULT = 1.0 + pu.get("fire_dmg", 0) * 0.10
     BURN_AURA_MULT = 1.0 + pu.get("burn_area", 0) * 0.12
@@ -3137,6 +3589,7 @@ def main():
     global chest_loot, chest_ui_timer, new_unlocks_this_session, up_options, up_keys, up_rarities, active_explosions
     global ground_img, menu_bg_img, aura_frames, explosion_frames_raw, projectile_frames_raw, slash_frames_raw, orb_img, tornado_img
     global PROJ_RICOCHET, temp_settings, settings_control_waiting, settings_dragging_slider
+    global LIFESTEAL_PCT, GOLD_RUN_MULT, XP_BONUS_PCT, ORB_DMG, ORB_DISTANCE, EXPLOSION_DMG
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
 
     # Configuração da tela (Já feita no apply_settings, mas garantindo o caption)
@@ -3509,6 +3962,10 @@ def main():
                         selected_idx = 1
                     elif event.key in [pygame.K_3, pygame.K_KP3]:
                         selected_idx = 2
+                    elif event.key in [pygame.K_4, pygame.K_KP4]:
+                        selected_idx = 3
+                    elif event.key in [pygame.K_5, pygame.K_KP5]:
+                        selected_idx = 4
                     elif event.key in [pygame.K_RETURN, pygame.K_KP_ENTER] and len(up_keys) > 0:
                         selected_idx = 0
 
@@ -4914,6 +5371,8 @@ def main():
                             hitstop_timer = 0.03
                         
                         hit.hp -= dmg_dealt
+                        if LIFESTEAL_PCT > 0 and player:
+                            player.hp = min(PLAYER_MAX_HP, player.hp + dmg_dealt * LIFESTEAL_PCT)
                         p.hit_enemies.append(hit)
                         play_sfx("hit") 
 
@@ -5066,12 +5525,12 @@ def main():
 
             for g in list(gems):
                 if g.rect.colliderect(player.rect):
-                    xp += GEM_XP; g.kill(); play_sfx("gem")
+                    xp += int(GEM_XP * (1.0 + XP_BONUS_PCT)); g.kill(); play_sfx("gem")
 
             for d in list(drops):
                 if d.rect.colliderect(player.rect):
                     if d.kind == "coin":
-                        coin_value = 50 * _spawn_diff.get("gold_mult", 1.0)
+                        coin_value = 50 * _spawn_diff.get("gold_mult", 1.0) * GOLD_RUN_MULT
                         run_gold_collected += coin_value
                         save_data["gold"] += coin_value
                         update_mission_progress("gold", coin_value)
@@ -5105,7 +5564,7 @@ def main():
                 state = "UPGRADE"
                 play_sfx("levelup")
                 up_keys, up_rarities = [], []
-                options = pick_upgrades_with_synergy(list(UPGRADE_POOL.keys()), player_upgrades)
+                options = pick_upgrades_with_synergy(list(UPGRADE_POOL.keys()), player_upgrades, k=5)
                 for opt in options:
                     rarity_roll = random.random()
                     chosen_rarity = "COMUM"
@@ -6998,28 +7457,32 @@ def main():
                 screen.blit(msg_sh, (msg_x + 3, msg_y + 3))
                 screen.blit(msg, (msg_x, msg_y))
                 up_options = []
-                CARD_W, CARD_H = 600, 130
+                CARD_W, CARD_H = 560, 108
+                _card_gap = 12
+                _total_cards_h = len(up_keys) * (CARD_H + _card_gap) - _card_gap
+                _start_y = max(110, (SCREEN_H - _total_cards_h) // 2 + 20)
                 for i, key in enumerate(up_keys):
-                    y_pos = int(SCREEN_H*0.28 + i*157)
+                    y_pos = _start_y + i * (CARD_H + _card_gap)
                     rect = pygame.Rect(SCREEN_W//2 - CARD_W//2, y_pos, CARD_W, CARD_H)
                     up_options.append(rect)
                     rarity_name, rarity_data = up_rarities[i]
                     hovered = rect.collidepoint(m_pos)
 
-                    # Sprite base (skills.png carta medieval)
-                    if skill_card_sprites and i < len(skill_card_sprites):
-                        spr = skill_card_sprites_hover[i] if hovered else skill_card_sprites[i]
+                    # Sprite base (skills.png carta medieval, cicla entre os 3 sprites disponíveis)
+                    if skill_card_sprites:
+                        _si = i % len(skill_card_sprites)
+                        spr = skill_card_sprites_hover[_si] if hovered else skill_card_sprites[_si]
                         screen.blit(spr, rect.topleft)
                     else:
                         pygame.draw.rect(screen, (30,30,40), rect, border_radius=10)
 
-                    # Borda colorida pela raridade (cached por cor para evitar Surface por frame)
+                    # Borda colorida pela raridade (cached por cor+tamanho para evitar Surface por frame)
                     if not hasattr(main, "_border_surf_cache"):
                         main._border_surf_cache = {}
-                    _border_key = tuple(rarity_data["color"][:3])
+                    _border_key = (tuple(rarity_data["color"][:3]), CARD_W, CARD_H)
                     if _border_key not in main._border_surf_cache:
                         _bs = pygame.Surface((CARD_W, CARD_H), pygame.SRCALPHA)
-                        r, g, b = _border_key
+                        r, g, b = _border_key[0]
                         pygame.draw.rect(_bs, (r, g, b, 55),  _bs.get_rect(), border_radius=9)
                         pygame.draw.rect(_bs, (r, g, b, 200), _bs.get_rect(), 3, border_radius=9)
                         main._border_surf_cache[_border_key] = _bs
@@ -7027,7 +7490,7 @@ def main():
 
                     # Ícone do upgrade
                     icon = upg_images.get(key, loader.load_image("icon_default", (64, 64)))
-                    screen.blit(icon, (rect.x + 18, rect.centery - 32))
+                    screen.blit(icon, (rect.x + 14, rect.centery - 28))
 
                     # Cores de texto estilo pergaminho medieval
                     txt_col    = (255, 215, 100) if hovered else (220, 190, 120)
@@ -7037,17 +7500,21 @@ def main():
                     # Nome do upgrade
                     title_surf = font_m.render(key, True, txt_col)
                     title_sh   = font_m.render(key, True, shadow_col)
-                    tx, ty = rect.x + 100, rect.y + 12
+                    tx, ty = rect.x + 90, rect.y + 10
                     screen.blit(title_sh, (tx + 2, ty + 2))
                     screen.blit(title_surf, (tx, ty))
 
                     # Descrição
                     desc_surf = font_s.render(get_upgrade_description(key), True, desc_col)
-                    screen.blit(desc_surf, (rect.x + 100, rect.y + 60))
+                    screen.blit(desc_surf, (rect.x + 90, rect.y + 52))
 
                     # Badge de raridade (canto superior direito)
                     rarity_txt = font_s.render(rarity_name, True, rarity_data["color"])
                     screen.blit(rarity_txt, (rect.right - rarity_txt.get_width() - 14, rect.y + 10))
+
+                    # Número de atalho (1–5)
+                    shortcut = font_s.render(str(i + 1), True, (180, 180, 180))
+                    screen.blit(shortcut, (rect.x + 14, rect.y + 10))
 
 
             if state == "CHEST_UI":
