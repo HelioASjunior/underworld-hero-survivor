@@ -11,6 +11,8 @@ from characters import CharacterCombatContext, CharacterDependencies, create_pla
 import hud as dark_hud
 from forest_biome import build_forest_ground, ForestDecoManager
 from dungeon_biome import DungeonDecoManager
+from volcano_biome import build_volcano_ground, VolcanoDecoManager
+from moon_biome import build_moon_ground, MoonDecoManager
 from hub_room import HubScene
 from drops import Drop as ModularDrop
 from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile
@@ -1408,10 +1410,11 @@ BG_DATA = {
     "forest":   {"name": "bg_forest",   "music": "music_forest",   "type": "normal"},
     "volcano":  {"name": "bg_volcano",  "music": "music_volcano",  "type": "volcano"},
     "ice":      {"name": "bg_ice",      "music": "music_ice",      "type": "ice"},
+    "moon":     {"name": "bg_moon",     "music": "music_moon",     "type": "moon"},
 }
 
 # Biomas disponíveis (apenas dungeon por enquanto; demais bloqueados)
-BG_LOCKED = {"forest", "volcano", "ice"}
+BG_LOCKED = {"forest", "ice"}
 
 # Loja de Itens — categorias e seus assets (nome do prefixo e quantidade de arquivos)
 # Estatísticas de cada item por categoria — ordem crescente de poder (estilo Diablo)
@@ -2342,6 +2345,8 @@ menu_bg_img = None
 cursor_img = None       # cursor personalizado (seta.png)
 forest_deco_manager = None
 dungeon_deco_manager = None
+volcano_deco_manager = None
+moon_deco_manager = None
 menu_btn_sprites = []        # frames normais do spritesheet menu.png
 menu_btn_sprites_hover = []  # frames com brilho para hover
 skill_card_sprites = []      # 3 cartas de seleção de skill (skills.png)
@@ -2843,7 +2848,7 @@ def load_all_assets():
     global char_select_panel_img, char_select_panel_meta, char_select_title_frame
     global skill_card_sprites, skill_card_sprites_hover
     global config_title_spr, config_tag_spr
-    global forest_deco_manager, dungeon_deco_manager
+    global forest_deco_manager, dungeon_deco_manager, volcano_deco_manager, moon_deco_manager
     global cursor_img
 
     bg_name = BG_DATA.get(selected_bg, BG_DATA["dungeon"])["name"]
@@ -2857,6 +2862,10 @@ def load_all_assets():
         if forest_deco_manager is None:
             forest_deco_manager = ForestDecoManager(ASSET_DIR)
         forest_deco_manager.load_frames()
+    elif selected_bg == "volcano":
+        ground_img = build_volcano_ground(loader)
+    elif selected_bg == "moon":
+        ground_img = build_moon_ground(loader)
     else:
         ground_img = loader.load_image(bg_name, (256, 256), ((20, 20, 30), (10, 10, 20)))
 
@@ -2865,6 +2874,18 @@ def load_all_assets():
         if dungeon_deco_manager is None:
             dungeon_deco_manager = DungeonDecoManager(ASSET_DIR)
         dungeon_deco_manager.load_frames()
+
+    # Bioma Volcano: decorações procedurais (poças de lava, rochas, geiseres)
+    if selected_bg == "volcano":
+        if volcano_deco_manager is None:
+            volcano_deco_manager = VolcanoDecoManager(ASSET_DIR)
+        volcano_deco_manager.load_frames()
+
+    # Bioma Moon: decorações procedurais (óleo, rachaduras, rochas)
+    if selected_bg == "moon":
+        if moon_deco_manager is None:
+            moon_deco_manager = MoonDecoManager(ASSET_DIR)
+        moon_deco_manager.load_frames()
     menu_bg_img = loader.load_image("menu_bg", (SCREEN_W, SCREEN_H), ((10, 5, 20), (5, 0, 10)))
     menu_btn_sprites, menu_btn_sprites_hover = load_menu_btn_sprites(350, 46)
     skill_card_sprites, skill_card_sprites_hover = load_skill_card_sprites(560, 108)
@@ -5289,6 +5310,16 @@ def main():
                 dungeon_deco_manager.update(dt, cam, SCREEN_W, SCREEN_H, player.pos)
                 dungeon_deco_manager.push_player(player)
 
+            # Decorações do volcano + colisão rochas/geiseres
+            if selected_bg == "volcano" and volcano_deco_manager is not None:
+                volcano_deco_manager.update(dt, cam, SCREEN_W, SCREEN_H, player.pos)
+                volcano_deco_manager.push_player(player)
+
+            # Decorações do moon + colisão rochas
+            if selected_bg == "moon" and moon_deco_manager is not None:
+                moon_deco_manager.update(dt, cam, SCREEN_W, SCREEN_H, player.pos)
+                moon_deco_manager.push_player(player)
+
             current_obstacle_count = len(obstacles)
             if current_obstacle_count != last_obstacle_count:
                 obstacle_grid_index.rebuild(obstacles)
@@ -7260,6 +7291,14 @@ def main():
             # Decorações de chão do dungeon (pentagrama, BDS, dinossauro)
             if selected_bg == "dungeon" and dungeon_deco_manager is not None:
                 dungeon_deco_manager.draw_floor(screen, SCREEN_W, SCREEN_H)
+
+            # Decorações do volcano (poças de lava, rochas, geiseres, ossos)
+            if selected_bg == "volcano" and volcano_deco_manager is not None:
+                volcano_deco_manager.draw_floor(screen, SCREEN_W, SCREEN_H)
+
+            # Decorações do moon (óleo, rachaduras, rochas)
+            if selected_bg == "moon" and moon_deco_manager is not None:
+                moon_deco_manager.draw_floor(screen, SCREEN_W, SCREEN_H)
 
             puddles.draw(screen)
             doom_seals.draw(screen)
