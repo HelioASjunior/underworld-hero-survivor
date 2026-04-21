@@ -75,6 +75,14 @@ def build_windows(out_dir, onefile=False):
     if os.path.isfile(icon_path):
         cmd.append(f"--windows-icon-from-ico={icon_path}")
 
+    cmd += [
+        "--windows-console-mode=disable",
+        "--windows-product-name=UnderWorld Hero",
+        "--windows-file-description=UnderWorld Hero",
+        "--windows-product-version=1.0.0.0",
+        "--windows-file-version=1.0.0.0",
+    ]
+
     cmd.append("--onefile" if onefile else "--standalone")
 
     for src, dest in collect_data_dirs():
