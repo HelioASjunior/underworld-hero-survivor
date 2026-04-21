@@ -122,7 +122,6 @@ All characters are unlocked by default.
 | Goblin | 80 | 160 | 1 min | Fast with moderate zigzag |
 | Beholder | 200 | 85 | 1.5 min | Floating, smooth movement |
 | Orc | 300 | 75 | 3 min | Large, tanky melee |
-| Slime Fire | 280 | 125 | 2 min | Fire burst charges (2.8× speed), high contact damage |
 | Elite | 1500 | 85 | 30s+ | Reinforced variant with guaranteed gold drop |
 
 > HP and speed scale with the difficulty multiplier and game time (+20% HP/damage per minute up to 6×).
@@ -134,6 +133,16 @@ All characters are unlocked by default.
 | Slime | 130 | 110 | 30s | Balanced enemy with dark aura |
 | Minotaur | 200 | 130 | 30s | Melee, direct pursuit |
 | Rat | 150 | 135 | 2 min | Large (220px), aggressive zigzag |
+
+### Enemies — Volcano Biome Exclusive
+
+Only appear when the Volcano biome is selected, starting at 2 minutes.
+
+| Type | Base HP | Base Speed | Spawn | Description |
+|---|---|---|---|---|
+| Slime Fire | 280 | 125 | 2 min | Fire burst charges (2.8× speed), high contact damage |
+| Slime Red | 220 | 110 | 2 min | Tanky, slow, high HP |
+| Slime Yellow | 160 | 145 | 2 min | Agile, low HP, fast attacks |
 
 ### Bosses
 

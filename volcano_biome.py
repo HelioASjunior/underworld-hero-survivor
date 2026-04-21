@@ -76,7 +76,7 @@ def build_volcano_ground(loader):
 # ---------------------------------------------------------------------------
 _BIOME_DECO_CFGS = [
     # ── Lava nova animada ────────────────────────────────────────────────
-    dict(kind="lavanova", grid=900, prob=0.14, spd=0.12, size=(220, 220),
+    dict(kind="lavanova", grid=600, prob=0.40, spd=0.12, size=(220, 220),
          rel="lavanova.png", fw=256, fh=256, frame_count=6, collide=False),
     # ── Geyser ──────────────────────────────────────────────────────────
     dict(kind="geyser", grid=1100, prob=0.18, spd=0.0, size=(96, 96),
@@ -123,8 +123,12 @@ def _load_strip(path, fw, fh, display_size, frame_count=None):
         print(f"[VolcanoBiome] nao encontrado: {path}")
         return []
     try:
-        raw   = pygame.image.load(path)
-        sheet = raw.convert_alpha() if (raw.get_bitsize() == 32 and raw.get_masks()[3]) else raw.convert()
+        raw = pygame.image.load(path)
+        try:
+            sheet = raw.convert_alpha()
+        except Exception:
+            sheet = raw.convert()
+            sheet.set_colorkey((255, 255, 255))
         sw, sh = sheet.get_size()
         cols   = max(1, sw // fw)
         rows_  = max(1, sh // fh)
@@ -295,6 +299,11 @@ class VolcanoDecoManager:
                     active_keys.add(key)
                     if key not in self._active:
                         wp = self._cell_world_pos(gx, gy, grid, kind)
+                        if col and any(
+                            d.collide and (wp - d.world_pos).length_squared() < 110 * 110
+                            for d in self._active.values()
+                        ):
+                            continue
                         sf = self._cell_start_frame(gx, gy, kind, len(frames))
                         self._active[key] = _VolcanoDeco(wp, frames, spd, col, sf, kind)
 

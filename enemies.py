@@ -145,20 +145,49 @@ SPRITESHEET_CONFIGS = {
         "gold_drops": 15,
     },
     "slime_fire": {
-        # slimefire_run.png: 512×256 → 8 cols × 4 rows, frame 64×64
-        # slimefire_att.png: 640×256 → 10 cols × 4 rows, frame 64×64
-        # slimefire_dt.png:  640×256 → 10 cols × 4 rows (animação de morte, reservada)
-        # Linhas: baixo=0, cima=1, esquerda=2, direita=3 (mesmo padrão do goblin)
-        "walk_sheet":     "sprite/monster/New Monster/slimefire_run",
-        "atk_sheet":      "sprite/monster/New Monster/slimefire_att",
+        # mapa_volcano/slimefire_movimento.png: 512×256 → 8 cols × 4 rows, frame 64×64
+        # mapa_volcano/slimefire_ataque.png:    576×256 → 9 cols × 4 rows, frame 64×64
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3
+        "walk_sheet":     "sprite/monster/New Monster/mapa_volcano/slimefire_movimento",
+        "atk_sheet":      "sprite/monster/New Monster/mapa_volcano/slimefire_ataque",
+        "frame_w": 64, "frame_h": 64,
+        "walk_frames": 8,
+        "atk_frames":  9,
+        "atk_sheet_cols": 9,
+        "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
+        "size": (145, 145),
+        "attack_range": 120,
+        "gold_drops": 2,
+    },
+    "slime_red": {
+        # mapa_volcano/slime3_movimento.png: 512×256 → 8 cols × 4 rows, frame 64×64
+        # mapa_volcano/slime3_ataque.png:    640×256 → 10 cols × 4 rows, frame 64×64
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3
+        "walk_sheet":  "sprite/monster/New Monster/mapa_volcano/slime3_movimento",
+        "atk_sheet":   "sprite/monster/New Monster/mapa_volcano/slime3_ataque",
         "frame_w": 64, "frame_h": 64,
         "walk_frames": 8,
         "atk_frames":  10,
         "atk_sheet_cols": 10,
         "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
-        "size": (145, 145),
-        "attack_range": 120,
+        "size": (135, 135),
+        "attack_range": 110,
         "gold_drops": 2,
+    },
+    "slime_yellow": {
+        # mapa_volcano/slime2_movimento.png: 512×256 → 8 cols × 4 rows, frame 64×64
+        # mapa_volcano/slime2_ataque.png:    640×256 → 10 cols × 4 rows, frame 64×64
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3
+        "walk_sheet":  "sprite/monster/New Monster/mapa_volcano/slime2_movimento",
+        "atk_sheet":   "sprite/monster/New Monster/mapa_volcano/slime2_ataque",
+        "frame_w": 64, "frame_h": 64,
+        "walk_frames": 8,
+        "atk_frames":  10,
+        "atk_sheet_cols": 10,
+        "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
+        "size": (130, 130),
+        "attack_range": 110,
+        "gold_drops": 1,
     },
 }
 
@@ -313,7 +342,9 @@ class Enemy(pygame.sprite.Sprite):
             "beholder":   (200,    85),
             "rat":        (150,   135),
             "agis":       (10000,  45),
-            "slime_fire": (280,   125),
+            "slime_fire":   (280,   125),
+            "slime_red":    (220,   110),
+            "slime_yellow": (160,   145),
         }
         base_hp, base_spd = stats.get(kind, (2, 100))
 
@@ -347,7 +378,9 @@ class Enemy(pygame.sprite.Sprite):
             "beholder":   14.0,
             "rat":         6.0,
             "mini_boss":  30.0,
-            "slime_fire": 18.0,
+            "slime_fire":   18.0,
+            "slime_red":    16.0,
+            "slime_yellow": 14.0,
         }
         self.melee_dmg = _base_melee.get(kind, 8.0) * _dmg_m
         if kind == "mini_boss":
@@ -678,6 +711,22 @@ class Enemy(pygame.sprite.Sprite):
                             if not self._atk_active:
                                 self._trigger_atk_anim()
 
+                # SLIME YELLOW — arrancada rápida e breve
+                elif self.kind == "slime_yellow":
+                    self._charge_timer -= dt
+                    if self._charge_timer <= 0 and not self._charging:
+                        self._charge_timer    = random.uniform(1.8, 3.2)
+                        self._charging        = True
+                        self._charge_active_t = random.uniform(0.25, 0.40)
+                    if self._charging:
+                        self._charge_active_t -= dt
+                        if self._charge_active_t <= 0:
+                            self._charging = False
+                        else:
+                            move_speed *= 3.0
+                            if not self._atk_active:
+                                self._trigger_atk_anim()
+
                 # AGIS — avanço lento com arrancada ocasional
                 elif self.kind == "agis":
                     self._charge_timer -= dt
@@ -798,8 +847,8 @@ class Enemy(pygame.sprite.Sprite):
                 self.agis_area_timer   = 0.0
                 self.pending_agis_area = True
 
-        # BAT / GOBLIN / BEHOLDER / RAT / SLIME_FIRE — dispara animação de ataque por proximidade
-        if self.kind in ("bat", "goblin", "beholder", "rat", "slime_fire") and self._atk_range > 0 and not self._atk_active:
+        # BAT / GOBLIN / BEHOLDER / RAT / SLIME_FIRE / SLIME_RED / SLIME_YELLOW — dispara animação de ataque por proximidade
+        if self.kind in ("bat", "goblin", "beholder", "rat", "slime_fire", "slime_red", "slime_yellow") and self._atk_range > 0 and not self._atk_active:
             if dist < self._atk_range:
                 self._trigger_atk_anim()
 

@@ -1386,9 +1386,12 @@ NEW_SKILL_EFFECTS = {
 }
 
 RARITY = {
-    "COMUM": {"chance": 0.72, "mult": 1.0, "color": (200,200,200)},
-    "RARO":  {"chance": 0.23, "mult": 1.35, "color": (80,170,255)},
-    "EPICO": {"chance": 0.05, "mult": 1.75, "color": (200,80,255)},
+    # Limiares cumulativos do mais raro para o mais comum.
+    # Ex.: roll < 0.02 → Lendário (2%), < 0.10 → Épico (8%), < 0.30 → Raro (20%), < 1.0 → Comum (70%)
+    "LENDARIO": {"chance": 0.02, "mult": 2.50, "color": (255, 200,  50)},
+    "EPICO":    {"chance": 0.10, "mult": 1.75, "color": (200,  80, 255)},
+    "RARO":     {"chance": 0.30, "mult": 1.35, "color": ( 80, 170, 255)},
+    "COMUM":    {"chance": 1.00, "mult": 1.00, "color": (200, 200, 200)},
 }
 
 # Alias para compatibilidade (RARITIES = RARITY)
@@ -1409,12 +1412,11 @@ BG_DATA = {
     "dungeon":  {"name": "bg_dungeon",  "music": "music_dungeon",  "type": "normal"},
     "forest":   {"name": "bg_forest",   "music": "music_forest",   "type": "normal"},
     "volcano":  {"name": "bg_volcano",  "music": "music_volcano",  "type": "volcano"},
-    "ice":      {"name": "bg_ice",      "music": "music_ice",      "type": "ice"},
     "moon":     {"name": "bg_moon",     "music": "music_moon",     "type": "moon"},
 }
 
 # Biomas disponíveis (apenas dungeon por enquanto; demais bloqueados)
-BG_LOCKED = {"forest", "ice"}
+BG_LOCKED = {"forest"}
 
 # Loja de Itens — categorias e seus assets (nome do prefixo e quantidade de arquivos)
 # Estatísticas de cada item por categoria — ordem crescente de poder (estilo Diablo)
@@ -2839,6 +2841,39 @@ def load_config_sprites(title_w, title_h, tag_w, tag_h):
             pygame.transform.smoothscale(tag_bar,   (tag_w,   tag_h)))
 
 
+def _reload_biome_assets():
+    """Recarrega apenas ground + decos + música do bioma selecionado (sem bloquear o jogo)."""
+    global ground_img, current_bg_name
+    global forest_deco_manager, dungeon_deco_manager, volcano_deco_manager, moon_deco_manager
+
+    bg_name = BG_DATA.get(selected_bg, BG_DATA["dungeon"])["name"]
+    current_bg_name = bg_name
+
+    if selected_bg == "forest":
+        ground_img = build_forest_ground(loader)
+        if forest_deco_manager is None:
+            forest_deco_manager = ForestDecoManager(ASSET_DIR)
+        forest_deco_manager.load_frames()
+    elif selected_bg == "volcano":
+        ground_img = build_volcano_ground(loader)
+        if volcano_deco_manager is None:
+            volcano_deco_manager = VolcanoDecoManager(ASSET_DIR)
+        volcano_deco_manager.load_frames()
+    elif selected_bg == "moon":
+        ground_img = build_moon_ground(loader)
+        if moon_deco_manager is None:
+            moon_deco_manager = MoonDecoManager(ASSET_DIR)
+        moon_deco_manager.load_frames()
+    else:
+        ground_img = loader.load_image(bg_name, (256, 256), ((20, 20, 30), (10, 10, 20)))
+        if dungeon_deco_manager is None:
+            dungeon_deco_manager = DungeonDecoManager(ASSET_DIR)
+        dungeon_deco_manager.load_frames()
+
+    music_name = BG_DATA.get(selected_bg, BG_DATA["dungeon"])["music"]
+    loader.play_music(music_name)
+
+
 def load_all_assets():
     """Carrega (ou recarrega) todos os assets gráficos e de áudio do jogo."""
     global ground_img, menu_bg_img, aura_frames, explosion_frames_raw
@@ -3644,11 +3679,10 @@ def main():
         Button(0.15, 0.61, BTN_W, BTN_H, "TALENTOS",       font_m),
         Button(0.15, 0.67, BTN_W, BTN_H, "LOJA DE ITENS",  font_m),
         Button(0.15, 0.73, BTN_W, BTN_H, "SAVES",          font_m),
-        Button(0.15, 0.79, BTN_W, BTN_H, "BIOMA",          font_m),
-        Button(0.15, 0.85, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.91, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.79, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.85, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
-    menu_icons = ["play", "missions", "talents", "saves", "saves", "biome", "settings", "exit"]
+    menu_icons = ["play", "missions", "talents", "saves", "saves", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
         btn.icon = load_menu_icon_surface(loader, icon, size=(20, 20))
         btn.sprite_idx = idx % 7
@@ -3659,7 +3693,6 @@ def main():
         "TALENTOS": ("Arvore de Talentos", "Invista ouro em melhorias permanentes e desbloqueie builds mais fortes."),
         "LOJA DE ITENS": ("Loja de Itens", "Compre armas, escudos e equipamentos para potencializar sua proxima run."),
         "SAVES": ("Gerenciar Saves", "Carregue e acompanhe slots de progresso para alternar entre campanhas."),
-        "BIOMA": ("Escolher Bioma", "Troque o tema visual e o clima da arena para variar o estilo da partida."),
         "CONFIGURAÇÕES": ("Ajustes do Jogo", "Video, audio, controles e acessibilidade com aplicacao imediata."),
         "SAIR": ("Encerrar", "Salva progresso atual e fecha o jogo com seguranca."),
     }
@@ -4152,10 +4185,8 @@ def main():
                             elif menu_btns[4].rect.collidepoint(click_pos):
                                 menu_pending_action = "SAVES"
                             elif menu_btns[5].rect.collidepoint(click_pos):
-                                menu_pending_action = "BG_SELECT"
-                            elif menu_btns[6].rect.collidepoint(click_pos):
                                 menu_pending_action = "SETTINGS"
-                            elif menu_btns[7].rect.collidepoint(click_pos):
+                            elif menu_btns[6].rect.collidepoint(click_pos):
                                 menu_pending_action = "QUIT"
 
                             if menu_pending_action is not None:
@@ -4270,6 +4301,18 @@ def main():
                                 _drag_offset=(click_pos[0]-_cx_i,click_pos[1]-_cy_i)
                                 if snd_click: snd_click.play()
 
+                        # Setas do seletor de bioma
+                        _avail_bgs_click = [k for k in bg_choices if k not in BG_LOCKED]
+                        if hasattr(main, "_biome_larr") and main._biome_larr.collidepoint(click_pos) and not hub_countdown_active:
+                            _ci = _avail_bgs_click.index(selected_bg) if selected_bg in _avail_bgs_click else 0
+                            selected_bg = _avail_bgs_click[(_ci - 1) % len(_avail_bgs_click)]
+                            _reload_biome_assets()
+                            if snd_click: snd_click.play()
+                        elif hasattr(main, "_biome_rarr") and main._biome_rarr.collidepoint(click_pos) and not hub_countdown_active:
+                            _ci = _avail_bgs_click.index(selected_bg) if selected_bg in _avail_bgs_click else 0
+                            selected_bg = _avail_bgs_click[(_ci + 1) % len(_avail_bgs_click)]
+                            _reload_biome_assets()
+                            if snd_click: snd_click.play()
                         # Botões do painel lateral direito
                         if hub_pronto_btn.rect.collidepoint(click_pos) and not hub_countdown_active:
                             hub_countdown_active = True
@@ -5035,15 +5078,13 @@ def main():
                 for i in range(ORB_COUNT):
                     rad = math.radians(orb_rot_angle + i * (360/ORB_COUNT))
                     orb_p = player.pos + pygame.Vector2(math.cos(rad), math.sin(rad)) * ORB_DISTANCE
-                    for e in enemies:
-                        if orb_p.distance_to(e.pos) < 50:
-                            tick_dmg = current_orb_dmg * dt * 10
-                            if random.random() < CRIT_CHANCE: tick_dmg *= 2
-                            
-                            e.hp -= tick_dmg; 
-                            if e.hp <= 0: 
-                                if player.ult_charge < player.ult_max: player.ult_charge += 1
-                                gems.add(Gem(e.pos, loader)); e.kill(); kills += 1
+                    for e in enemy_batch_index.enemies_in_radius(orb_p, 50):
+                        tick_dmg = current_orb_dmg * dt * 10
+                        if random.random() < CRIT_CHANCE: tick_dmg *= 2
+                        e.hp -= tick_dmg
+                        if e.hp <= 0:
+                            if player.ult_charge < player.ult_max: player.ult_charge += 1
+                            gems.add(Gem(e.pos, loader)); e.kill(); kills += 1
 
             spawn_t += dt
 
@@ -5055,17 +5096,19 @@ def main():
             if (obstacle_spawn_t >= obstacle_spawn_interval
                     and obstacle_total_placed < OBSTACLE_MAX_GRADUAL):
                 obstacle_spawn_t -= obstacle_spawn_interval
-                # Distribui obstáculos em anel largo ao redor da posição atual
-                # (600-1800 px) — longe o suficiente para não surgir na tela
-                angle_rand = random.uniform(0, 2 * math.pi)
-                dist_rand  = random.uniform(600, 1800)
-                obs_pos    = player.pos + pygame.Vector2(
-                    math.cos(angle_rand) * dist_rand,
-                    math.sin(angle_rand) * dist_rand,
-                )
-                obstacles.add(Obstacle(obs_pos, loader, random.randint(0, 3)))
-                obstacle_total_placed += 1
-                # Intervalo diminui gradualmente (mais obstáculos por minuto)
+                _MIN_OBS_DIST = 130
+                _MAX_TRIES    = 12
+                for _try in range(_MAX_TRIES):
+                    angle_rand = random.uniform(0, 2 * math.pi)
+                    dist_rand  = random.uniform(600, 1800)
+                    obs_pos    = player.pos + pygame.Vector2(
+                        math.cos(angle_rand) * dist_rand,
+                        math.sin(angle_rand) * dist_rand,
+                    )
+                    if all(obs_pos.distance_to(o.pos) >= _MIN_OBS_DIST for o in obstacles):
+                        obstacles.add(Obstacle(obs_pos, loader, random.randint(0, 3)))
+                        obstacle_total_placed += 1
+                        break
                 obstacle_spawn_interval = max(8.0, 18.0 - game_time / 40.0)
 
             # ── FILA DE HORDA (processada aos poucos por frame) ─────────────────
@@ -5163,10 +5206,12 @@ def main():
             if int(game_time) == 240 and "ARENA_EVENT" not in triggered_hordes:
                 triggered_hordes.add("ARENA_EVENT")
                 damage_texts.add(DamageText(player.pos, "🏟️ ARENA DE PAREDES! 🏟️", True, (255, 255, 0)))
+                _ARENA_MIN_DIST = 130
                 for i in range(16):   # reduzido de 24→16 para ser menos agressivo
                     angle    = math.radians(i * (360 / 16))
                     wall_pos = player.pos + pygame.Vector2(math.cos(angle), math.sin(angle)) * 700
-                    obstacles.add(Obstacle(wall_pos, loader, random.randint(0, 3)))
+                    if all(wall_pos.distance_to(o.pos) >= _ARENA_MIN_DIST for o in obstacles):
+                        obstacles.add(Obstacle(wall_pos, loader, random.randint(0, 3)))
                 
             if spawn_t >= current_spawn_rate:
                 spawn_t = 0
@@ -5196,22 +5241,24 @@ def main():
                         spawn_list.append("orc")
                         spawn_weights.append(20)
 
-                    # Slime Fire — a partir de 2 min em todas as dificuldades
-                    if game_time >= 120:
-                        spawn_list.append("slime_fire")
-                        spawn_weights.append(15)
+                    # Monstros exclusivos do vulcão — a partir de 2 min
+                    if selected_bg == "volcano" and game_time >= 120:
+                        spawn_list.extend(["slime_fire", "slime_red", "slime_yellow"])
+                        spawn_weights.extend([18, 14, 14])
 
                     if selected_difficulty in ["DIFÍCIL", "HARDCORE"]:
                         spawn_list.extend(["slime", "minotauro"])
                         spawn_weights.extend([15, 15])
-                        # Rat e Slime Fire com peso extra em dificuldades harder
+                        # Rat com peso extra em dificuldades harder
                         if game_time >= 120:
                             spawn_list.append("rat")
                             spawn_weights.append(20)
-                            # slime_fire já está na lista base; soma peso extra
-                            sf_idx = spawn_list.index("slime_fire") if "slime_fire" in spawn_list else -1
-                            if sf_idx >= 0:
-                                spawn_weights[sf_idx] += 10
+                            # Monstros do vulcão com peso extra em hard/hardcore
+                            if selected_bg == "volcano":
+                                for _vk in ["slime_fire", "slime_red", "slime_yellow"]:
+                                    _vi = spawn_list.index(_vk) if _vk in spawn_list else -1
+                                    if _vi >= 0:
+                                        spawn_weights[_vi] += 8
 
                     chosen_enemy = random.choices(spawn_list, weights=spawn_weights, k=1)[0]
                     elite_chance = min(0.15, 0.03 + (game_time / 480.0) * 0.05)
@@ -5284,22 +5331,34 @@ def main():
                         if THORNS_PERCENT > 0:
                             e.hp -= raw_dmg * THORNS_PERCENT
 
-            # --- Separação de inimigos (evita empilhamento) ---
+            # --- Separação de inimigos com hash espacial O(n) ---
             SEP_DIST  = 52
             SEP_FORCE = 18.0
-            enemy_list = list(enemies)
-            for i, ea in enumerate(enemy_list):
-                if ea.kind in ("boss", "agis"):
+            _sep_buckets: dict = {}
+            for _se in enemies:
+                if _se.kind in ("boss", "agis"):
                     continue
-                for eb in enemy_list[i + 1:]:
-                    if eb.kind in ("boss", "agis"):
-                        continue
-                    diff = ea.pos - eb.pos
-                    d    = diff.length()
-                    if 0 < d < SEP_DIST:
-                        push = diff.normalize() * SEP_FORCE * dt
-                        ea.pos += push
-                        eb.pos -= push
+                _sbk = (int(_se.pos.x) >> 6, int(_se.pos.y) >> 6)
+                if _sbk not in _sep_buckets:
+                    _sep_buckets[_sbk] = []
+                _sep_buckets[_sbk].append(_se)
+            for (_bx, _by), _scell in _sep_buckets.items():
+                for _si in range(len(_scell)):
+                    for _sj in range(_si + 1, len(_scell)):
+                        _ea, _eb = _scell[_si], _scell[_sj]
+                        _sdiff = _ea.pos - _eb.pos
+                        _sd = _sdiff.length()
+                        if 0 < _sd < SEP_DIST:
+                            _spush = _sdiff.normalize() * SEP_FORCE * dt
+                            _ea.pos += _spush; _eb.pos -= _spush
+                for _nx, _ny in ((_bx+1,_by-1), (_bx+1,_by), (_bx+1,_by+1), (_bx,_by+1)):
+                    for _ea in _scell:
+                        for _eb in _sep_buckets.get((_nx, _ny), []):
+                            _sdiff = _ea.pos - _eb.pos
+                            _sd = _sdiff.length()
+                            if 0 < _sd < SEP_DIST:
+                                _spush = _sdiff.normalize() * SEP_FORCE * dt
+                                _ea.pos += _spush; _eb.pos -= _spush
 
             # Decorações animadas da floresta
             if selected_bg == "forest" and forest_deco_manager is not None:
@@ -7222,6 +7281,24 @@ def main():
                     screen.blit(_hc_hint, _hc_hint.get_rect(centerx=_cx, top=int(SCREEN_H * 0.76)))
                 main._hc_larr = _hc_larr
                 main._hc_rarr = _hc_rarr
+
+            # ── Seletor de bioma (acima das dicas de tecla) ─────────────────
+            _BG_LABELS = {"dungeon": "Dungeon", "volcano": "Vulcão", "moon": "Lua", "forest": "Floresta"}
+            _biome_y   = int(SCREEN_H * 0.81)
+            _bg_lbl_s  = font_s.render("Bioma", True, (180, 160, 100))
+            screen.blit(_bg_lbl_s, _bg_lbl_s.get_rect(centerx=_cx, top=_biome_y))
+            _bg_name_s = font_s.render(_BG_LABELS.get(selected_bg, selected_bg.capitalize()), True, (240, 210, 130))
+            screen.blit(_bg_name_s, _bg_name_s.get_rect(centerx=_cx, top=_biome_y + 22))
+            _bg_arr_y   = _biome_y + 22
+            _biome_larr = pygame.Rect(_cx - 72, _bg_arr_y, 28, 24)
+            _biome_rarr = pygame.Rect(_cx + 44, _bg_arr_y, 28, 24)
+            for _ar, _ch in ((_biome_larr, "<"), (_biome_rarr, ">")):
+                _hov = _ar.collidepoint(m_pos)
+                pygame.draw.rect(screen, (130, 95, 45) if _hov else (75, 58, 22), _ar, border_radius=4)
+                _ch_s = font_s.render(_ch, True, (240, 200, 100))
+                screen.blit(_ch_s, _ch_s.get_rect(center=_ar.center))
+            main._biome_larr = _biome_larr
+            main._biome_rarr = _biome_rarr
 
             # Dicas de tecla
             _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))

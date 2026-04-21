@@ -120,8 +120,12 @@ def _load_strip(path, fw, fh, display_size, frame_count=None):
         print(f"[MoonBiome] nao encontrado: {path}")
         return []
     try:
-        raw   = pygame.image.load(path)
-        sheet = raw.convert_alpha() if (raw.get_bitsize() == 32 and raw.get_masks()[3]) else raw.convert()
+        raw = pygame.image.load(path)
+        try:
+            sheet = raw.convert_alpha()
+        except Exception:
+            sheet = raw.convert()
+            sheet.set_colorkey((255, 255, 255))
         sw, sh = sheet.get_size()
         cols   = max(1, sw // fw)
         rows_  = max(1, sh // fh)
@@ -291,6 +295,11 @@ class MoonDecoManager:
                     active_keys.add(key)
                     if key not in self._active:
                         wp = self._cell_world_pos(gx, gy, grid, kind)
+                        if col and any(
+                            d.collide and (wp - d.world_pos).length_squared() < 110 * 110
+                            for d in self._active.values()
+                        ):
+                            continue
                         sf = self._cell_start_frame(gx, gy, kind, len(frames))
                         self._active[key] = _MoonDeco(wp, frames, spd, col, sf, kind)
 

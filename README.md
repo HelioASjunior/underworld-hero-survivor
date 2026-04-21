@@ -75,7 +75,6 @@ Todos os personagens estão desbloqueados por padrão. Cada personagem possui sp
 | Goblin | 80 | 160 | 1 min | Rápido com zigzag moderado |
 | Beholder | 200 | 85 | 1.5 min | Flutuante, movimento suave |
 | Orc | 300 | 75 | 3 min | Grande, corpo a corpo tanque |
-| Slime Fire | 280 | 125 | 2 min | Arrancada de fogo (2.8× vel), alto dano de contato |
 | Elite | 1500 | 85 | 30s+ | Versão reforçada com drop de ouro garantido |
 
 > HP e velocidade escalam com o multiplicador de dificuldade e com o tempo de jogo (+20 % de HP/dano por minuto até 6×).
@@ -87,6 +86,16 @@ Todos os personagens estão desbloqueados por padrão. Cada personagem possui sp
 | Slime | 130 | 110 | 30s | Inimigo equilibrado com aura escura |
 | Minotauro | 200 | 130 | 30s | Corpo a corpo, perseguição direta |
 | Rat | 150 | 135 | 2 min | Grande (220px), zigzag agressivo |
+
+### Inimigos — Exclusivos do Bioma Vulcão
+
+Aparecem somente quando o bioma selecionado é Vulcão, a partir de 2 minutos de jogo.
+
+| Tipo | HP base | Vel. base | Aparição | Descrição |
+|---|---|---|---|---|
+| Slime Fire | 280 | 125 | 2 min | Arrancada de fogo (2.8× vel), alto dano de contato |
+| Slime Red | 220 | 110 | 2 min | Tanque lento com alto HP |
+| Slime Yellow | 160 | 145 | 2 min | Ágil, menos HP, ataque rápido |
 
 ### Chefes
 
