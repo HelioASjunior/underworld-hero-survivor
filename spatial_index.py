@@ -31,13 +31,17 @@ class PerfStats:
         self.spatial_queries: int = 0
         self.astar_calls: int = 0
         self.astar_cache_hits: int = 0
+        self.astar_budget: int = self._ASTAR_PER_FRAME
         self._frame_start: float = 0.0
+
+    _ASTAR_PER_FRAME = 14  # cap de chamadas A* por frame (evita spike com muitos inimigos)
 
     def begin_frame(self):
         self._frame_start = time.perf_counter()
         self.spatial_queries = 0
         self.astar_calls = 0
         self.astar_cache_hits = 0
+        self.astar_budget = self._ASTAR_PER_FRAME
 
     def end_frame(self):
         elapsed_ms = (time.perf_counter() - self._frame_start) * 1000.0
@@ -230,6 +234,9 @@ class ObstacleGridIndex:
 
         path = self._path_cache.get(cache_key)
         if path is None:
+            if PERF.astar_budget <= 0:
+                return None  # budget esgotado neste frame — tenta no próximo
+            PERF.astar_budget -= 1
             PERF.record_astar(cache_hit=False)
             path = self._astar(start_cell, goal_cell)
             self._path_cache[cache_key] = path
@@ -257,14 +264,22 @@ class EnemyBatchIndex:
     def __init__(self):
         self._enemies = []
         self._positions = np.zeros((0, 2), dtype=np.float32)
+        self._pos_buf = np.zeros((128, 2), dtype=np.float32)  # buffer reutilizável
 
     def rebuild(self, enemies):
-        alive = [enemy for enemy in enemies if enemy.alive() and getattr(enemy, "hp", 0) > 0]
+        alive = list(enemies)  # sprite group já remove inimigos mortos via kill()
+        n = len(alive)
         self._enemies = alive
-        if alive:
-            self._positions = np.asarray([(enemy.pos.x, enemy.pos.y) for enemy in alive], dtype=np.float32)
-        else:
-            self._positions = np.zeros((0, 2), dtype=np.float32)
+        if n == 0:
+            self._positions = self._pos_buf[:0]
+            return
+        if n > self._pos_buf.shape[0]:
+            self._pos_buf = np.empty((n * 2, 2), dtype=np.float32)
+        buf = self._pos_buf
+        for i in range(n):
+            buf[i, 0] = alive[i].pos.x
+            buf[i, 1] = alive[i].pos.y
+        self._positions = buf[:n]
 
     def enemies_in_radius(self, center, radius):
         PERF.record_spatial_query()

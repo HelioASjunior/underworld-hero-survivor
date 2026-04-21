@@ -764,7 +764,7 @@ class Enemy(pygame.sprite.Sprite):
                         self.cached_path_start_cell = sc
                         self.cached_path_goal_cell  = gc
                         self.cached_path_dir        = pd
-                        self.path_recalc_timer      = 0.20
+                        self.path_recalc_timer      = 0.28
                         if pd is not None:
                             move_dir = pygame.Vector2(pd[0], pd[1])
 
@@ -773,9 +773,13 @@ class Enemy(pygame.sprite.Sprite):
             if move.length_squared() > 0:
                 self.pos += move
                 if self.kind not in ["boss", "mini_boss"]:
-                    for obs in obstacles:
-                        if obs.hitbox.collidepoint(self.pos):
+                    if obstacle_grid_index is not None:
+                        if obstacle_grid_index.point_collides(self.pos):
                             self.pos -= move
+                    else:
+                        for obs in obstacles:
+                            if obs.hitbox.collidepoint(self.pos):
+                                self.pos -= move
 
             anim_spd = 0.15 if self.kind in ["boss", "mini_boss", "agis"] else 0.10
             self.anim_timer += dt
@@ -887,11 +891,14 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.image = self._get_walk_frame()
 
-        # Aura de elite
+        # Aura de elite — Surface cacheada por tamanho para não alocar a cada frame
         if self.is_elite:
-            aura = pygame.Surface(self.image.get_size(), pygame.SRCALPHA)
-            pygame.draw.ellipse(aura, (255, 215, 0, 100), aura.get_rect(), 3)
+            sz = self.image.get_size()
+            if getattr(self, "_elite_aura_size", None) != sz:
+                self._elite_aura_size = sz
+                self._elite_aura = pygame.Surface(sz, pygame.SRCALPHA)
+                pygame.draw.ellipse(self._elite_aura, (255, 215, 0, 100), self._elite_aura.get_rect(), 3)
             self.image = self.image.copy()
-            self.image.blit(aura, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+            self.image.blit(self._elite_aura, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
         self.rect.center = self.pos + cam

@@ -20,7 +20,7 @@ class Projectile(pygame.sprite.Sprite):
         self.vel = vel
         self.dmg = dmg
         self.pierce = pierce
-        self.hit_enemies = []
+        self.hit_enemies = set()
         self.ricochet = ricochet
         self.is_melee = False
         self._screen_size_getter = screen_size_getter
@@ -66,7 +66,7 @@ class MeleeSlash(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.pos = self.player.pos + (self.target_dir * self.distance)
         self.dmg = dmg
-        self.hit_enemies = []
+        self.hit_enemies = set()
 
     def update(self, dt, cam):
         self.anim_timer += dt

@@ -3912,6 +3912,9 @@ def main():
     _dt_idx = 0
     _bg_cache = None        # surface pré-renderizada do chão (invalida ao trocar bioma)
     _bg_cache_src = None    # referência ao ground_img que gerou o cache
+    _sep_frame = 0          # throttle: separação de inimigos roda em frames alternados
+    SEP_DIST  = 52
+    SEP_FORCE = 18.0
     while running:
         # 1. Delta Time (dt) com clamp e smoothing por média móvel (6 frames)
         PERF.begin_frame()
@@ -5289,11 +5292,19 @@ def main():
                 SHOOTER_PROJ_IMAGE,
                 obstacle_grid_index,
             )
+            # --- Colisão física: empurra inimigos para fora do raio do player ---
+            _PUSH_R = (player.rect.width + 8) // 2
+            for _pe in enemy_batch_index.enemies_in_radius(player.pos, _PUSH_R + 20):
+                _dv = _pe.pos - player.pos
+                _dl = _dv.length()
+                if 0 < _dl < _PUSH_R:
+                    _pe.pos += (_dv / _dl) * (_PUSH_R - _dl)
+
             puddles.update(dt, cam)
             doom_seals.update(dt, cam)
 
             # --- Projéteis do Agis ---
-            for e in list(enemies):
+            for e in enemies:
                 if e.kind != "agis":
                     continue
                 agis_dmg = 1.5 * _spawn_diff.get("dmg_mult", 1.0)
@@ -5326,7 +5337,7 @@ def main():
             particles.update(dt, cam)
 
             # --- Dano melee do mini_boss ---
-            for e in list(enemies):
+            for e in enemies:
                 if getattr(e, "pending_melee_hit", False):
                     e.pending_melee_hit = False
                     if player.iframes <= 0:
@@ -5340,19 +5351,19 @@ def main():
                         if THORNS_PERCENT > 0:
                             e.hp -= raw_dmg * THORNS_PERCENT
 
-            # --- Separação de inimigos via Numba/NumPy kernel ---
-            SEP_DIST  = 52
-            SEP_FORCE = 18.0
-            _sep_enemies = [_e for _e in enemies if _e.kind not in ("boss", "agis")]
-            if len(_sep_enemies) > 1:
-                _sep_pos = np.empty((len(_sep_enemies), 2), dtype=np.float32)
-                for _i, _e in enumerate(_sep_enemies):
-                    _sep_pos[_i, 0] = _e.pos.x
-                    _sep_pos[_i, 1] = _e.pos.y
-                _sep_deltas = enemy_separation(_sep_pos, SEP_DIST, SEP_FORCE * dt)
-                for _i, _e in enumerate(_sep_enemies):
-                    _e.pos.x += float(_sep_deltas[_i, 0])
-                    _e.pos.y += float(_sep_deltas[_i, 1])
+            # --- Separação de inimigos via Numba/NumPy kernel (frames alternados) ---
+            _sep_frame = (_sep_frame + 1) % 2
+            if _sep_frame == 0:
+                _sep_enemies = [_e for _e in enemies if _e.kind not in ("boss", "agis")]
+                if len(_sep_enemies) > 1:
+                    _sep_pos = np.empty((len(_sep_enemies), 2), dtype=np.float32)
+                    for _i, _e in enumerate(_sep_enemies):
+                        _sep_pos[_i, 0] = _e.pos.x
+                        _sep_pos[_i, 1] = _e.pos.y
+                    _sep_deltas = enemy_separation(_sep_pos, SEP_DIST, SEP_FORCE * dt * 2)
+                    for _i, _e in enumerate(_sep_enemies):
+                        _e.pos.x += float(_sep_deltas[_i, 0])
+                        _e.pos.y += float(_sep_deltas[_i, 1])
 
             # Decorações animadas da floresta
             if selected_bg == "forest" and forest_deco_manager is not None:
@@ -5389,8 +5400,12 @@ def main():
                     if obstacle_grid_index.point_collides(p.pos):
                         p.kill()
                         continue
-                
-                hits = pygame.sprite.spritecollide(p, enemies, False, projectile_enemy_collision)
+
+                _p_hitbox = getattr(p, "hitbox", p.rect)
+                # +80 garante que sprites grandes (boss/tank) na borda do hitbox sejam incluídos
+                _p_radius = max(_p_hitbox.width, _p_hitbox.height) + 80
+                _nearby   = enemy_batch_index.enemies_in_radius(p.pos, _p_radius)
+                hits = [_e for _e in _nearby if _p_hitbox.colliderect(_e.rect)]
                 for hit in hits:
                     if hit not in p.hit_enemies:
                         dmg_dealt = p.dmg
@@ -5402,7 +5417,7 @@ def main():
                         hit.hp -= dmg_dealt
                         if LIFESTEAL_PCT > 0 and player:
                             player.hp = min(PLAYER_MAX_HP, player.hp + dmg_dealt * LIFESTEAL_PCT)
-                        p.hit_enemies.append(hit)
+                        p.hit_enemies.add(hit)
                         play_sfx("hit") 
 
                         if EXECUTE_THRESH > 0 and hit.kind != "boss":
@@ -5440,18 +5455,16 @@ def main():
                             active_explosions.append(ExplosionAnimation(exp_pos, current_exp_rad, explosion_frames_raw))
                             play_sfx("explosion") 
                             for e in enemy_batch_index.enemies_in_radius(exp_pos, current_exp_rad):
-                                if exp_pos.distance_to(e.pos) < current_exp_rad: 
-                                    exp_dmg_dealt = current_exp_dmg
-                                    exp_is_crit = random.random() < CRIT_CHANCE
-                                    if exp_is_crit:
-                                        exp_dmg_dealt *= 2
-                                        hitstop_timer = 0.03
-                                    
-                                    e.hp -= exp_dmg_dealt
-                                    e.flash_timer = 0.1 
-                                    exp_dir = (e.pos - exp_pos).normalize() if (e.pos - exp_pos).length() > 0 else pygame.Vector2(1,0)
-                                    e.knockback += exp_dir * 8.0 
-                                    damage_texts.add(DamageText(e.pos, exp_dmg_dealt, exp_is_crit, (255, 100, 0))) 
+                                exp_dmg_dealt = current_exp_dmg
+                                exp_is_crit = random.random() < CRIT_CHANCE
+                                if exp_is_crit:
+                                    exp_dmg_dealt *= 2
+                                    hitstop_timer = 0.03
+                                e.hp -= exp_dmg_dealt
+                                e.flash_timer = 0.1
+                                exp_dir = (e.pos - exp_pos).normalize() if (e.pos - exp_pos).length() > 0 else pygame.Vector2(1,0)
+                                e.knockback += exp_dir * 8.0
+                                damage_texts.add(DamageText(e.pos, exp_dmg_dealt, exp_is_crit, (255, 100, 0)))
                         
                         if hit.hp <= 0:
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
@@ -5525,7 +5538,7 @@ def main():
                         if not is_melee:
                             if p.ricochet > 0:
                                 p.ricochet -= 1
-                                p.hit_enemies.pop()
+                                p.hit_enemies.discard(hit)
 
                                 excluded_ids = {id(enemy) for enemy in p.hit_enemies}
                                 excluded_ids.add(id(hit))
@@ -7375,9 +7388,15 @@ def main():
 
             puddles.draw(screen)
             doom_seals.draw(screen)
-            obstacles.draw(screen); gems.draw(screen); drops.draw(screen); projectiles.draw(screen); enemy_projectiles.draw(screen); enemies.draw(screen)
-            
+            obstacles.draw(screen); gems.draw(screen); drops.draw(screen); projectiles.draw(screen); enemy_projectiles.draw(screen)
+
+            # Culling: só blita inimigos visíveis na tela
+            _scr_rect = screen.get_rect()
+            screen.blits([(e.image, e.rect) for e in enemies if _scr_rect.colliderect(e.rect)])
+
             for e in enemies:
+                if not _scr_rect.colliderect(e.rect):
+                    continue
                 if e.hp < e.max_hp or e.kind in ["boss", "mini_boss", "agis", "elite", "orc"]:
                     if e.kind == "boss":
                         bar_w, bar_h = 120, 10
@@ -7437,8 +7456,8 @@ def main():
                     p3 = arrow_pos + pygame.Vector2(math.cos(angle - 2.5), math.sin(angle - 2.5)) * 15
                     pygame.draw.polygon(screen, (255, 215, 0), [p1, p2, p3])
 
-            particles.draw(screen)
-            damage_texts.draw(screen) 
+            screen.blits([(p.image, p.rect) for p in particles if _scr_rect.colliderect(p.rect)])
+            damage_texts.draw(screen)
 
             if 'darkness_timer' in locals() and darkness_timer > 0:
                 _ds_key = (SCREEN_W, SCREEN_H)
