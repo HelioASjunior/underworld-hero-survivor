@@ -25,7 +25,9 @@ from combat.projectiles import (
     Projectile as CoreProjectile,
     projectile_enemy_collision as core_projectile_enemy_collision,
 )
+import numpy as np
 from spatial_index import EnemyBatchIndex, ObstacleGridIndex, PERF, _CYTHON_ACTIVE
+from hot_kernels import enemy_separation, NUMBA_ACTIVE
 
 # =========================================================
 # CONFIGURAÇÕES DE PERSISTÊNCIA (SETTINGS.JSON)
@@ -272,7 +274,7 @@ def apply_settings(settings_dict):
     vsync      = settings_dict["video"].get("vsync")     == "On"
 
     # Monta flags progressivamente com fallback para garantir que o jogo abre
-    flags = 0
+    flags = pygame.DOUBLEBUF  # double buffering reduz tearing e habilita aceleração HW
     if fullscreen:
         flags |= pygame.FULLSCREEN
     if vsync:
@@ -282,7 +284,7 @@ def apply_settings(settings_dict):
     except pygame.error:
         # Fallback seguro: janela sem flags especiais na resolução nativa
         SCREEN_W, SCREEN_H = _native_resolution()
-        screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), 0)
+        screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.DOUBLEBUF)
 
     FPS = int(settings_dict["video"].get("fps_limit", 60))
     apply_audio_runtime(settings_dict)
@@ -632,7 +634,7 @@ DIFFICULTIES = {
     "FÁCIL":    {"hp_mult": 0.9, "spd_mult": 0.85, "dmg_mult": 0.7,  "gold_mult": 0.8, "color": (100, 255, 100), "desc": "Para relaxar. Inimigos fracos.", "id": "DIFF_FÁCIL"},
     "MÉDIO":    {"hp_mult": 1.4, "spd_mult": 1.05, "dmg_mult": 1.3,  "gold_mult": 1.0, "color": (255, 255, 100), "desc": "A experiência padrão.", "id": "DIFF_MÉDIO"},
     "DIFÍCIL":  {"hp_mult": 2.2, "spd_mult": 1.2,  "dmg_mult": 1.8,  "gold_mult": 1.4, "color": (255, 150, 50), "desc": "Novos Monstros! +40% Ouro.", "id": "DIFF_DIFÍCIL"},
-    "HARDCORE": {"hp_mult": 3.5, "spd_mult": 1.4,  "dmg_mult": 2.5,  "gold_mult": 2.0, "color": (255, 50, 50),   "desc": "Pesadelo. +100% Ouro.", "id": "DIFF_HARDCORE"}
+    "HARDCORE": {"hp_mult": 5.5, "spd_mult": 1.65, "dmg_mult": 4.0,  "gold_mult": 2.0, "color": (255, 50, 50),   "desc": "Pesadelo. +100% Ouro.", "id": "DIFF_HARDCORE"}
 }
 
 # Atributos Modificáveis (Base)
@@ -3222,7 +3224,7 @@ def reset_game(char_id=0):
     # Computar dificuldade efetiva com multiplicador de fase Hardcore
     _spawn_diff = dict(DIFFICULTIES.get(selected_difficulty, DIFFICULTIES["MÉDIO"]))
     if selected_difficulty == "HARDCORE" and current_hardcore_stage > 1:
-        _stage_mult = 1.0 + (current_hardcore_stage - 1) * 0.15
+        _stage_mult = 1.0 + (current_hardcore_stage - 1) * 0.22
         _spawn_diff = dict(_spawn_diff)
         _spawn_diff["hp_mult"]  = _spawn_diff["hp_mult"]  * _stage_mult
         _spawn_diff["dmg_mult"] = _spawn_diff["dmg_mult"] * _stage_mult
@@ -3906,11 +3908,18 @@ def main():
     obstacle_spawn_interval = 18.0
     obstacle_total_placed  = 0
     OBSTACLE_MAX_GRADUAL   = 28
+    _dt_history = [1/60.0] * 6  # média móvel para suavizar micro-stutters
+    _dt_idx = 0
+    _bg_cache = None        # surface pré-renderizada do chão (invalida ao trocar bioma)
+    _bg_cache_src = None    # referência ao ground_img que gerou o cache
     while running:
-        # 1. Delta Time (dt) com Clamp
+        # 1. Delta Time (dt) com clamp e smoothing por média móvel (6 frames)
         PERF.begin_frame()
         dt_raw = clock.tick(FPS) / 1000.0
-        dt = min(dt_raw, 1/30.0) # Evita bugs de física com lag
+        dt_clamped = min(dt_raw, 1/30.0)  # evita bugs de física com lag severo
+        _dt_history[_dt_idx] = dt_clamped
+        _dt_idx = (_dt_idx + 1) % 6
+        dt = sum(_dt_history) / 6
 
         if pause_save_feedback_timer > 0:
             pause_save_feedback_timer = max(0.0, pause_save_feedback_timer - dt_raw)
@@ -5331,34 +5340,19 @@ def main():
                         if THORNS_PERCENT > 0:
                             e.hp -= raw_dmg * THORNS_PERCENT
 
-            # --- Separação de inimigos com hash espacial O(n) ---
+            # --- Separação de inimigos via Numba/NumPy kernel ---
             SEP_DIST  = 52
             SEP_FORCE = 18.0
-            _sep_buckets: dict = {}
-            for _se in enemies:
-                if _se.kind in ("boss", "agis"):
-                    continue
-                _sbk = (int(_se.pos.x) >> 6, int(_se.pos.y) >> 6)
-                if _sbk not in _sep_buckets:
-                    _sep_buckets[_sbk] = []
-                _sep_buckets[_sbk].append(_se)
-            for (_bx, _by), _scell in _sep_buckets.items():
-                for _si in range(len(_scell)):
-                    for _sj in range(_si + 1, len(_scell)):
-                        _ea, _eb = _scell[_si], _scell[_sj]
-                        _sdiff = _ea.pos - _eb.pos
-                        _sd = _sdiff.length()
-                        if 0 < _sd < SEP_DIST:
-                            _spush = _sdiff.normalize() * SEP_FORCE * dt
-                            _ea.pos += _spush; _eb.pos -= _spush
-                for _nx, _ny in ((_bx+1,_by-1), (_bx+1,_by), (_bx+1,_by+1), (_bx,_by+1)):
-                    for _ea in _scell:
-                        for _eb in _sep_buckets.get((_nx, _ny), []):
-                            _sdiff = _ea.pos - _eb.pos
-                            _sd = _sdiff.length()
-                            if 0 < _sd < SEP_DIST:
-                                _spush = _sdiff.normalize() * SEP_FORCE * dt
-                                _ea.pos += _spush; _eb.pos -= _spush
+            _sep_enemies = [_e for _e in enemies if _e.kind not in ("boss", "agis")]
+            if len(_sep_enemies) > 1:
+                _sep_pos = np.empty((len(_sep_enemies), 2), dtype=np.float32)
+                for _i, _e in enumerate(_sep_enemies):
+                    _sep_pos[_i, 0] = _e.pos.x
+                    _sep_pos[_i, 1] = _e.pos.y
+                _sep_deltas = enemy_separation(_sep_pos, SEP_DIST, SEP_FORCE * dt)
+                for _i, _e in enumerate(_sep_enemies):
+                    _e.pos.x += float(_sep_deltas[_i, 0])
+                    _e.pos.y += float(_sep_deltas[_i, 1])
 
             # Decorações animadas da floresta
             if selected_bg == "forest" and forest_deco_manager is not None:
@@ -7354,12 +7348,14 @@ def main():
             if state == "PLAYING" and darkness_timer > 0: darkness_timer -= dt
             
             bg_w, bg_h = ground_img.get_size()
-            st_x, st_y = int(cam.x % bg_w) - bg_w, int(cam.y % bg_h) - bg_h
-            for x in range(st_x, SCREEN_W + bg_w, bg_w):
-                if x + bg_w < 0 or x > SCREEN_W: continue
-                for y in range(st_y, SCREEN_H + bg_h, bg_h):
-                    if y + bg_h < 0 or y > SCREEN_H: continue
-                    screen.blit(ground_img, (x, y))
+            if _bg_cache_src is not ground_img:
+                # Reconstrói cache ao trocar de bioma (1 blit por tile, feito uma vez)
+                _bg_cache = pygame.Surface((SCREEN_W + bg_w, SCREEN_H + bg_h))
+                for _cx in range(0, SCREEN_W + bg_w, bg_w):
+                    for _cy in range(0, SCREEN_H + bg_h, bg_h):
+                        _bg_cache.blit(ground_img, (_cx, _cy))
+                _bg_cache_src = ground_img
+            screen.blit(_bg_cache, (int(cam.x % bg_w) - bg_w, int(cam.y % bg_h) - bg_h))
 
             # Decorações animadas da floresta (fogueira, bandeira) — desenhadas sobre o chão
             if selected_bg == "forest" and forest_deco_manager is not None:

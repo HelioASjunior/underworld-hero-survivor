@@ -1,5 +1,7 @@
-# Dependências opcionais para compilar os kernels Cython acelerados
-# Execute apenas se quiser ativar CYTHON_ACTIVE=True (requer Build Tools do Visual Studio no Windows)
+# Dependências opcionais para compilar kernels e empacotar o jogo
+# Requer Build Tools do Visual Studio no Windows para o Cython
 -r requirements.txt
 Cython==3.2.4
 setuptools==82.0.1
+pyinstaller
+nuitka

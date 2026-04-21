@@ -3,9 +3,10 @@
 ![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python)
 ![Pygame-CE](https://img.shields.io/badge/Pygame--CE-2.5.7-green?style=for-the-badge)
 ![NumPy](https://img.shields.io/badge/NumPy-2.4.4-013243?style=for-the-badge&logo=numpy)
+![Numba](https://img.shields.io/badge/Numba-0.65-00A3E0?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-yellow?style=for-the-badge)
 
-Jogo de sobrevivência estilo bullet hell desenvolvido em Python com Pygame-CE, com foco em combate rápido, progressão por upgrades, múltiplos personagens, sistema de pactos e pipeline de performance baseado em indexação espacial (NumPy + Cython opcional).
+Jogo de sobrevivência estilo bullet hell desenvolvido em Python com Pygame-CE, com foco em combate rápido, progressão por upgrades, múltiplos personagens, sistema de pactos e pipeline de performance baseado em indexação espacial (NumPy + Numba JIT + Cython opcional).
 
 English version: [README.en.md](README.en.md)
 
@@ -19,7 +20,8 @@ English version: [README.en.md](README.en.md)
 - [Arquitetura do projeto](#arquitetura-do-projeto)
 - [Requisitos](#requisitos)
 - [Instalação e execução](#instalacao-e-execucao)
-- [Build opcional com Cython](#build-opcional-com-cython)
+- [Performance e build](#performance-e-build)
+- [Distribuição com PyInstaller](#distribuicao-com-pyinstaller)
 - [Controles](#controles)
 - [Configurações, save e persistência](#configuracoes-save-e-persistencia)
 - [Resolução e compatibilidade](#resolucao-e-compatibilidade)
@@ -164,9 +166,12 @@ Difícil e Hardcore são desbloqueados por missões específicas.
 
 ### Biomas
 
-- **Dungeon**: fundo de pedra com decorações de chão animadas (pentagrama, dinossauro).
-- **Floresta**: tilemap composto com tiles animados (fogueira, bandeira).
-- **Gelo** e **Vulcão**: fundos estáticos temáticos com trilha própria.
+| Bioma | Decorações | Trilha | Inimigos exclusivos |
+|---|---|---|---|
+| Dungeon | Decorações de chão animadas (pentagrama, dinossauro) via `DungeonDecoManager` | Sim | — |
+| Floresta | Tilemap composto com tiles animados (fogueira, bandeira) via `ForestDecoManager` | Sim | — |
+| Vulcão | Rochas, geiseres e colisões de ambiente via `VolcanoDecoManager` | Sim | Slime Fire, Slime Red, Slime Yellow |
+| Lua | Decorações temáticas de superfície lunar via `MoonDecoManager` | Sim | — |
 
 ### Loja de Itens
 
@@ -238,8 +243,10 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 | `combat/projectiles.py` | Projéteis, slashes e explosões com cache de frames |
 | `forest_biome.py` | Tilemap de floresta, decorações animadas |
 | `dungeon_biome.py` | Decorações de chão do dungeon |
+| `volcano_biome.py` | Decorações, rochas e geiseres do vulcão |
+| `moon_biome.py` | Decorações da superfície lunar |
 | `spatial_index.py` | Índices espaciais, pathfinding A* em grid, métricas |
-| `hot_kernels.py` | Kernels NumPy com detecção automática de backend Cython |
+| `hot_kernels.py` | Kernels NumPy + Numba JIT com detecção automática de backend Cython |
 | `hot_kernels_cy.pyx` | Implementação acelerada opcional em Cython |
 
 ### Decisões técnicas
@@ -249,7 +256,8 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 - **AssetLoader recursivo**: `os.walk` em `assets/` mapeia stem → path completo; mover arquivos não quebra o código.
 - **Resolução dinâmica**: `pygame.display.list_modes()` detecta modos do monitor em tempo real.
 - **Spawn gradual de obstáculos**: timer decrescente desde o início da run em vez de bulk em hordas.
-- **Fallback em camadas**: Cython opcional, sprites com fallback procedural, resolução com fallback para nativa.
+- **Fallback em camadas**: Cython opcional → Numba JIT → NumPy puro → Python puro, tudo automático.
+- **Double buffering**: `pygame.DOUBLEBUF` ativo por padrão — reduz tearing e habilita aceleração de hardware no SDL2.
 
 ---
 
@@ -260,6 +268,7 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 - Dependências runtime:
   - `pygame-ce` 2.5.7+ (Community Edition com SDL 2.32.10 ou superior)
   - `numpy` 2.4.4+
+  - `numba` 0.65+ (JIT de kernels críticos; opcional mas recomendado)
 
 > **Atenção:** O projeto usa **pygame-ce** (Community Edition), não o pygame original. Instalar ambos simultaneamente causa conflito — desinstale `pygame` antes de instalar `pygame-ce`.
 
@@ -311,6 +320,7 @@ pip install -r requirements.txt
 Isso instala:
 - `pygame-ce` 2.5.7 (Community Edition)
 - `numpy` 2.4.4 (processamento rápido de arrays para IA espacial)
+- `numba` (compilador JIT para o kernel de separação de inimigos)
 
 > Se já tiver `pygame` (original) instalado, remova com `pip uninstall pygame` antes.
 
@@ -319,6 +329,7 @@ Isso instala:
 ```bash
 python -c "import pygame; print(f'Pygame-CE versão: {pygame.version.vernum}')"
 python -c "import numpy; print(f'NumPy versão: {numpy.__version__}')"
+python -c "import hot_kernels; print('NUMBA_ACTIVE =', hot_kernels.NUMBA_ACTIVE)"
 ```
 
 ### 5) Executar
@@ -333,35 +344,43 @@ Sem ativar o venv (Windows):
 .\venv\Scripts\python.exe jogo_final.py
 ```
 
-**Primeira execução:** O jogo criará `settings.json` e `save_v2.json` na primeira vez — aguarde alguns segundos para o AssetLoader indexar os arquivos de assets.
+**Primeira execução:** O jogo criará `settings.json` e `save_v2.json` na primeira vez. Na primeira inicialização com Numba, o kernel de separação é compilado e cacheado em disco (~2s extra uma única vez).
 
 ---
 
-## Otimizações e Build opcional com Cython
+## Performance e build
 
 ### Performance base
 
-O jogo já é otimizado via:
-- **Pygame-CE com SDL2** — renderização mais eficiente que pygame original.
-- **Indexação espacial NumPy** — buscas O(1) em grid para colisões e ataques.
-- **Fila assíncrona de spawn** — 6 inimigos por frame evita travamentos.
-- **Cache de frames** — sprites efeito pre-escalados, sem recomputar por frame.
+O jogo já é otimizado em múltiplas camadas:
+
+| Camada | Mecanismo | Benefício |
+|---|---|---|
+| Display | `pygame.DOUBLEBUF` ativo por padrão | Double buffering, reduz tearing |
+| Renderização | Pygame-CE com SDL2 | Mais eficiente que pygame original |
+| Cache de chão | Surface pré-renderizada do tilemap | ~54 blits/frame → 1 blit/frame no fundo |
+| Frame time | Média móvel de 6 frames no `dt` | Elimina micro-stutters do Windows Scheduler |
+| Separação de inimigos | Numba `@njit(cache=True)` | Kernel JIT compilado para código nativo |
+| Consultas espaciais | NumPy vetorizado (`EnemyBatchIndex`) | Buscas O(n) em array sem loop Python |
+| Spawn de hordas | Fila assíncrona (6/frame) | Elimina picos de CPU ao spawnar grupos |
+| Cache de frames | Indexado por `(id(raw_frames), size)` | Sprites efeito pre-escalados, sem recomputar |
 
 ### Build opcional com Cython (avançado)
 
-Para ganho adicional de performance nos kernels de pathfinding e IA, compile a extensão Cython. **Sem ela o jogo funciona normalmente via NumPy puro** — a compilação é totalmente opcional.
+Para ganho adicional de performance nos kernels de pathfinding e IA, compile a extensão Cython. **Sem ela o jogo funciona normalmente via Numba + NumPy** — a compilação é totalmente opcional.
 
 #### Kernels disponíveis
 
 | Kernel | Função | Ganho típico |
 |---|---|---|
-| `radius_indices` | Inimigos dentro de raio (colisão de projéteis, pick-up range) | 4-6x vs Python puro |
-| `nearest_index` | Inimigo mais próximo respeitando máscara de exclusão (targeting) | 4-6x vs Python puro |
-| `batch_directions` | Direção normalizada para N inimigos de uma vez (movimento em batch) | 6-10x vs Python puro |
-| `astar_cy` | Pathfinding A* com variáveis C internas, sem overhead de atributo Python | 4-8x vs Python puro |
-| `positions_in_rect` | Índices dentro de retângulo para ataques AOE (slash, cone) | 4-6x vs Python puro |
+| `radius_indices` | Inimigos dentro de raio (colisão de projéteis, pick-up range) | 4–6× vs Python puro |
+| `nearest_index` | Inimigo mais próximo respeitando máscara de exclusão (targeting) | 4–6× vs Python puro |
+| `batch_directions` | Direção normalizada para N inimigos de uma vez (movimento em batch) | 6–10× vs Python puro |
+| `astar_cy` | Pathfinding A* com variáveis C internas, sem overhead de atributo Python | 4–8× vs Python puro |
+| `positions_in_rect` | Índices dentro de retângulo para ataques AOE (slash, cone) | 4–6× vs Python puro |
+| `enemy_separation` | Separação/repulsão entre inimigos (Numba `@njit`) | 3–6× vs Python puro |
 
-O módulo `hot_kernels.py` detecta automaticamente quais kernels estão compilados e usa fallback NumPy individualmente por função — um `.pyd` antigo com menos kernels funciona sem erros.
+O módulo `hot_kernels.py` detecta automaticamente qual backend está disponível e usa fallback individualmente: Cython → Numba JIT → NumPy → Python puro.
 
 #### Benchmarks medidos (Intel i5, Python 3.12, GCC 15.2 -O3)
 
@@ -379,13 +398,11 @@ pip install -r requirements-dev.txt
 
 #### Opção A: WinLibs GCC (recomendado, ~255 MB)
 
-Alternativa leve ao Visual C++ Build Tools (que exige ~5 GB). Instale via winget:
-
 ```powershell
 winget install BrechtSanders.WinLibs.POSIX.UCRT
 ```
 
-Após instalar, abra um novo terminal (para o PATH ser atualizado) e compile:
+Após instalar, abra um novo terminal e compile:
 
 ```bash
 python build_cython.py build_ext --inplace
@@ -393,25 +410,51 @@ python build_cython.py build_ext --inplace
 
 #### Opção B: Visual C++ Build Tools
 
-Instale o **Visual C++ Build Tools 2019+** do site oficial da Microsoft. Depois:
+Instale o **Visual C++ Build Tools 2019+** e compile:
 
 ```bash
 python build_cython.py build_ext --inplace
 ```
 
-#### Verificar backend ativo
+#### Verificar backends ativos
 
 ```bash
-python -c "import hot_kernels; print('CYTHON_ACTIVE =', hot_kernels.CYTHON_ACTIVE)"
+python -c "import hot_kernels; print('CYTHON_ACTIVE =', hot_kernels.CYTHON_ACTIVE, '| NUMBA_ACTIVE =', hot_kernels.NUMBA_ACTIVE)"
 ```
 
-Saída esperada com todos os kernels compilados:
+---
 
-```
-CYTHON_ACTIVE = True
+## Distribuição
+
+O projeto inclui dois scripts de empacotamento para distribuir o jogo sem Python instalado.
+
+### PyInstaller — empacota com interpretador (mais compatível)
+
+```bash
+pip install -r requirements-dev.txt
+
+python build_dist.py              # pasta dist/UnderWorldHero/
+python build_dist.py --onefile    # executável único dist/UnderWorldHero.exe
+python build_dist.py --clean      # limpa antes de empacotar
 ```
 
-Cada kernel é verificado individualmente via `hasattr`. Se apenas alguns estiverem presentes no `.pyd`, os demais usam fallback NumPy automaticamente.
+**Resultado:** `dist/UnderWorldHero/UnderWorldHero.exe` ou `dist/UnderWorldHero.exe`
+
+### Nuitka — compila para binário nativo (mais rápido)
+
+Nuitka converte Python → C → executável nativo. Inicialização mais rápida, ~10–30% de ganho de velocidade em execução vs PyInstaller.
+
+**Pré-requisito:** compilador C no PATH (WinLibs GCC ou Visual C++ Build Tools).
+
+```bash
+pip install -r requirements-dev.txt
+
+python build_nuitka.py              # pasta dist-nuitka/jogo_final.dist/
+python build_nuitka.py --onefile    # executável único
+python build_nuitka.py --clean      # limpa antes de compilar
+```
+
+**Resultado:** `dist-nuitka/jogo_final.dist/jogo_final.exe` ou `dist-nuitka/jogo_final.exe`
 
 ---
 
@@ -430,29 +473,6 @@ Reconfiguráveis em **Configurações → Controles**:
 | Selecionar upgrade | 1 / 2 / 3 / 4 / 5 ou clique |
 | Abrir inventário / equipamentos | I |
 | Abrir status do personagem | C |
-
----
-
-## Sobre Pygame-CE (Community Edition)
-
-### Por que Pygame-CE?
-
-Este projeto usa **Pygame-CE (Community Edition)** em vez do Pygame original pelos seguintes benefícios:
-
-| Critério | Pygame Original | Pygame-CE |
-|---|---|---|
-| Manutenção | Inativa desde 2009 | Comunitária, ativa |
-| Performance | Baseline | 5-15% mais rápido |
-| SDL2 | 2.28 | 2.32+ (otimizações) |
-| Python 3.12+ | Limitado | Full support |
-| GPU acceleration | Não | SDL3 (roadmap 2025) |
-| API | Compatível | 100% drop-in |
-
-### Impacto no jogo
-
-- **FPS consistente** com 100+ inimigos em cena.
-- **Menos stutter** em transições e efeitos visuais.
-- **Melhor SDL2** com renderização otimizada para lotes de sprites.
 
 ---
 
@@ -488,7 +508,7 @@ Comportamento de fallback:
 
 - Se a resolução salva não couber no monitor atual → usa resolução nativa.
 - Se o monitor não reportar lista de modos → usa lista padrão até 4K.
-- Se `pygame.display.set_mode` falhar com as flags escolhidas → abre em janela simples.
+- Se `pygame.display.set_mode` falhar com as flags escolhidas → abre em janela simples com double buffering.
 
 ---
 
@@ -499,7 +519,7 @@ Comportamento de fallback:
 - FPS e tempo médio de frame.
 - Contagem de inimigos, projéteis e partículas em tela.
 - Consultas espaciais por frame e taxa de cache hit do A*.
-- Backend ativo: Cython ON / NumPy fallback.
+- Backend ativo: Cython ON / Numba ON / NumPy fallback.
 
 ### Benchmark offline
 
@@ -520,13 +540,17 @@ underworld-hero-survivor/
 ├── hud.py                   # HUD e interface in-game
 ├── upgrades.py              # Upgrades, sinergia e evoluções
 ├── drops.py                 # Gemas e drops
-├── forest_biome.py          # Bioma floresta (tilemap)
-├── dungeon_biome.py         # Bioma dungeon (decorações)
+├── forest_biome.py          # Bioma floresta (tilemap + decorações animadas)
+├── dungeon_biome.py         # Bioma dungeon (decorações de chão)
+├── volcano_biome.py         # Bioma vulcão (rochas, geiseres, colisões)
+├── moon_biome.py            # Bioma lua (decorações lunares)
 ├── spatial_index.py         # Indexação espacial e pathfinding
-├── hot_kernels.py           # Kernels NumPy / Cython
+├── hot_kernels.py           # Kernels NumPy / Numba / Cython
 ├── hot_kernels_cy.pyx       # Extensão Cython (opcional)
 ├── benchmark_spatial.py     # Benchmark de performance
 ├── build_cython.py          # Script de build Cython
+├── build_dist.py            # Script de empacotamento PyInstaller
+├── build_nuitka.py          # Script de compilação Nuitka (binário nativo)
 ├── combat/
 │   └── projectiles.py       # Projéteis e explosões
 ├── assets/
@@ -549,32 +573,9 @@ underworld-hero-survivor/
 │       └── newItens/        # Ícones de armaduras (capacete/, armor/, calças/, botas/)
 ├── settings.json            # Configurações salvas
 ├── save_v2.json             # Progresso global
-├── requirements.txt         # Dependências runtime (pygame-ce, numpy)
-└── requirements-dev.txt     # Dependências de build (Cython)
+├── requirements.txt         # Dependências runtime (pygame-ce, numpy, numba)
+└── requirements-dev.txt     # Dependências de build (Cython, PyInstaller)
 ```
-
----
-
-## Roadmap
-
-- [ ] Novos biomas com mecânicas exclusivas.
-- [x] Boss Agis — invocação por selo, ataque à distância e magia em área.
-- [ ] Novos chefes com fases e ataques adicionais.
-- [ ] Sistema de conquistas com recompensas visuais.
-- [x] Sistema de balanceamento contínuo de progressão e economia (`balance.py`).
-- [ ] Build distribuível para Windows (.exe).
-- [x] Suporte a controle gamepad.
-- [x] Migrar para Pygame-CE (concluído com sucesso).
-- [x] Aba ARMADURAS na loja com 46 itens em 4 categorias (capacetes, armaduras, calças, botas).
-- [x] Sistema de resistência a dano por armaduras equipadas.
-- [x] Drag-and-drop para todos os slots de equipamento (arma, escudo, capacete, armadura, calças, botas).
-- [x] Painel de status (C) e Sala do Herói alinhados às zonas das imagens de UI.
-- [x] Árvore de talentos com painel expandido para acomodar todos os talentos por caminho.
-- [x] 218 upgrades divididos em 8 categorias com sistema de sinergia.
-- [x] Seleção de 5 upgrades por nível (teclas 1–5).
-- [x] Novas mecânicas de run: lifesteal, multiplicador de ouro, bônus de XP.
-- [ ] SDL3 quando Pygame-CE lançar (GPU acceleration e melhor performance).
-- [ ] Multiplayer local (co-op para 2 jogadores).
 
 ---
 
@@ -620,7 +621,11 @@ python -c "import pygame; pygame.init(); print('OK')"
    ```bash
    python build_cython.py build_ext --inplace
    ```
-4. **Fechar aplicações em background** (Discord, Chrome, etc).
+4. **Verificar Numba ativo** (`NUMBA_ACTIVE = True`):
+   ```bash
+   python -c "import hot_kernels; print(hot_kernels.NUMBA_ACTIVE)"
+   ```
+5. **Fechar aplicações em background** (Discord, Chrome, etc).
 
 ### Erro ao compilar Cython no Windows
 
@@ -648,7 +653,34 @@ python build_cython.py build_ext --inplace
 gcc --version
 ```
 
-Se retornar a versão, o compilador está configurado corretamente.
+---
+
+## Roadmap
+
+- [ ] Novos biomas com mecânicas exclusivas.
+- [x] Boss Agis — invocação por selo, ataque à distância e magia em área.
+- [ ] Novos chefes com fases e ataques adicionais.
+- [ ] Sistema de conquistas com recompensas visuais.
+- [x] Sistema de balanceamento contínuo de progressão e economia (`balance.py`).
+- [x] Build distribuível para Windows (.exe) via PyInstaller (`build_dist.py`) e Nuitka (`build_nuitka.py`).
+- [x] Suporte a controle gamepad.
+- [x] Migrar para Pygame-CE (concluído com sucesso).
+- [x] Aba ARMADURAS na loja com 46 itens em 4 categorias (capacetes, armaduras, calças, botas).
+- [x] Sistema de resistência a dano por armaduras equipadas.
+- [x] Drag-and-drop para todos os slots de equipamento (arma, escudo, capacete, armadura, calças, botas).
+- [x] Painel de status (C) e Sala do Herói alinhados às zonas das imagens de UI.
+- [x] Árvore de talentos com painel expandido para acomodar todos os talentos por caminho.
+- [x] 218 upgrades divididos em 8 categorias com sistema de sinergia.
+- [x] Seleção de 5 upgrades por nível (teclas 1–5).
+- [x] Novas mecânicas de run: lifesteal, multiplicador de ouro, bônus de XP.
+- [x] Numba JIT no kernel de separação de inimigos (`hot_kernels.py`).
+- [x] Double buffering (`pygame.DOUBLEBUF`) para reduzir tearing.
+- [x] Cache de chão — tilemap pré-renderizado (~54 blits/frame → 1 blit/frame).
+- [x] Frame time smoothing — média móvel de 6 frames elimina micro-stutters.
+- [x] Bioma Vulcão com decorações, geiseres e inimigos exclusivos.
+- [x] Bioma Lua com decorações temáticas.
+- [ ] SDL3 quando Pygame-CE lançar (GPU acceleration e melhor performance).
+- [ ] Multiplayer local (co-op para 2 jogadores).
 
 ---
 
@@ -677,4 +709,3 @@ Consulte [LICENSE](LICENSE).
 <p align="center">
   <img src="screenshots/gameplay_readme.gif" alt="Gameplay do UnderWorld Hero" width="900">
 </p>
-

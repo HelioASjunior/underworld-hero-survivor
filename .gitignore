@@ -19,5 +19,20 @@ run_slot_1.json
 !settings.json
 MONSTROS.txt
 POSSIVEIS_MELHORIAS.TXT
+PLANO_C++.TXT
 
 _debug_frames/
+
+# PyInstaller
+dist/
+build/
+
+# Nuitka
+dist-nuitka/
+*.build/
+*.dist/
+*.onefile-build/
+jogo_final.exe
+
+# Documentação de build (gerada localmente)
+COMO_COMPILAR_NUITKA.txt

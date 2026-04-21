@@ -3,15 +3,18 @@ hot_kernels.py – Fachada para kernels de performance do UnderWorld Hero.
 
 Tenta carregar hot_kernels_cy (Cython compilado). Se não estiver disponível,
 cai automaticamente em implementações NumPy equivalentes.
+Tenta carregar numba para JIT de kernels adicionais (enemy_separation).
 
 Funções públicas:
-    radius_indices(positions, cx, cy, radius_sq)  → ndarray[int64]
-    nearest_index(positions, cx, cy, allowed_mask) → int
-    batch_directions(positions, tx, ty, out)       → None  (escreve em out)
-    astar(blocked_set, sx, sy, gx, gy, ...)       → list[(int,int)]
-    positions_in_rect(positions, rx, ry, rw, rh)  → ndarray[int64]
+    radius_indices(positions, cx, cy, radius_sq)      → ndarray[int64]
+    nearest_index(positions, cx, cy, allowed_mask)    → int
+    batch_directions(positions, tx, ty, out)           → None  (escreve em out)
+    astar(blocked_set, sx, sy, gx, gy, ...)           → list[(int,int)]
+    positions_in_rect(positions, rx, ry, rw, rh)      → ndarray[int64]
+    enemy_separation(positions, sep_dist, force_dt)   → ndarray (N,2) deltas
 
 CYTHON_ACTIVE: bool — True quando a extensão nativa está em uso.
+NUMBA_ACTIVE:  bool — True quando numba JIT está disponível.
 """
 
 import heapq
@@ -21,7 +24,18 @@ import importlib.util
 
 import numpy as np
 
-# ─── Detecção do backend ──────────────────────────────────────────────────────
+# ─── Detecção do Numba ────────────────────────────────────────────────────────
+
+NUMBA_ACTIVE = False
+_numba = None
+
+try:
+    import numba as _numba
+    NUMBA_ACTIVE = True
+except ImportError:
+    pass
+
+# ─── Detecção do backend Cython ──────────────────────────────────────────────
 
 CYTHON_ACTIVE = False
 _cy = None
@@ -171,3 +185,63 @@ def positions_in_rect(positions, rx: float, ry: float, rw: float, rh: float):
     mask = ((positions[:, 0] >= rx) & (positions[:, 0] <= rx + rw) &
             (positions[:, 1] >= ry) & (positions[:, 1] <= ry + rh))
     return np.nonzero(mask)[0]
+
+
+# ─── 6. enemy_separation (Numba JIT / fallback Python) ───────────────────────
+
+if NUMBA_ACTIVE:
+    @_numba.njit(cache=True)
+    def _separation_jit(positions, sep_dist_sq: float, force_dt: float):
+        """
+        Kernel JIT: calcula deltas de separação para N inimigos.
+        positions: float32 (N, 2)  — posições X,Y
+        Retorna:   float32 (N, 2)  — deltas a somar em cada posição
+        """
+        n = len(positions)
+        deltas = np.zeros((n, 2), dtype=np.float32)
+        for i in range(n):
+            for j in range(i + 1, n):
+                dx = positions[i, 0] - positions[j, 0]
+                dy = positions[i, 1] - positions[j, 1]
+                dist_sq = dx * dx + dy * dy
+                if 0.0 < dist_sq < sep_dist_sq:
+                    dist = math.sqrt(dist_sq)
+                    inv = force_dt / dist
+                    deltas[i, 0] += dx * inv
+                    deltas[i, 1] += dy * inv
+                    deltas[j, 0] -= dx * inv
+                    deltas[j, 1] -= dy * inv
+        return deltas
+
+
+def enemy_separation(positions, sep_dist: float, force_dt: float):
+    """
+    Calcula deltas de separação/repulsão entre inimigos.
+
+    positions  — np.float32 (N, 2) com posições X,Y
+    sep_dist   — distância mínima de separação (pixels)
+    force_dt   — SEP_FORCE * dt  (força já multiplicada pelo delta de tempo)
+
+    Retorna np.float32 (N, 2) com deltas a adicionar a cada posição.
+    Usa Numba JIT quando disponível, fallback Python puro caso contrário.
+    """
+    if NUMBA_ACTIVE:
+        return _separation_jit(positions, sep_dist * sep_dist, force_dt)
+
+    # Fallback Python puro (mesma lógica, sem JIT)
+    n = len(positions)
+    deltas = np.zeros((n, 2), dtype=np.float32)
+    sep_dist_sq = sep_dist * sep_dist
+    for i in range(n):
+        for j in range(i + 1, n):
+            dx = float(positions[i, 0] - positions[j, 0])
+            dy = float(positions[i, 1] - positions[j, 1])
+            dist_sq = dx * dx + dy * dy
+            if 0.0 < dist_sq < sep_dist_sq:
+                dist = math.sqrt(dist_sq)
+                inv = force_dt / dist
+                deltas[i, 0] += dx * inv
+                deltas[i, 1] += dy * inv
+                deltas[j, 0] -= dx * inv
+                deltas[j, 1] -= dy * inv
+    return deltas

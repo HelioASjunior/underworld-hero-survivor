@@ -18,17 +18,17 @@ Uso:
 
 class BalanceConfig:
     # ── XP ──────────────────────────────────────────────────────────────────
-    XP_BASE: int   = 80    # XP necessário para passar do nível 1 → 2
-    XP_LINEAR: int = 22    # incremento linear por nível
-    XP_EXP_A: float = 6.0 # coeficiente da componente exponencial
-    XP_EXP_E: float = 1.12 # expoente (use _pow_f() internamente)
+    XP_BASE: int   = 140   # XP necessário para passar do nível 1 → 2
+    XP_LINEAR: int = 38    # incremento linear por nível
+    XP_EXP_A: float = 9.0 # coeficiente da componente exponencial
+    XP_EXP_E: float = 1.18 # expoente (use _pow_f() internamente)
 
     GEM_XP_BASE: int = 10  # XP por gema coletada (base, sem modificadores)
 
     # ── Escala de inimigos por tempo ─────────────────────────────────────────
-    SCALE_PER_MIN: float = 0.20  # +20 % de HP/DMG por minuto de jogo
+    SCALE_PER_MIN: float = 0.26  # +26 % de HP/DMG por minuto de jogo
     SCALE_MIN: float     = 1.0   # mínimo (nunca enfraquece)
-    SCALE_MAX: float     = 6.0   # teto para não tornar o fim impraticável
+    SCALE_MAX: float     = 9.0   # teto para não tornar o fim impraticável
 
     # ── Spawn ────────────────────────────────────────────────────────────────
     SPAWN_BASE:  float = 0.20    # intervalo inicial entre spawns (s)
@@ -77,10 +77,10 @@ def xp_to_level(level: int) -> int:
     onde n = level - 1.
 
     Exemplos (padrão):
-        nível  1 →  80 XP
-        nível  5 → 198 XP
-        nível 10 → 322 XP
-        nível 20 → 593 XP
+        nível  1 → 140 XP
+        nível  5 → 338 XP
+        nível 10 → 594 XP
+        nível 20 → 1122 XP
     """
     c = BalanceConfig
     n: int = level - 1
