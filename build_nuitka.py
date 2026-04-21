@@ -119,7 +119,7 @@ def docker_available():
         return False
 
 
-def build_linux_docker(out_dir):
+def build_linux_docker(out_dir, onefile=False):
     print("\n=== BUILD LINUX (Docker) ===")
 
     dockerfile = os.path.join(BASE_DIR, "Dockerfile.linux")
@@ -141,15 +141,19 @@ def build_linux_docker(out_dir):
     else:
         docker_mount = BASE_DIR
 
+    env_flag = ["-e", "LINUX_ONEFILE=1"] if onefile else []
+
     # Roda o build Nuitka dentro do container com o projeto montado
     run([
         "docker", "run", "--rm",
         "-v", f"{docker_mount}:/game",
+        *env_flag,
         DOCKER_IMAGE,
         "python", "/game/build_nuitka_linux.py"
     ])
 
-    print(f"\nOK Linux: {linux_out}/jogo_final.dist/")
+    mode = "onefile" if onefile else "jogo_final.dist/"
+    print(f"\nOK Linux: {linux_out}/{mode}")
 
 
 def write_leiame(out_dir):
@@ -207,9 +211,11 @@ OBSERVACOES
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--onefile", action="store_true")
-    parser.add_argument("--clean",   action="store_true")
-    parser.add_argument("--linux",   action="store_true", help="Tambem builda para Linux via Docker")
+    parser.add_argument("--onefile",    action="store_true", help="Windows onefile")
+    parser.add_argument("--clean",      action="store_true", help="Apaga dist-nuitka antes de compilar")
+    parser.add_argument("--linux",      action="store_true", help="Windows + Linux via Docker")
+    parser.add_argument("--linux-only", action="store_true", help="Apenas Linux via Docker (sem Windows)")
+    parser.add_argument("--linux-onefile", action="store_true", help="Linux em modo onefile (binario unico)")
     args = parser.parse_args()
 
     out_dir = os.path.join(BASE_DIR, "dist-nuitka")
@@ -220,13 +226,17 @@ def main():
 
     os.makedirs(out_dir, exist_ok=True)
 
-    # --- Windows ---
-    build_windows(out_dir, onefile=args.onefile)
+    do_linux = args.linux or args.linux_only
+    linux_onefile = args.linux_onefile
+
+    # --- Windows (pulado se --linux-only) ---
+    if not args.linux_only:
+        build_windows(out_dir, onefile=args.onefile)
 
     # --- Linux via Docker (opt-in) ---
-    if args.linux:
+    if do_linux:
         if docker_available():
-            build_linux_docker(out_dir)
+            build_linux_docker(out_dir, onefile=linux_onefile)
         else:
             print("\nAVISO: Docker nao disponivel — inicie o Docker Desktop e tente novamente.")
 
@@ -236,9 +246,11 @@ def main():
         write_leiame(linux_out)
 
     print("\n=== BUILD CONCLUIDO ===")
-    print(f"  Windows: {out_dir}/jogo_final.dist/{EXE_NAME}.exe")
-    if args.linux:
-        print(f"  Linux:   {out_dir}/udw-linux/jogo_final.dist/")
+    if not args.linux_only:
+        print(f"  Windows: {out_dir}/jogo_final.dist/{EXE_NAME}.exe")
+    if do_linux:
+        result_path = "UnderWorld Hero" if linux_onefile else "jogo_final.dist/"
+        print(f"  Linux:   {out_dir}/udw-linux/{result_path}")
         print(f"  Leiame:  {out_dir}/udw-linux/leiame.txt")
 
 

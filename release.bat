@@ -2,11 +2,13 @@
 :: release.bat — Gera executavel do jogo para distribuicao
 ::
 :: Uso:
-::   release.bat               Windows (pasta com todos os arquivos)
-::   release.bat --onefile     Windows (executavel unico)
-::   release.bat --linux       Windows + Linux
-::   release.bat --onefile --linux   Windows onefile + Linux
-::   release.bat --clean       Apaga build anterior antes de compilar
+::   release.bat                          Windows (pasta com todos os arquivos)
+::   release.bat --onefile                Windows (executavel unico)
+::   release.bat --linux                  Windows + Linux (pasta)
+::   release.bat --linux --linux-onefile  Windows + Linux (onefile)
+::   release.bat --linux-only             So Linux (pasta)
+::   release.bat --linux-only --linux-onefile  So Linux (onefile)
+::   release.bat --clean                  Apaga build anterior antes de compilar
 
 cd /d "%~dp0"
 

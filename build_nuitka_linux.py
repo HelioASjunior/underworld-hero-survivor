@@ -1,6 +1,7 @@
 """
 build_nuitka_linux.py — Roda DENTRO do container Docker para gerar o binario Linux.
 Nao execute diretamente no Windows. E invocado por build_nuitka.py via docker run.
+Variavel de ambiente LINUX_ONEFILE=1 ativa modo --onefile.
 """
 
 import os
@@ -9,6 +10,7 @@ import subprocess
 
 BASE_DIR = "/game"
 OUT_DIR  = "/game/dist-nuitka/udw-linux"
+onefile  = os.environ.get("LINUX_ONEFILE", "0") == "1"
 
 cmd = [
     sys.executable, "-m", "nuitka",
@@ -17,7 +19,7 @@ cmd = [
     "--follow-imports",
     "--noinclude-numba-mode=nofollow",
     "--module-parameter=numba-disable-jit=yes",
-    "--standalone",
+    "--onefile" if onefile else "--standalone",
     f"--include-data-dir={BASE_DIR}/assets=assets",
     f"--include-data-file={BASE_DIR}/settings.json=settings.json",
 ]
