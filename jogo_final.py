@@ -6,6 +6,8 @@ import json
 import threading
 from datetime import datetime, timedelta
 import balance as _bal
+from profile_manager import ProfileManager, COUNTRIES, COUNTRY_BY_CODE
+import achievements as _ach
 
 from characters import CharacterCombatContext, CharacterDependencies, create_player
 import hud as dark_hud
@@ -398,11 +400,56 @@ ACHIEVEMENTS = {
     "ÍMÃ DE XP": {"type": "upg", "name": "ÍMÃ DE XP", "desc": "Sobreviva 5 min totais", "req": lambda s: s["total_time"] >= 300},
 }
 
+# ── Sistema de Perfis ─────────────────────────────────────────────────────
+profile_mgr: "ProfileManager | None" = None
+achievements_data: dict = {}
+_achievement_notifs: list = []   # [[ach_def, remaining_seconds], ...]
+_ach_icon_cache: dict = {}       # {filename: pygame.Surface}
+
+def _active_save_file() -> str:
+    if profile_mgr is not None and profile_mgr.has_active_profile():
+        return profile_mgr.get_save_path("save_v2.json")
+    return SAVE_FILE
+
+def _active_run_slot_file(slot_index: int) -> str:
+    if profile_mgr is not None and profile_mgr.has_active_profile():
+        return profile_mgr.get_save_path(f"run_slot_{slot_index + 1}.json")
+    idx = max(0, min(len(RUN_SLOT_FILES) - 1, slot_index))
+    return RUN_SLOT_FILES[idx]
+
+def _reload_achievements():
+    global achievements_data
+    if profile_mgr is not None and profile_mgr.has_active_profile():
+        achievements_data = _ach.load_achievements(profile_mgr.get_profile_dir())
+        # Sync hardcore stage from save_data
+        achievements_data["hardcore_stages_unlocked"] = max(
+            achievements_data.get("hardcore_stages_unlocked", 1),
+            save_data["hardcore_stages"].get("unlocked", 1),
+        )
+    else:
+        achievements_data = _ach._default_data()
+
+def _check_achievements():
+    global achievements_data, _achievement_notifs
+    if not (profile_mgr and profile_mgr.has_active_profile()):
+        return
+    combined = {
+        **save_data["stats"],
+        "total_gold_accumulated": achievements_data.get("total_gold_accumulated", 0.0),
+        "hardcore_stages_unlocked": achievements_data.get("hardcore_stages_unlocked", 1),
+    }
+    new = _ach.check_new_achievements(combined, achievements_data)
+    if new:
+        for a in new:
+            _achievement_notifs.append([a, 5.0])
+        _ach.save_achievements(profile_mgr.get_profile_dir(), achievements_data)
+
 def load_save():
     global save_data
-    if os.path.exists(SAVE_FILE):
+    _path = _active_save_file()
+    if os.path.exists(_path):
         try:
-            with open(SAVE_FILE, "r") as f:
+            with open(_path, "r") as f:
                 loaded = json.load(f)
                 # Merge seguro para não perder chaves novas em updates
                 if "gold" in loaded: save_data["gold"] = loaded["gold"]
@@ -519,13 +566,12 @@ def update_mission_progress(m_type, amount, is_absolute=False):
             save_game()
 
 def save_game():
-    with open(SAVE_FILE, "w") as f:
+    with open(_active_save_file(), "w") as f:
         json.dump(save_data, f)
 
 
 def get_run_slot_path(slot_index):
-    idx = max(0, min(len(RUN_SLOT_FILES) - 1, slot_index))
-    return RUN_SLOT_FILES[idx]
+    return _active_run_slot_file(slot_index)
 
 
 def save_run_slot(slot_index=0):
@@ -3601,6 +3647,501 @@ def show_loading_screen(screen, load_fn, font_path=None):
         clock.tick(60)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FUNÇÕES DE INTERFACE — PERFIS / CONQUISTAS
+# ═══════════════════════════════════════════════════════════════════════════
+
+_CHAR_NAMES = ["Guerreiro", "Caçador", "Mago", "Vampire", "Demônio", "Golem"]
+_NUM_CHARS = 6
+
+
+def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
+                         mode, sel_idx, new_name, new_ci, new_char, name_focus, del_confirm):
+    """Renderiza a tela de seleção / criação de perfil."""
+    sw, sh = screen.get_size()
+
+    # Fundo escuro semitransparente
+    bg = pygame.Surface((sw, sh), pygame.SRCALPHA)
+    bg.fill((8, 6, 14, 245))
+    screen.blit(bg, (0, 0))
+
+    # Título
+    title_s = font_l.render("SELECIONE SEU PERFIL", True, (220, 190, 80))
+    screen.blit(title_s, title_s.get_rect(centerx=sw // 2, top=int(sh * 0.05)))
+
+    GOLD   = (220, 190, 80)
+    SILVER = (180, 175, 160)
+    DIM    = (80, 75, 70)
+    RED    = (200, 60, 60)
+    GREEN  = (60, 180, 80)
+    PURPLE = (160, 100, 220)
+
+    if mode == "create":
+        # ── Formulário de criação ─────────────────────────────────────────
+        panel_w, panel_h = int(sw * 0.44), int(sh * 0.62)
+        panel_x = (sw - panel_w) // 2
+        panel_y = int(sh * 0.18)
+        panel_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+        panel_surf.fill((16, 12, 22, 230))
+        screen.blit(panel_surf, (panel_x, panel_y))
+        pygame.draw.rect(screen, GOLD, pygame.Rect(panel_x, panel_y, panel_w, panel_h), 2, border_radius=10)
+
+        cy = panel_y + int(panel_h * 0.08)
+        lbl_create = font_m.render("CRIAR NOVO PERFIL", True, GOLD)
+        screen.blit(lbl_create, lbl_create.get_rect(centerx=sw // 2, top=cy))
+
+        # Nome
+        cy += int(panel_h * 0.16)
+        lbl_name = font_s.render("Nome (até 16 caracteres):", True, SILVER)
+        screen.blit(lbl_name, (panel_x + 20, cy))
+        cy += 26
+        inp_rect = pygame.Rect(panel_x + 20, cy, panel_w - 40, 38)
+        pygame.draw.rect(screen, (28, 22, 40), inp_rect, border_radius=6)
+        border_col = GOLD if name_focus else SILVER
+        pygame.draw.rect(screen, border_col, inp_rect, 2, border_radius=6)
+        cursor = "|" if (pygame.time.get_ticks() // 500) % 2 == 0 and name_focus else ""
+        name_surf = font_m.render(new_name + cursor, True, (240, 230, 200))
+        screen.blit(name_surf, (inp_rect.x + 8, inp_rect.y + 4))
+
+        # País
+        cy += 56
+        lbl_country = font_s.render("País de Origem:", True, SILVER)
+        screen.blit(lbl_country, (panel_x + 20, cy))
+        cy += 26
+        country_name = COUNTRIES[new_ci][1]
+        arr_l = pygame.Rect(panel_x + 20, cy, 30, 30)
+        arr_r = pygame.Rect(panel_x + 20 + 200, cy, 30, 30)
+        for _ar, _ch in ((arr_l, "<"), (arr_r, ">")):
+            _hov = _ar.collidepoint(m_pos)
+            pygame.draw.rect(screen, (80, 60, 100) if _hov else (50, 38, 68), _ar, border_radius=5)
+            _cs = font_s.render(_ch, True, GOLD)
+            screen.blit(_cs, _cs.get_rect(center=_ar.center))
+        c_surf = font_m.render(country_name, True, (200, 210, 240))
+        screen.blit(c_surf, c_surf.get_rect(left=arr_l.right + 8, centery=arr_l.centery))
+        # Guarda rects para click (via attr do módulo)
+        _draw_profile_select._arr_country_l = arr_l
+        _draw_profile_select._arr_country_r = arr_r
+
+        # Avatar
+        cy += 50
+        lbl_avatar = font_s.render("Personagem Avatar:", True, SILVER)
+        screen.blit(lbl_avatar, (panel_x + 20, cy))
+        cy += 26
+        av_l = pygame.Rect(panel_x + 20, cy, 30, 30)
+        av_r = pygame.Rect(panel_x + 20 + 200, cy, 30, 30)
+        for _ar, _ch in ((av_l, "<"), (av_r, ">")):
+            _hov = _ar.collidepoint(m_pos)
+            pygame.draw.rect(screen, (80, 60, 100) if _hov else (50, 38, 68), _ar, border_radius=5)
+            _cs = font_s.render(_ch, True, GOLD)
+            screen.blit(_cs, _cs.get_rect(center=_ar.center))
+        av_name = _CHAR_NAMES[new_char % _NUM_CHARS]
+        av_surf = font_m.render(av_name, True, (240, 200, 120))
+        screen.blit(av_surf, av_surf.get_rect(left=av_l.right + 8, centery=av_l.centery))
+        _draw_profile_select._arr_avatar_l = av_l
+        _draw_profile_select._arr_avatar_r = av_r
+
+        # Botões
+        cy = panel_y + panel_h - 60
+        btn_w = int(panel_w * 0.38)
+        btn_h = 44
+        btn_criar = pygame.Rect((sw // 2) - btn_w - 8, cy, btn_w, btn_h)
+        btn_voltar = pygame.Rect((sw // 2) + 8, cy, btn_w, btn_h)
+        can_create = bool(new_name.strip())
+        for _br, _txt, _col, _active in [
+            (btn_criar, "CRIAR", GREEN, can_create),
+            (btn_voltar, "VOLTAR", RED, profile_mgr and profile_mgr.has_profiles()),
+        ]:
+            if not _active:
+                pygame.draw.rect(screen, (40, 40, 40), _br, border_radius=8)
+                _ts = font_m.render(_txt, True, DIM)
+            else:
+                _hov = _br.collidepoint(m_pos)
+                pygame.draw.rect(screen, tuple(min(255, c + 30) for c in _col) if _hov else _col, _br, border_radius=8)
+                _ts = font_m.render(_txt, True, (240, 235, 220))
+            screen.blit(_ts, _ts.get_rect(center=_br.center))
+        _draw_profile_select._btn_criar = btn_criar
+        _draw_profile_select._btn_voltar_create = btn_voltar
+
+        hint = font_s.render("Enter para criar  •  ESC para voltar", True, DIM)
+        screen.blit(hint, hint.get_rect(centerx=sw // 2, top=panel_y + panel_h + 12))
+
+    else:
+        # ── Lista de perfis ───────────────────────────────────────────────
+        profiles = profile_mgr.get_all_profiles() if profile_mgr else []
+        n = len(profiles)
+        CARD_W, CARD_H = min(int(sw * 0.18), 260), min(int(sh * 0.38), 280)
+        spacing = max(12, int(sw * 0.014))
+        total_w = n * CARD_W + (n - 1) * spacing
+        start_x = (sw - total_w) // 2
+        card_y = int(sh * 0.22)
+
+        for ci, p in enumerate(profiles):
+            cx = start_x + ci * (CARD_W + spacing)
+            is_sel = (ci == sel_idx)
+            card_r = pygame.Rect(cx, card_y, CARD_W, CARD_H)
+            bg_col = (26, 20, 40) if is_sel else (16, 12, 24)
+            pygame.draw.rect(screen, bg_col, card_r, border_radius=10)
+            brd_col = GOLD if is_sel else (60, 55, 80)
+            pygame.draw.rect(screen, brd_col, card_r, 2 if not is_sel else 3, border_radius=10)
+
+            _cy = card_r.top + 14
+            # Nickname
+            nk = font_m.render(p.get("nickname", "?"), True, GOLD if is_sel else SILVER)
+            screen.blit(nk, nk.get_rect(centerx=card_r.centerx, top=_cy))
+            _cy += 36
+            # Avatar char
+            av = font_s.render(_CHAR_NAMES[p.get("avatar_char", 0) % _NUM_CHARS], True, (160, 140, 200))
+            screen.blit(av, av.get_rect(centerx=card_r.centerx, top=_cy))
+            _cy += 24
+            # País
+            country_code = p.get("country", "BR")
+            country_name = COUNTRY_BY_CODE.get(country_code, country_code)
+            ct = font_s.render(country_name, True, (140, 170, 200))
+            screen.blit(ct, ct.get_rect(centerx=card_r.centerx, top=_cy))
+            _cy += 28
+            pygame.draw.line(screen, (50, 45, 70), (card_r.left + 12, _cy), (card_r.right - 12, _cy))
+            _cy += 8
+
+            # Tempo de jogo
+            playtime = ProfileManager.format_playtime(p.get("total_playtime", 0.0))
+            pt = font_s.render(playtime, True, (120, 160, 120))
+            screen.blit(pt, pt.get_rect(centerx=card_r.centerx, top=_cy))
+            _cy += 22
+
+            # Conquistas
+            if achievements_data:
+                total_ach = len(_ach.ACHIEVEMENT_DEFS)
+                unlocked_count = len(achievements_data.get("unlocked", []))
+                ach_s = font_s.render(f"Conquistas: {unlocked_count}/{total_ach}", True, (180, 140, 80))
+                screen.blit(ach_s, ach_s.get_rect(centerx=card_r.centerx, top=_cy))
+
+            # Confirmação de delete
+            if del_confirm == p["id"]:
+                del_ov = pygame.Surface((CARD_W, CARD_H), pygame.SRCALPHA)
+                del_ov.fill((60, 0, 0, 200))
+                screen.blit(del_ov, (cx, card_y))
+                dl1 = font_s.render("Deletar perfil?", True, (255, 100, 100))
+                screen.blit(dl1, dl1.get_rect(centerx=card_r.centerx, top=card_r.top + 50))
+                dl2 = font_s.render("Clique DELETAR p/ confirmar", True, (200, 150, 150))
+                screen.blit(dl2, dl2.get_rect(centerx=card_r.centerx, top=card_r.top + 80))
+
+        # Botões
+        btn_y = card_y + CARD_H + 24
+        btn_w = int(sw * 0.14)
+        btn_h = 46
+        btns = []
+        if profiles:
+            b_play  = pygame.Rect((sw // 2) - btn_w - 80, btn_y, btn_w, btn_h)
+            b_del   = pygame.Rect((sw // 2) + 8, btn_y, btn_w, btn_h)
+            b_new   = pygame.Rect((sw // 2) + btn_w + 90, btn_y, btn_w, btn_h)
+            btns = [(b_play, "JOGAR", GREEN), (b_del, "DELETAR", RED), (b_new, "NOVO PERFIL", PURPLE)]
+        else:
+            b_new = pygame.Rect((sw - btn_w) // 2, btn_y, btn_w, btn_h)
+            btns = [(b_new, "CRIAR PERFIL", GREEN)]
+
+        for _br, _txt, _col in btns:
+            _hov = _br.collidepoint(m_pos)
+            pygame.draw.rect(screen, tuple(min(255, c + 30) for c in _col) if _hov else _col, _br, border_radius=8)
+            _ts = font_m.render(_txt, True, (240, 235, 220))
+            screen.blit(_ts, _ts.get_rect(center=_br.center))
+
+        _draw_profile_select._btns_list = btns
+        nav_hint = font_s.render("← → para navegar  •  Enter para jogar", True, DIM)
+        screen.blit(nav_hint, nav_hint.get_rect(centerx=sw // 2, top=btn_y + btn_h + 14))
+
+
+def _handle_profile_select_click(click_pos, mode, sel_idx, new_name, new_ci, new_char, name_focus, del_confirm):
+    """Processa cliques na tela de perfil. Retorna tupla atualizada ou None."""
+    profiles = profile_mgr.get_all_profiles() if profile_mgr else []
+
+    if mode == "create":
+        # Verifica setas de país
+        if hasattr(_draw_profile_select, "_arr_country_l") and _draw_profile_select._arr_country_l.collidepoint(click_pos):
+            return (mode, sel_idx, new_name, (new_ci - 1) % len(COUNTRIES), new_char, name_focus, del_confirm)
+        if hasattr(_draw_profile_select, "_arr_country_r") and _draw_profile_select._arr_country_r.collidepoint(click_pos):
+            return (mode, sel_idx, new_name, (new_ci + 1) % len(COUNTRIES), new_char, name_focus, del_confirm)
+        # Setas de avatar
+        if hasattr(_draw_profile_select, "_arr_avatar_l") and _draw_profile_select._arr_avatar_l.collidepoint(click_pos):
+            return (mode, sel_idx, new_name, new_ci, (new_char - 1) % _NUM_CHARS, name_focus, del_confirm)
+        if hasattr(_draw_profile_select, "_arr_avatar_r") and _draw_profile_select._arr_avatar_r.collidepoint(click_pos):
+            return (mode, sel_idx, new_name, new_ci, (new_char + 1) % _NUM_CHARS, name_focus, del_confirm)
+        # Criar
+        if hasattr(_draw_profile_select, "_btn_criar") and _draw_profile_select._btn_criar.collidepoint(click_pos):
+            if new_name.strip() and profile_mgr:
+                country_code = COUNTRIES[new_ci][0]
+                profile_mgr.create_profile(new_name.strip(), country_code, new_char)
+                return ("SELECTED", 0, "", 0, 0, True, None)
+        # Voltar
+        if hasattr(_draw_profile_select, "_btn_voltar_create") and _draw_profile_select._btn_voltar_create.collidepoint(click_pos):
+            if profiles:
+                return ("list", sel_idx, new_name, new_ci, new_char, name_focus, None)
+
+    elif mode == "list":
+        if hasattr(_draw_profile_select, "_btns_list"):
+            for _br, _txt, _col in _draw_profile_select._btns_list:
+                if _br.collidepoint(click_pos):
+                    if "JOGAR" in _txt:
+                        if profiles and sel_idx < len(profiles):
+                            pid = profiles[sel_idx]["id"]
+                            if profile_mgr:
+                                profile_mgr.select_profile(pid)
+                            return ("SELECTED", sel_idx, new_name, new_ci, new_char, name_focus, None)
+                    elif "DELETAR" in _txt:
+                        if profiles and sel_idx < len(profiles):
+                            pid = profiles[sel_idx]["id"]
+                            if del_confirm == pid:
+                                if profile_mgr:
+                                    profile_mgr.delete_profile(pid)
+                                new_idx = min(sel_idx, len(profile_mgr.get_all_profiles()) - 1) if profile_mgr else 0
+                                new_idx = max(0, new_idx)
+                                new_mode = "list" if (profile_mgr and profile_mgr.has_profiles()) else "create"
+                                return (new_mode, new_idx, new_name, new_ci, new_char, name_focus, None)
+                            else:
+                                return (mode, sel_idx, new_name, new_ci, new_char, name_focus, pid)
+                    elif "NOVO" in _txt or "CRIAR" in _txt:
+                        return ("create", sel_idx, "", new_ci, new_char, True, None)
+
+        # Clique em cartão de perfil
+        if profiles:
+            sw, sh = pygame.display.get_surface().get_size()
+            CARD_W = min(int(sw * 0.18), 260)
+            CARD_H = min(int(sh * 0.38), 280)
+            spacing = max(12, int(sw * 0.014))
+            n = len(profiles)
+            total_w = n * CARD_W + (n - 1) * spacing
+            start_x = (sw - total_w) // 2
+            card_y = int(sh * 0.22)
+            for ci in range(n):
+                cx = start_x + ci * (CARD_W + spacing)
+                card_r = pygame.Rect(cx, card_y, CARD_W, CARD_H)
+                if card_r.collidepoint(click_pos):
+                    return (mode, ci, new_name, new_ci, new_char, name_focus, del_confirm)
+
+    return None
+
+
+def _load_ach_icon(icon_filename: str, size: int = 48) -> "pygame.Surface | None":
+    """Carrega e cacheia ícone de conquista."""
+    key = (icon_filename, size)
+    if key in _ach_icon_cache:
+        return _ach_icon_cache[key]
+    path = os.path.join(BASE_DIR, "assets", "conquistas", icon_filename)
+    surf = None
+    if os.path.exists(path):
+        try:
+            raw = pygame.image.load(path).convert_alpha()
+            surf = pygame.transform.smoothscale(raw, (size, size))
+        except Exception:
+            surf = None
+    _ach_icon_cache[key] = surf
+    return surf
+
+
+def _draw_profile_viewer(screen, font_s, font_m, font_l, m_pos):
+    """Overlay de Perfil e Conquistas (tecla L no Hub)."""
+    if not (profile_mgr and profile_mgr.has_active_profile()):
+        return
+    sw, sh = screen.get_size()
+
+    # Fundo
+    ov = pygame.Surface((sw, sh), pygame.SRCALPHA)
+    ov.fill((6, 4, 12, 230))
+    screen.blit(ov, (0, 0))
+
+    GOLD   = (220, 190, 80)
+    SILVER = (180, 175, 160)
+    DIM    = (90, 85, 80)
+
+    profile = profile_mgr.get_active_profile()
+    nickname = profile.get("nickname", "?")
+    country_code = profile.get("country", "BR")
+    country_name = COUNTRY_BY_CODE.get(country_code, country_code)
+    playtime = ProfileManager.format_playtime(profile.get("total_playtime", 0.0))
+    created = profile.get("created_at", "")[:10]
+
+    # ── Painel esquerdo (informações) ─────────────────────────────────────
+    lp_w, lp_h = int(sw * 0.28), int(sh * 0.78)
+    lp_x, lp_y = int(sw * 0.04), int(sh * 0.11)
+    lp_surf = pygame.Surface((lp_w, lp_h), pygame.SRCALPHA)
+    lp_surf.fill((14, 10, 24, 220))
+    screen.blit(lp_surf, (lp_x, lp_y))
+    pygame.draw.rect(screen, GOLD, pygame.Rect(lp_x, lp_y, lp_w, lp_h), 2, border_radius=10)
+
+    _lcy = lp_y + 16
+    title_s = font_l.render("PERFIL", True, GOLD)
+    screen.blit(title_s, title_s.get_rect(centerx=lp_x + lp_w // 2, top=_lcy))
+    _lcy += title_s.get_height() + 10
+    pygame.draw.line(screen, GOLD, (lp_x + 12, _lcy), (lp_x + lp_w - 12, _lcy))
+    _lcy += 14
+
+    for label, value, col in [
+        ("Jogador:",     nickname,     (240, 220, 140)),
+        ("País:",        country_name, (160, 190, 220)),
+        ("Tempo Total:", playtime,     (140, 200, 140)),
+        ("Criado em:",   created,      (140, 150, 160)),
+    ]:
+        ls = font_s.render(label, True, DIM)
+        vs = font_m.render(value, True, col)
+        screen.blit(ls, (lp_x + 14, _lcy))
+        _lcy += ls.get_height() + 2
+        screen.blit(vs, (lp_x + 20, _lcy))
+        _lcy += vs.get_height() + 10
+
+    _lcy += 6
+    pygame.draw.line(screen, (60, 55, 80), (lp_x + 12, _lcy), (lp_x + lp_w - 12, _lcy))
+    _lcy += 12
+
+    stat_title = font_s.render("ESTATÍSTICAS:", True, GOLD)
+    screen.blit(stat_title, (lp_x + 14, _lcy)); _lcy += stat_title.get_height() + 6
+
+    st = save_data.get("stats", {})
+    stats_pairs = [
+        ("Abates Totais",  f'{st.get("total_kills",0):,}'.replace(",",".")),
+        ("Chefões",        str(st.get("boss_kills", 0))),
+        ("Mortes",         str(st.get("deaths", 0))),
+        ("Partidas",       str(st.get("games_played", 0))),
+        ("Nível Máximo",   str(st.get("max_level_reached", 0))),
+    ]
+    for lbl, val in stats_pairs:
+        sl = font_s.render(f"{lbl}:", True, SILVER)
+        sv = font_s.render(val, True, (200, 210, 180))
+        screen.blit(sl, (lp_x + 14, _lcy))
+        screen.blit(sv, sv.get_rect(right=lp_x + lp_w - 14, centery=_lcy + sl.get_height() // 2))
+        _lcy += sl.get_height() + 5
+
+    # ── Painel direito (conquistas) ───────────────────────────────────────
+    rp_x = lp_x + lp_w + int(sw * 0.03)
+    rp_w = sw - rp_x - int(sw * 0.04)
+    rp_y = lp_y
+    rp_h = lp_h
+    rp_surf = pygame.Surface((rp_w, rp_h), pygame.SRCALPHA)
+    rp_surf.fill((14, 10, 24, 220))
+    screen.blit(rp_surf, (rp_x, rp_y))
+    pygame.draw.rect(screen, GOLD, pygame.Rect(rp_x, rp_y, rp_w, rp_h), 2, border_radius=10)
+
+    _rcy = rp_y + 16
+    ach_title = font_l.render("CONQUISTAS", True, GOLD)
+    screen.blit(ach_title, ach_title.get_rect(centerx=rp_x + rp_w // 2, top=_rcy))
+    _rcy += ach_title.get_height() + 6
+
+    counts = _ach.count_by_series(achievements_data)
+    total_unlocked = sum(c[0] for c in counts.values())
+    total_all = sum(c[1] for c in counts.values())
+    count_surf = font_s.render(f"Desbloqueadas: {total_unlocked} / {total_all}", True, SILVER)
+    screen.blit(count_surf, count_surf.get_rect(centerx=rp_x + rp_w // 2, top=_rcy))
+    _rcy += count_surf.get_height() + 8
+    pygame.draw.line(screen, GOLD, (rp_x + 12, _rcy), (rp_x + rp_w - 12, _rcy))
+    _rcy += 14
+
+    unlocked_ids = _ach.get_unlocked_set(achievements_data)
+    ICON_SIZE = min(46, int(rp_w * 0.065))
+    ICON_GAP  = max(4, int(ICON_SIZE * 0.12))
+    SERIES_LABELS = {"gold": "OURO", "forte": "FORTE / BATALHA", "hardcore": "HARDCORE"}
+
+    for series in _ach.SERIES_ORDER:
+        defs = [a for a in _ach.ACHIEVEMENT_DEFS if a["series"] == series]
+        un, tot = counts[series]
+        lbl_s = font_s.render(f"{SERIES_LABELS.get(series, series.upper())}  ({un}/{tot})", True, GOLD)
+        screen.blit(lbl_s, (rp_x + 14, _rcy))
+        _rcy += lbl_s.get_height() + 6
+
+        # Fileira de ícones
+        row_x = rp_x + 14
+        for a in defs:
+            is_unlocked = a["id"] in unlocked_ids
+            icon = _load_ach_icon(a["icon"], ICON_SIZE)
+            icon_rect = pygame.Rect(row_x, _rcy, ICON_SIZE, ICON_SIZE)
+            if icon:
+                if not is_unlocked:
+                    dim = pygame.Surface((ICON_SIZE, ICON_SIZE), pygame.SRCALPHA)
+                    dim.fill((0, 0, 0, 160))
+                    screen.blit(icon, icon_rect)
+                    screen.blit(dim, icon_rect)
+                else:
+                    screen.blit(icon, icon_rect)
+                    pygame.draw.rect(screen, GOLD, icon_rect, 1, border_radius=4)
+            else:
+                col_box = (60, 45, 15) if is_unlocked else (30, 25, 20)
+                pygame.draw.rect(screen, col_box, icon_rect, border_radius=4)
+                if is_unlocked:
+                    pygame.draw.rect(screen, GOLD, icon_rect, 1, border_radius=4)
+
+            # Tooltip ao hover
+            if icon_rect.collidepoint(m_pos):
+                tt_lines = [a["name"], a["desc"]]
+                if not is_unlocked:
+                    tt_lines.append("[ Bloqueada ]")
+                tt_w = max(font_s.size(l)[0] for l in tt_lines) + 16
+                tt_h = len(tt_lines) * 20 + 10
+                tt_x = min(icon_rect.right + 6, sw - tt_w - 4)
+                tt_y = max(4, icon_rect.top - tt_h // 2)
+                tt_s = pygame.Surface((tt_w, tt_h), pygame.SRCALPHA)
+                tt_s.fill((20, 15, 30, 230))
+                screen.blit(tt_s, (tt_x, tt_y))
+                pygame.draw.rect(screen, GOLD, pygame.Rect(tt_x, tt_y, tt_w, tt_h), 1, border_radius=4)
+                for li, line in enumerate(tt_lines):
+                    lc = GOLD if li == 0 else ((180, 170, 150) if li == 1 else (140, 100, 100))
+                    ls = font_s.render(line, True, lc)
+                    screen.blit(ls, (tt_x + 8, tt_y + 5 + li * 20))
+
+            row_x += ICON_SIZE + ICON_GAP
+        _rcy += ICON_SIZE + 14
+
+    # Dica fechar
+    close_s = font_s.render("[L] ou [ESC] para fechar", True, DIM)
+    screen.blit(close_s, close_s.get_rect(centerx=sw // 2, bottom=sh - 10))
+
+
+def _draw_achievement_toast(screen, ach_def: dict, font_s, font_m):
+    """Exibe toast de conquista desbloqueada no canto inferior-direito."""
+    sw, sh = screen.get_size()
+    if not _achievement_notifs:
+        return
+    remaining = _achievement_notifs[0][1]
+    DURATION = 5.0
+    alpha = 255
+    if remaining < 0.8:
+        alpha = int(255 * remaining / 0.8)
+    elif remaining > DURATION - 0.5:
+        alpha = int(255 * (DURATION - remaining) / 0.5)
+
+    ICON_SIZE = 52
+    PADDING = 12
+    toast_w = int(sw * 0.28)
+    toast_h = ICON_SIZE + PADDING * 2
+
+    icon = _load_ach_icon(ach_def.get("icon", ""), ICON_SIZE)
+    title_s = font_s.render("CONQUISTA DESBLOQUEADA!", True, (220, 190, 60))
+    name_s  = font_m.render(ach_def.get("name", ""), True, (240, 230, 200))
+    desc_s  = font_s.render(ach_def.get("desc", ""), True, (160, 150, 130))
+
+    toast_h = max(toast_h, PADDING + title_s.get_height() + name_s.get_height() + desc_s.get_height() + PADDING)
+
+    toast_surf = pygame.Surface((toast_w, toast_h), pygame.SRCALPHA)
+    toast_surf.fill((20, 15, 30))
+    pygame.draw.rect(toast_surf, (180, 150, 50), pygame.Rect(0, 0, toast_w, toast_h), 2, border_radius=10)
+
+    ix = PADDING
+    iy = (toast_h - ICON_SIZE) // 2
+    if icon:
+        toast_surf.blit(icon, (ix, iy))
+    else:
+        pygame.draw.rect(toast_surf, (80, 60, 20), pygame.Rect(ix, iy, ICON_SIZE, ICON_SIZE), border_radius=6)
+
+    tx = ix + ICON_SIZE + 10
+    ty = PADDING
+    toast_surf.blit(title_s, (tx, ty))
+    ty += title_s.get_height() + 2
+    toast_surf.blit(name_s, (tx, ty))
+    ty += name_s.get_height() + 2
+    toast_surf.blit(desc_s, (tx, ty))
+
+    toast_surf.set_alpha(alpha)
+    tx_pos = sw - toast_w - 16
+    ty_pos = sh - toast_h - 16
+    screen.blit(toast_surf, (tx_pos, ty_pos))
+
+
 def main():
     # Inicialização do Pygame e Mixer (Deve vir antes de apply_settings para o mixer funcionar)
     pygame.init()
@@ -3856,8 +4397,23 @@ def main():
     game_over_btn = Button(0.5, 0.78, BTN_W, BTN_H, "VOLTAR AO MENU PRINCIPAL", font_m, color=(80, 30, 30))
     game_over_btn.sprite_idx = 6
 
+    # ── Sistema de Perfis ─────────────────────────────────────────────────
+    global profile_mgr, achievements_data, _achievement_notifs, _ach_icon_cache
+    profile_mgr = ProfileManager()
+    _achievement_notifs = []
+    _ach_icon_cache = {}
+
+    # Estado da tela de seleção/criação de perfil
+    _prof_mode       = "create" if not profile_mgr.has_profiles() else "list"
+    _prof_sel_idx    = 0
+    _prof_new_name   = ""
+    _prof_new_ci     = 0   # índice do país em COUNTRIES
+    _prof_new_char   = 0   # personagem do avatar
+    _prof_name_focus = True
+    _prof_del_confirm = None  # id do perfil aguardando confirmação de delete
+
     # Variáveis de estado do jogo
-    state = "MENU"
+    state = "PROFILE_SELECT"
     running = True
     m_pos = (0, 0)
     hitstop_timer = 0.0
@@ -3892,6 +4448,7 @@ def main():
     hub_chest_open     = False   # Janela do Baú (F key — abre baú + inventário)
     hub_equip_open     = False   # Janela de Equipamento (I key — layout Diablo)
     hub_status_open    = False   # Janela de Status (C key)
+    hub_profile_open   = False   # Janela de Perfil/Conquistas (L key)
     # Drag-and-drop: item sendo arrastado com o mouse
     _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip", "_idx":int, "_slot":str|None}
     _drag_active: bool = False       # True enquanto o botão do mouse está pressionado
@@ -4044,14 +4601,75 @@ def main():
                     hub_status_open = not hub_status_open
                     if snd_click: snd_click.play()
 
+                if state == "HUB" and event.key == pygame.K_l:
+                    hub_profile_open = not hub_profile_open
+                    if snd_click: snd_click.play()
+
+                # ── Teclado na tela de Seleção de Perfil ─────────────────
+                if state == "PROFILE_SELECT":
+                    if _prof_mode == "create":
+                        if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                            if _prof_new_name.strip():
+                                _country_code = COUNTRIES[_prof_new_ci][0]
+                                profile_mgr.create_profile(_prof_new_name.strip(), _country_code, _prof_new_char)
+                                # Reseta save_data para defaults e recarrega do perfil novo
+                                save_data.update({
+                                    "gold": 0, "perm_upgrades": {k: 0 for k in save_data["perm_upgrades"]},
+                                    "stats": {"total_kills": 0, "total_time": 0, "boss_kills": 0,
+                                              "deaths": 0, "games_played": 0, "max_level_reached": 0},
+                                    "unlocks": list(DEFAULT_UNLOCKS), "daily_missions": {"last_reset": "", "active": []},
+                                    "purchased_items": [], "chest_items": [], "char_inventories": {},
+                                    "char_equipped": {}, "hardcore_stages": {"unlocked": 1},
+                                })
+                                load_save()
+                                _reload_achievements()
+                                _prof_mode = "list"; _prof_sel_idx = len(profile_mgr.get_all_profiles()) - 1
+                                state = "MENU"
+                                menu_intro_timer = MENU_ENTER_DURATION
+                        elif event.key == pygame.K_ESCAPE:
+                            if profile_mgr.has_profiles():
+                                _prof_mode = "list"
+                        elif event.key == pygame.K_BACKSPACE:
+                            _prof_new_name = _prof_new_name[:-1]
+                        elif event.key == pygame.K_TAB:
+                            pass  # foco já está no nome
+                        elif event.unicode and event.unicode.isprintable() and _prof_name_focus:
+                            if len(_prof_new_name) < 16:
+                                _prof_new_name += event.unicode
+                    elif _prof_mode == "list":
+                        profiles_list = profile_mgr.get_all_profiles()
+                        if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                            if profiles_list:
+                                pid = profiles_list[_prof_sel_idx]["id"]
+                                profile_mgr.select_profile(pid)
+                                save_data.update({
+                                    "gold": 0, "perm_upgrades": {k: 0 for k in save_data["perm_upgrades"]},
+                                    "stats": {"total_kills": 0, "total_time": 0, "boss_kills": 0,
+                                              "deaths": 0, "games_played": 0, "max_level_reached": 0},
+                                    "unlocks": list(DEFAULT_UNLOCKS), "daily_missions": {"last_reset": "", "active": []},
+                                    "purchased_items": [], "chest_items": [], "char_inventories": {},
+                                    "char_equipped": {}, "hardcore_stages": {"unlocked": 1},
+                                })
+                                load_save()
+                                _reload_achievements()
+                                state = "MENU"
+                                menu_intro_timer = MENU_ENTER_DURATION
+                        elif event.key == pygame.K_LEFT:
+                            if profiles_list:
+                                _prof_sel_idx = (_prof_sel_idx - 1) % len(profiles_list)
+                        elif event.key == pygame.K_RIGHT:
+                            if profiles_list:
+                                _prof_sel_idx = (_prof_sel_idx + 1) % len(profiles_list)
+
                 if event.key == pygame.K_ESCAPE:
                     if state == "HUB":
-                        if hub_chest_open or hub_equip_open or hub_status_open:
-                            hub_chest_open  = False
-                            hub_equip_open  = False
-                            hub_status_open = False
-                            _drag_item      = None
-                            _drag_active    = False
+                        if hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
+                            hub_chest_open   = False
+                            hub_equip_open   = False
+                            hub_status_open  = False
+                            hub_profile_open = False
+                            _drag_item       = None
+                            _drag_active     = False
                         else:
                             hub_countdown_active = False
                             hub_countdown_timer  = 0.0
@@ -4106,6 +4724,31 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     click_pos = event.pos
 
+                    # ── Tela de Seleção de Perfil ─────────────────────────
+                    if state == "PROFILE_SELECT":
+                        _res = _handle_profile_select_click(
+                            click_pos, _prof_mode, _prof_sel_idx, _prof_new_name,
+                            _prof_new_ci, _prof_new_char, _prof_name_focus, _prof_del_confirm)
+                        if _res:
+                            (_prof_mode, _prof_sel_idx, _prof_new_name,
+                             _prof_new_ci, _prof_new_char, _prof_name_focus, _prof_del_confirm) = _res
+                            if _prof_mode == "SELECTED":
+                                # Perfil foi selecionado — carregar save e ir ao menu
+                                save_data.update({
+                                    "gold": 0, "perm_upgrades": {k: 0 for k in save_data["perm_upgrades"]},
+                                    "stats": {"total_kills": 0, "total_time": 0, "boss_kills": 0,
+                                              "deaths": 0, "games_played": 0, "max_level_reached": 0},
+                                    "unlocks": list(DEFAULT_UNLOCKS), "daily_missions": {"last_reset": "", "active": []},
+                                    "purchased_items": [], "chest_items": [], "char_inventories": {},
+                                    "char_equipped": {}, "hardcore_stages": {"unlocked": 1},
+                                })
+                                load_save()
+                                _reload_achievements()
+                                _prof_mode = "list"
+                                state = "MENU"
+                                menu_intro_timer = MENU_ENTER_DURATION
+                        continue
+
                     # Overlay de vitória de fase Hardcore (prioridade máxima)
                     if show_stage_victory and hasattr(main, "_sv_btns_rects"):
                         for _svr, _svact in main._sv_btns_rects:
@@ -4119,6 +4762,11 @@ def main():
                                         if _next > save_data["hardcore_stages"].get("unlocked", 1):
                                             save_data["hardcore_stages"]["unlocked"] = _next
                                         current_hardcore_stage = _next
+                                        achievements_data["hardcore_stages_unlocked"] = max(
+                                            achievements_data.get("hardcore_stages_unlocked", 1),
+                                            save_data["hardcore_stages"]["unlocked"],
+                                        )
+                                        _check_achievements()
                                         save_game()
                                     show_stage_victory = False
                                     state = "HUB"
@@ -4150,6 +4798,7 @@ def main():
                             try: save_data["purchased_items"].remove(_scf_key)
                             except ValueError: pass
                             save_data["gold"] += _scf["price"]
+                            achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + _scf["price"]
                             item_shop_sell_selected = None
                             item_shop_sell_confirm  = None
                             save_game()
@@ -4374,6 +5023,7 @@ def main():
                                 if mission_claim_btns[i].rect.collidepoint(click_pos):
                                     m["claimed"] = True
                                     save_data["gold"] += m["reward"]
+                                    achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + m["reward"]
                                     play_sfx("win")
                                     save_game()
 
@@ -4718,6 +5368,15 @@ def main():
                                         pause_save_feedback_timer = 2.0
                                     break
 
+            # Scroll na tela de perfil (navegar perfis / seletor de país)
+            if event.type == pygame.MOUSEWHEEL and state == "PROFILE_SELECT":
+                if _prof_mode == "list":
+                    profiles_list = profile_mgr.get_all_profiles() if profile_mgr else []
+                    if profiles_list:
+                        _prof_sel_idx = (_prof_sel_idx - event.y) % len(profiles_list)
+                elif _prof_mode == "create":
+                    _prof_new_ci = (_prof_new_ci - event.y) % len(COUNTRIES)
+
             # Scroll da Loja de Itens (roda do mouse)
             if event.type == pygame.MOUSEWHEEL and state == "ITEM_SHOP":
                 item_shop_scroll_y -= event.y * 40
@@ -5023,6 +5682,9 @@ def main():
             if autosave_timer >= 15.0:
                 save_run_slot(0)
                 autosave_timer = 0.0
+                # Atualiza tempo de jogo no perfil ativo a cada 15s
+                if profile_mgr and profile_mgr.has_active_profile():
+                    profile_mgr.update_playtime(15.0)
             update_mission_progress("time", dt)
             
             if REGEN_RATE > 0:
@@ -5502,6 +6164,9 @@ def main():
                             gems.add(Gem(hit.pos, loader)); hit.kill(); kills += 1
                             save_data["stats"]["total_kills"] += 1
                             update_mission_progress("kills", 1)
+                            # Verifica conquistas forte a cada 100 abates
+                            if save_data["stats"]["total_kills"] % 100 == 0:
+                                _check_achievements()
                             if hit.kind == "boss":
                                 session_boss_kills += 1
                                 save_data["stats"]["boss_kills"] += 1
@@ -5519,6 +6184,7 @@ def main():
                                     drops.add(create_drop(hit.pos + offset, "coin"))
                                 if selected_difficulty == "HARDCORE":
                                     show_stage_victory = True
+                                _check_achievements()
                             elif hit.kind == "mini_boss":
                                 # Mini boss conta como kill de boss e dropa várias moedas
                                 session_boss_kills += 1
@@ -5575,6 +6241,7 @@ def main():
                         coin_value = 50 * _spawn_diff.get("gold_mult", 1.0) * GOLD_RUN_MULT
                         run_gold_collected += coin_value
                         save_data["gold"] += coin_value
+                        achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + coin_value
                         update_mission_progress("gold", coin_value)
                         play_sfx("drop")
                         d.kill()
@@ -5623,6 +6290,7 @@ def main():
                 save_data["stats"]["total_time"] += game_time
                 save_data["stats"]["max_level_reached"] = max(save_data["stats"]["max_level_reached"], session_max_level)
                 check_achievements()
+                _check_achievements()
                 save_game()
 
         elif state == "CHEST_UI":
@@ -5639,7 +6307,12 @@ def main():
         screen.fill((0, 0, 0))
 
         # Lógica de desenho baseada no estado
-        if state == "MENU":
+        if state == "PROFILE_SELECT":
+            _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
+                                 _prof_mode, _prof_sel_idx, _prof_new_name,
+                                 _prof_new_ci, _prof_new_char, _prof_name_focus, _prof_del_confirm)
+
+        elif state == "MENU":
             draw_menu_background(screen, m_pos, dt)
 
             # Logo alinhada ao lado esquerdo, acima dos botões do menu
@@ -7310,9 +7983,11 @@ def main():
             # Dicas de tecla
             _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
             _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
+            _hint_l = font_s.render("[L] Perfil / Conquistas", True, (160, 130, 200))
             _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
-            screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.91)))
-            screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.94)))
+            screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.88)))
+            screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.91)))
+            screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, bottom=int(SCREEN_H * 0.94)))
             screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
 
         elif state == "PACT_SELECT":
@@ -7819,6 +8494,18 @@ def main():
             _draw_debug_overlay(screen, font_s, clock)
 
         draw_state_transition_overlay(screen, transition_timer)
+
+        # ── Overlay de Perfil/Conquistas no Hub (tecla L) ─────────────────
+        if state == "HUB" and hub_profile_open:
+            _draw_profile_viewer(screen, font_s, font_m, font_l, m_pos)
+
+        # ── Toast de conquista desbloqueada ───────────────────────────────
+        if _achievement_notifs:
+            _achievement_notifs[0][1] -= dt
+            if _achievement_notifs[0][1] <= 0:
+                _achievement_notifs.pop(0)
+            elif _achievement_notifs:
+                _draw_achievement_toast(screen, _achievement_notifs[0][0], font_s, font_m)
 
         # Cursor personalizado — desenhado por último, sempre por cima de tudo
         if cursor_img is not None:
