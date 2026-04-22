@@ -213,6 +213,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--onefile",    action="store_true", help="Windows onefile")
     parser.add_argument("--clean",      action="store_true", help="Apaga dist-nuitka antes de compilar")
+    parser.add_argument("--clean-only", action="store_true", help="Apenas apaga dist-nuitka, sem compilar")
     parser.add_argument("--linux",      action="store_true", help="Windows + Linux via Docker")
     parser.add_argument("--linux-only", action="store_true", help="Apenas Linux via Docker (sem Windows)")
     parser.add_argument("--linux-onefile", action="store_true", help="Linux em modo onefile (binario unico)")
@@ -220,9 +221,13 @@ def main():
 
     out_dir = os.path.join(BASE_DIR, "dist-nuitka")
 
-    if args.clean and os.path.isdir(out_dir):
+    if (args.clean or args.clean_only) and os.path.isdir(out_dir):
         print(f"Removendo {out_dir}...")
         shutil.rmtree(out_dir)
+
+    if args.clean_only:
+        print("Limpeza concluida.")
+        return
 
     os.makedirs(out_dir, exist_ok=True)
 

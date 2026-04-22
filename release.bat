@@ -9,6 +9,7 @@
 ::   release.bat --linux-only             So Linux (pasta)
 ::   release.bat --linux-only --linux-onefile  So Linux (onefile)
 ::   release.bat --clean                  Apaga build anterior antes de compilar
+::   release.bat --clean-only             Apenas apaga dist-nuitka, sem compilar
 
 cd /d "%~dp0"
 
