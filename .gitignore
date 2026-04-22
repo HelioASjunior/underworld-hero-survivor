@@ -33,6 +33,7 @@ dist-nuitka/
 *.dist/
 *.onefile-build/
 jogo_final.exe
+nuitka-crash-report.xml
 
 # Documentação de build (gerada localmente)
 COMO_COMPILAR_NUITKA.txt
