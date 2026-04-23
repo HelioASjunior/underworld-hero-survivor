@@ -54,8 +54,8 @@ for _i, _name in enumerate(_hc_names, 1):
         "index": _i,
         "icon": f"hardcore{_i}.png",
         "name": _name,
-        "desc": f"Desbloqueie a Fase {_i + 1} no Modo Hardcore",
-        "check": lambda s, stage=_i: s.get("hardcore_stages_unlocked", 1) > stage,
+        "desc": f"Desbloqueie a Fase {_i} no Modo Hardcore",
+        "check": lambda s, stage=_i: s.get("hardcore_stages_unlocked", 1) >= stage,
     })
 
 _forte_names = [

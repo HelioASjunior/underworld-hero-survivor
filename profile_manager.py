@@ -103,7 +103,7 @@ class ProfileManager:
 
     # ── Perfis ────────────────────────────────────────────────────────────
 
-    def _create_profile_internal(self, nickname: str, country: str, avatar_char: int) -> dict:
+    def _create_profile_internal(self, nickname: str, country: str, avatar_char: int, avatar_idx: int = 0) -> dict:
         existing_ids = {p["id"] for p in self._profiles}
         n = len(self._profiles) + 1
         profile_id = f"p{n}"
@@ -117,18 +117,57 @@ class ProfileManager:
             "nickname": nickname.strip()[:20],
             "country": country,
             "avatar_char": avatar_char,
+            "avatar_idx": avatar_idx,
             "created_at": datetime.now().isoformat(),
             "total_playtime": 0.0,
+            "profile_xp": 0,
         }
         self._profiles.append(profile)
         os.makedirs(self.get_profile_dir(profile_id), exist_ok=True)
         return profile
 
-    def create_profile(self, nickname: str, country: str, avatar_char: int = 0) -> dict:
-        profile = self._create_profile_internal(nickname, country, avatar_char)
+    def create_profile(self, nickname: str, country: str, avatar_char: int = 0, avatar_idx: int = 0) -> dict:
+        profile = self._create_profile_internal(nickname, country, avatar_char, avatar_idx)
         self._active_id = profile["id"]
         self._save_index()
         return profile
+
+    # Cumulative XP thresholds to REACH each level (index = level-1, so [0] = level 1 = 0 XP)
+    _LEVEL_XP = [
+        0, 400, 1000, 2000, 3500, 5500, 8000, 11000, 14500, 18500,
+        23000, 28000, 33500, 39500, 46000, 53000, 60500, 68500, 77000, 86000,
+        96000, 107000,
+    ]  # 22 levels; level 22 unlocks all 48 avatars
+
+    @staticmethod
+    def xp_to_level(xp: float) -> tuple[int, float, float]:
+        """Returns (level, xp_within_level, xp_needed_for_next). Level is 1-based."""
+        thresholds = ProfileManager._LEVEL_XP
+        level = 1
+        for i, t in enumerate(thresholds):
+            if xp >= t:
+                level = i + 1
+        level = min(level, len(thresholds))
+        xp_start = thresholds[level - 1]
+        xp_next = thresholds[level] if level < len(thresholds) else thresholds[-1]
+        return level, xp - xp_start, xp_next - xp_start
+
+    @staticmethod
+    def level_unlocked_avatars(level: int) -> int:
+        """Returns how many avatars (1..48) are unlocked at the given level."""
+        return min(48, max(6, 6 + (level - 1) * 2))
+
+    def update_xp(self, profile_id: str, xp_amount: float):
+        p = self.get_profile_by_id(profile_id)
+        if p is not None:
+            p["profile_xp"] = p.get("profile_xp", 0) + max(0, xp_amount)
+            self._save_index()
+
+    def update_avatar(self, profile_id: str, avatar_idx: int):
+        p = self.get_profile_by_id(profile_id)
+        if p is not None:
+            p["avatar_idx"] = max(0, min(47, avatar_idx))
+            self._save_index()
 
     def select_profile(self, profile_id: str) -> bool:
         if any(p["id"] == profile_id for p in self._profiles):
@@ -161,6 +200,12 @@ class ProfileManager:
         p = self.get_profile_by_id(profile_id)
         if p:
             p["nickname"] = nickname.strip()[:20]
+            self._save_index()
+
+    def update_country(self, profile_id: str, country: str):
+        p = self.get_profile_by_id(profile_id)
+        if p:
+            p["country"] = country
             self._save_index()
 
     # ── Getters ───────────────────────────────────────────────────────────

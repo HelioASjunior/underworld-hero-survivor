@@ -41,3 +41,6 @@ COMO_COMPILAR_NUITKA.txt
 nuitka-crash-report.xml
 # Ou para ignorar qualquer XML de crash do Nuitka:
 nuitka-crash*.xml
+
+#claude
+CLAUDE.md
