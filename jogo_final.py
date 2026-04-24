@@ -3781,9 +3781,9 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
 
     # Referências de layout baseadas nos elementos da imagem:
     # cabeçalho ocupa ~top 8% do painel, área de botões ~bottom 14%
-    _hdr_cy  = pan_y + int(pan_h * 0.048)   # centro vertical do header
-    _tbar_y  = pan_y + int(pan_h * 0.095)   # início da área de conteúdo
-    _btn_top = pan_y + int(pan_h * 0.860)   # topo da faixa de botões na base
+    _hdr_cy  = pan_y + int(pan_h * 0.068)   # centro vertical do header
+    _tbar_y  = pan_y + int(pan_h * 0.130)   # início da área de conteúdo
+    _btn_top = pan_y + int(pan_h * 0.878)   # topo da faixa de botões na base
 
     # Título no cabeçalho
     if mode == "create":   title_txt = "CRIAR NOVO PERFIL"
@@ -3871,22 +3871,24 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
         _draw_profile_select._arr_avatar_r = av_r
 
         # — Botões alinhados com os 2 primeiros e 2 últimos boxes da base da imagem —
-        _box_margin = int(pan_w * 0.03)
+        _box_margin = int(pan_w * 0.088)
         _box_gap = int(pan_w * 0.005)
         _4box_w = (pan_w - 2 * _box_margin - 3 * _box_gap) // 4
-        btn_h_px = int(pan_h * 0.107)
+        btn_h_px = int(pan_h * 0.108)
         btn_criar  = pygame.Rect(pan_x + _box_margin, _btn_top, _4box_w * 2 + _box_gap, btn_h_px)
         btn_voltar = pygame.Rect(pan_x + _box_margin + _4box_w * 2 + _box_gap * 2, _btn_top, _4box_w * 2 + _box_gap, btn_h_px)
 
         can_create = bool(new_name.strip())
         _btn_label = "SALVAR ALTERAÇÕES" if mode == "edit" else "CRIAR PERFIL"
-        _btn_col   = (30, 55, 80) if mode == "edit" else (34, 68, 34)
-        _prof_btn(screen, btn_criar, _btn_label, font_m,
-                  active=can_create, hovered=can_create and btn_criar.collidepoint(m_pos),
-                  color_base=_btn_col)
-        _prof_btn(screen, btn_voltar, "VOLTAR", font_m,
-                  active=True, hovered=btn_voltar.collidepoint(m_pos),
-                  color_base=(68, 28, 20))
+        # O asset já tem as caixas desenhadas — apenas o texto
+        _criar_hov = can_create and btn_criar.collidepoint(m_pos)
+        _tc1 = GOLD if _criar_hov else (PARCH if can_create else (80, 75, 65))
+        _t1 = font_m.render(_btn_label, True, _tc1)
+        screen.blit(_t1, _t1.get_rect(center=btn_criar.center))
+        _voltar_hov = btn_voltar.collidepoint(m_pos)
+        _tc2 = GOLD if _voltar_hov else PARCH
+        _t2 = font_m.render("VOLTAR", True, _tc2)
+        screen.blit(_t2, _t2.get_rect(center=btn_voltar.center))
         _draw_profile_select._btn_criar = btn_criar
         _draw_profile_select._btn_voltar_create = btn_voltar
         _draw_profile_select._edit_mode = (mode == "edit")
@@ -3906,7 +3908,7 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
         vis = min(max(1, len(profiles)), MAX_VISIBLE)
         _avail_w = pan_w - int(pan_w * 0.08)
         CARD_W = max(160, min(220, (_avail_w - CARD_GAP * (vis - 1)) // vis))
-        CARD_H = int(pan_h * 0.68)  # cards fill most of the central area
+        CARD_H = int(pan_h * 0.58)  # cards fill the central area without overflowing header
         cards_total_w = len(profiles) * CARD_W + (len(profiles) - 1) * CARD_GAP
         cards_x = pan_x + (pan_w - min(cards_total_w, _avail_w)) // 2
         cards_y = _tbar_y + 14
@@ -3941,7 +3943,7 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
             pygame.draw.rect(screen, GOLD if is_sel else IRON, stripe, 1)
 
             # Ícone do personagem: avatar real ou inicial como fallback
-            small_size = min(stripe.h - 4, stripe.w - 4)
+            small_size = min(stripe.h - 4, stripe.w - 4, 90)
             _card_av_icon = _load_avatar_icon(char_idx % 48, small_size)
             if _card_av_icon:
                 screen.blit(_card_av_icon, _card_av_icon.get_rect(center=(card_r.centerx, stripe.centery)))
@@ -4014,20 +4016,24 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
         # Botões alinhados com os 4 retângulos na base da imagem
         # A imagem tem 4 caixas que cobrem ~3%–97% da largura, topo em ~86% da altura
         _nb = len(btns_def)
-        _box_margin = int(pan_w * 0.03)
-        _box_total_w = pan_w - 2 * _box_margin
+        _box_margin_l = int(pan_w * 0.088)
+        _box_margin_r = int(pan_w * 0.096)
+        _box_total_w = pan_w - _box_margin_l - _box_margin_r
         _box_gap = int(pan_w * 0.005)
         _box_w = (_box_total_w - (_nb - 1) * _box_gap) // _nb
-        BTN_H = int(pan_h * 0.107)
-        bx = pan_x + _box_margin
+        BTN_H = int(pan_h * 0.108)
+        bx = pan_x + _box_margin_l
         by = _btn_top
 
         btns = []
         for _txt, _base_col in btns_def:
             br = pygame.Rect(bx, by, _box_w, BTN_H)
             btns.append((br, _txt, _base_col))
-            _prof_btn(screen, br, _txt, font_m,
-                      hovered=br.collidepoint(m_pos), color_base=_base_col)
+            # O asset já tem as caixas desenhadas — apenas o texto
+            _hov = br.collidepoint(m_pos)
+            _tcol = GOLD if _hov else PARCH
+            _t = font_m.render(_txt, True, _tcol)
+            screen.blit(_t, _t.get_rect(center=br.center))
             bx += _box_w + _box_gap
 
         _draw_profile_select._btns_list = btns
