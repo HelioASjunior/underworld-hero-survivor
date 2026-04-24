@@ -7063,6 +7063,17 @@ def main():
 
                 screen.set_clip(None)
 
+                # ── Scrollbar vertical ─────────────────────────────────────────
+                _sb_x    = _cx0 + _cw - _SB_W - 4
+                _sb_rect = pygame.Rect(_sb_x, _cy0 + 4, _SB_W, _ch - 8)
+                pygame.draw.rect(screen, (30, 25, 18), _sb_rect, border_radius=6)
+                if _max_scroll > 0:
+                    _th = max(30, int(_sb_rect.height * _ch / _total_h))
+                    _ty = _sb_rect.top + int((_sb_rect.height - _th) * item_shop_scroll_y / _max_scroll)
+                    _thumb = pygame.Rect(_sb_x + 2, _ty, _SB_W - 4, _th)
+                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _thumb, border_radius=5)
+                    pygame.draw.rect(screen, UI_THEME["old_gold"], _thumb, 1, border_radius=5)
+
                 # Tooltip do item em hover (desenhado por cima de tudo)
                 if _tooltip_data:
                     _tsr, _tst = _tooltip_data
@@ -7090,17 +7101,6 @@ def main():
                         elif "DEF" in _ll: _lc = (80, 160, 220)
                         elif "Preco" in _ll: _lc = UI_THEME["faded_gold"]
                         screen.blit(font_s.render(_ll, True, _lc), (_tx + _tpad, _ty + _tpad + _li * 20))
-
-                # ── Scrollbar vertical ─────────────────────────────────────────
-                _sb_x    = _cx0 + _cw - _SB_W - 4
-                _sb_rect = pygame.Rect(_sb_x, _cy0 + 4, _SB_W, _ch - 8)
-                pygame.draw.rect(screen, (30, 25, 18), _sb_rect, border_radius=6)
-                if _max_scroll > 0:
-                    _th = max(30, int(_sb_rect.height * _ch / _total_h))
-                    _ty = _sb_rect.top + int((_sb_rect.height - _th) * item_shop_scroll_y / _max_scroll)
-                    _thumb = pygame.Rect(_sb_x + 2, _ty, _SB_W - 4, _th)
-                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _thumb, border_radius=5)
-                    pygame.draw.rect(screen, UI_THEME["old_gold"], _thumb, 1, border_radius=5)
 
             if item_shop_active_tab == 1:
                 _SLOT = 72
@@ -7189,6 +7189,16 @@ def main():
 
                 screen.set_clip(None)
 
+                _sb_x    = _cx0 + _cw - _SB_W - 4
+                _sb_rect = pygame.Rect(_sb_x, _cy0 + 4, _SB_W, _ch - 8)
+                pygame.draw.rect(screen, (30, 25, 18), _sb_rect, border_radius=6)
+                if _max_scroll > 0:
+                    _th = max(30, int(_sb_rect.height * _ch / _total_h))
+                    _ty = _sb_rect.top + int((_sb_rect.height - _th) * item_shop_scroll_y / _max_scroll)
+                    _thumb = pygame.Rect(_sb_x + 2, _ty, _SB_W - 4, _th)
+                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _thumb, border_radius=5)
+                    pygame.draw.rect(screen, UI_THEME["old_gold"], _thumb, 1, border_radius=5)
+
                 # Tooltip do item em hover (desenhado por cima de tudo)
                 if _tooltip_data:
                     _tsr, _tst = _tooltip_data
@@ -7213,16 +7223,6 @@ def main():
                         if "DEF" in _ll: _lc = (80, 160, 220)
                         elif "Preco" in _ll: _lc = UI_THEME["faded_gold"]
                         screen.blit(font_s.render(_ll, True, _lc), (_tx + _tpad, _ty + _tpad + _li * 20))
-
-                _sb_x    = _cx0 + _cw - _SB_W - 4
-                _sb_rect = pygame.Rect(_sb_x, _cy0 + 4, _SB_W, _ch - 8)
-                pygame.draw.rect(screen, (30, 25, 18), _sb_rect, border_radius=6)
-                if _max_scroll > 0:
-                    _th = max(30, int(_sb_rect.height * _ch / _total_h))
-                    _ty = _sb_rect.top + int((_sb_rect.height - _th) * item_shop_scroll_y / _max_scroll)
-                    _thumb = pygame.Rect(_sb_x + 2, _ty, _SB_W - 4, _th)
-                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _thumb, border_radius=5)
-                    pygame.draw.rect(screen, UI_THEME["old_gold"], _thumb, 1, border_radius=5)
 
             # ── Aba VENDER ────────────────────────────────────────────────────
             if item_shop_active_tab == _ITEM_SHOP_SELL_TAB:
@@ -7318,7 +7318,18 @@ def main():
 
                     screen.set_clip(None)
 
-                    # Tooltip
+                    # Scrollbar
+                    _sv_sb_x   = _sv_cx0 + _sv_cw - _sv_SB_W - 4
+                    _sv_sb_rect = pygame.Rect(_sv_sb_x, _sv_cy0+4, _sv_SB_W, _sv_ch-8)
+                    pygame.draw.rect(screen, (30,25,18), _sv_sb_rect, border_radius=6)
+                    if _sv_max_s > 0:
+                        _sv_th2 = max(30, int(_sv_sb_rect.height * _sv_ch / max(1, _sv_total)))
+                        _sv_ty2 = _sv_sb_rect.top + int((_sv_sb_rect.height-_sv_th2)*item_shop_scroll_y/max(1,_sv_max_s))
+                        _sv_thumb = pygame.Rect(_sv_sb_x+2, _sv_ty2, _sv_SB_W-4, _sv_th2)
+                        pygame.draw.rect(screen, UI_THEME["faded_gold"], _sv_thumb, border_radius=5)
+                        pygame.draw.rect(screen, UI_THEME["old_gold"], _sv_thumb, 1, border_radius=5)
+
+                    # Tooltip (desenhado por cima de tudo, inclusive da scrollbar)
                     if _sv_tooltip_data:
                         _svtr, _svtst, _svtp, _svtsel, _svtentry = _sv_tooltip_data
                         _svtlines = [_svtst.get("name", "")]
@@ -7345,17 +7356,6 @@ def main():
                             elif "Vender" in _svtll or "vender" in _svtll: _svtc=(220,200,80)
                             elif "Origem" in _svtll: _svtc=(140,130,100)
                             screen.blit(font_s.render(_svtll,True,_svtc), (_svtx+8,_svty+6+_svtli*20))
-
-                # Scrollbar
-                _sv_sb_x   = _sv_cx0 + _sv_cw - _sv_SB_W - 4
-                _sv_sb_rect = pygame.Rect(_sv_sb_x, _sv_cy0+4, _sv_SB_W, _sv_ch-8)
-                pygame.draw.rect(screen, (30,25,18), _sv_sb_rect, border_radius=6)
-                if _sv_max_s > 0:
-                    _sv_th2 = max(30, int(_sv_sb_rect.height * _sv_ch / max(1, _sv_total)))
-                    _sv_ty2 = _sv_sb_rect.top + int((_sv_sb_rect.height-_sv_th2)*item_shop_scroll_y/max(1,_sv_max_s))
-                    _sv_thumb = pygame.Rect(_sv_sb_x+2, _sv_ty2, _sv_SB_W-4, _sv_th2)
-                    pygame.draw.rect(screen, UI_THEME["faded_gold"], _sv_thumb, border_radius=5)
-                    pygame.draw.rect(screen, UI_THEME["old_gold"], _sv_thumb, 1, border_radius=5)
 
             item_shop_back_btn.check_hover(m_pos, snd_hover)
             item_shop_back_btn.draw(screen)
