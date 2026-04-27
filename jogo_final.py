@@ -410,6 +410,7 @@ _achievement_notifs: list = []   # [[ach_def, remaining_seconds], ...]
 _ach_icon_cache: dict = {}       # {filename: pygame.Surface}
 _avatar_icon_cache: dict = {}    # {(idx, size): pygame.Surface}
 _select_perfil_img = None        # Cached background image for profile select screen
+_perfilnovo_img_cache = None     # Cached profile widget background (perfilnovo.png)
 
 # XP por minuto sobrevivido por dificuldade
 PROFILE_XP_RATES = {"FÁCIL": 10, "MÉDIO": 20, "DIFÍCIL": 35, "HARDCORE": 55}
@@ -3697,56 +3698,89 @@ def _prof_btn(screen, rect, label, font, active=True, hovered=False, color_base=
 
 
 def _draw_profile_widget(screen, font_s, font_m, m_pos, align_right=True):
-    """Minicard de perfil no canto superior (direito ou esquerdo)."""
+    """Minicard de perfil no canto superior usando o asset perfilnovo.png."""
+    global _perfilnovo_img_cache
     if not (profile_mgr and profile_mgr.has_active_profile()):
         return None
     p = profile_mgr.get_active_profile()
     sw, sh = screen.get_size()
 
-    ICON_SIZE = 48
-    PAD = 8
-    card_h = ICON_SIZE + PAD * 2 + 12
-    card_w = 230
-    card_x = sw - card_w - 12 if align_right else 12
+    # Card com proporção natural do asset (1536×792 após crop): ~1.96:1
+    # CARD_W=275 garante área de texto ≥155px para nomes de até 16 chars (font 14)
+    CARD_H = 140
+    CARD_W = 275
+
+    card_x = sw - CARD_W - 12 if align_right else 12
     card_y = 12
-    card_rect = pygame.Rect(card_x, card_y, card_w, card_h)
+    card_rect = pygame.Rect(card_x, card_y, CARD_W, CARD_H)
 
-    hovered = card_rect.collidepoint(m_pos)
-    bg_col = (30, 24, 16, 210) if not hovered else (42, 34, 20, 225)
-    border_col = UI_THEME["old_gold"] if hovered else (120, 95, 45)
+    # Carrega e escala o asset (crop y=128–920 remove padding transparente topo/base)
+    if (_perfilnovo_img_cache is None
+            or _perfilnovo_img_cache.get_size() != (CARD_W, CARD_H)):
+        _img_path = os.path.join(BASE_DIR, "assets", "ui", "perfilnovo.png")
+        try:
+            _raw = pygame.image.load(_img_path).convert_alpha()
+            _cropped = _raw.subsurface((0, 128, 1536, 792))
+            _perfilnovo_img_cache = pygame.transform.smoothscale(_cropped, (CARD_W, CARD_H))
+        except Exception:
+            _perfilnovo_img_cache = None
 
-    bg = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
-    bg.fill(bg_col)
-    screen.blit(bg, card_rect.topleft)
-    pygame.draw.rect(screen, border_col, card_rect, 2, border_radius=8)
+    if _perfilnovo_img_cache:
+        screen.blit(_perfilnovo_img_cache, card_rect.topleft)
+        # Brilho sutil ao hover
+        if card_rect.collidepoint(m_pos):
+            _glow = pygame.Surface((CARD_W, CARD_H), pygame.SRCALPHA)
+            _glow.fill((255, 220, 100, 22))
+            screen.blit(_glow, card_rect.topleft)
+    else:
+        draw_dark_panel(screen, card_rect, alpha=210, border_color=UI_THEME["old_gold"])
 
-    # Avatar icon
+    # Áreas internas mapeadas das frações do asset recortado (1536×792):
+    #   Quadrado esquerdo: x=92–508  → 6.0%–33.1%
+    #   Retângulo direito: x=512–1388 → 33.3%–90.4%
+    #   Vertical (ambos):  y=192–612  → 24.2%–77.3%
+    _sq_x1 = card_x + int(0.060 * CARD_W)
+    _sq_x2 = card_x + int(0.331 * CARD_W)
+    _sq_y1 = card_y + int(0.242 * CARD_H)
+    _sq_y2 = card_y + int(0.773 * CARD_H)
+    _sq_w  = _sq_x2 - _sq_x1   # ≈75px
+    _sq_h  = _sq_y2 - _sq_y1   # ≈75px
+
+    _rx1 = card_x + int(0.333 * CARD_W)   # ≈91
+    _rx2 = card_x + int(0.904 * CARD_W)   # ≈248
+    _rw  = _rx2 - _rx1                    # ≈157px
+
+    # Avatar perfeitamente enquadrado no quadrado esquerdo
+    av_size = min(_sq_w, _sq_h)
+    av_x = _sq_x1 + (_sq_w - av_size) // 2
+    av_y = _sq_y1 + (_sq_h - av_size) // 2
     avatar_idx = p.get("avatar_idx", p.get("avatar_char", 0)) % 48
-    icon = _load_avatar_icon(avatar_idx, ICON_SIZE)
-    icon_rect = pygame.Rect(card_x + PAD, card_y + PAD, ICON_SIZE, ICON_SIZE)
+    icon = _load_avatar_icon(avatar_idx, av_size)
     if icon:
-        screen.blit(icon, icon_rect)
+        screen.blit(icon, (av_x, av_y))
     else:
         clr = _CHAR_COLORS[avatar_idx % len(_CHAR_COLORS)]
-        pygame.draw.rect(screen, clr, icon_rect, border_radius=6)
-    pygame.draw.rect(screen, border_col, icon_rect, 1, border_radius=6)
+        pygame.draw.rect(screen, clr, pygame.Rect(av_x, av_y, av_size, av_size), border_radius=4)
 
-    # Text area
-    tx = card_x + PAD + ICON_SIZE + 8
-    name = p.get("nickname", "?")[:16]
+    # Informações no retângulo direito (fonte dedicada menor para o minicard)
+    _font_name = load_dark_font(14, bold=True)
+    tx = _rx1 + 6
+    cy = _sq_y1 + _sq_h // 2
+
+    name         = p.get("nickname", "?")[:16]
     country_code = p.get("country", "BR")
     country_name = COUNTRY_BY_CODE.get(country_code, country_code)
-    prof_level = ProfileManager.xp_to_level(p.get("profile_xp", 0))[0]
+    prof_level   = ProfileManager.xp_to_level(p.get("profile_xp", 0))[0]
 
-    name_s = font_m.render(name, True, UI_THEME["parchment"])
-    country_s = font_s.render(country_name, True, (140, 170, 200))
-    level_s = font_s.render(f"Lv.{prof_level}", True, (200, 170, 60))
+    name_s    = _font_name.render(name,        True, UI_THEME["parchment"])
+    country_s = font_s.render(country_name,    True, (140, 170, 200))
+    level_s   = font_s.render(f"Lv.{prof_level}", True, (200, 170, 60))
 
-    screen.blit(name_s, name_s.get_rect(left=tx, centery=card_y + card_h // 2 - 14))
-    screen.blit(country_s, country_s.get_rect(left=tx, centery=card_y + card_h // 2 + 6))
-    screen.blit(level_s, level_s.get_rect(left=tx, centery=card_y + card_h // 2 + 22))
+    screen.blit(name_s,    name_s.get_rect(left=tx,    centery=cy - 22))
+    screen.blit(country_s, country_s.get_rect(left=tx, centery=cy - 1))
+    screen.blit(level_s,   level_s.get_rect(left=tx,   centery=cy + 18))
 
-    # Small "click to expand" hint when hovered
+    hovered = card_rect.collidepoint(m_pos)
     if hovered:
         hint = font_s.render("clique para trocar", True, (130, 120, 90))
         screen.blit(hint, hint.get_rect(right=card_rect.right - 6, bottom=card_rect.bottom - 3))
