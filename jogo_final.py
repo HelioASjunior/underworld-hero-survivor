@@ -32,7 +32,7 @@ from spatial_index import EnemyBatchIndex, ObstacleGridIndex, PERF, _CYTHON_ACTI
 from hot_kernels import enemy_separation, NUMBA_ACTIVE
 
 # =========================================================
-# CONFIGURAÇÕES DE PERSISTÊNCIA (SETTINGS.JSON)
+# CONFIGURAÇÕES DE PERSISTÊNCIA -SETTINGS.JSON-
 # =========================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
