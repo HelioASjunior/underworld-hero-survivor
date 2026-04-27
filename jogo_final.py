@@ -4,6 +4,7 @@ import pygame
 import os
 import json
 import threading
+import webbrowser
 from datetime import datetime, timedelta
 import balance as _bal
 from profile_manager import ProfileManager, COUNTRIES, COUNTRY_BY_CODE
@@ -3874,13 +3875,13 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
         _draw_profile_select._arr_avatar_l = av_l
         _draw_profile_select._arr_avatar_r = av_r
 
-        # — Botões alinhados com os 2 primeiros e 2 últimos boxes da base da imagem —
+        # — Botões: "Criar Perfil" alinhado ao 1º box, "Voltar" ao último box —
         _box_margin = int(pan_w * 0.088)
         _box_gap = int(pan_w * 0.005)
         _4box_w = (pan_w - 2 * _box_margin - 3 * _box_gap) // 4
         btn_h_px = int(pan_h * 0.108)
-        btn_criar  = pygame.Rect(pan_x + _box_margin, _btn_top, _4box_w * 2 + _box_gap, btn_h_px)
-        btn_voltar = pygame.Rect(pan_x + _box_margin + _4box_w * 2 + _box_gap * 2, _btn_top, _4box_w * 2 + _box_gap, btn_h_px)
+        btn_criar  = pygame.Rect(pan_x + _box_margin, _btn_top, _4box_w, btn_h_px)
+        btn_voltar = pygame.Rect(pan_x + pan_w - _box_margin - _4box_w, _btn_top, _4box_w, btn_h_px)
 
         can_create = bool(new_name.strip())
         _btn_label = "SALVAR ALTERAÇÕES" if mode == "edit" else "CRIAR PERFIL"
@@ -4545,11 +4546,10 @@ def main():
         Button(0.15, 0.55, BTN_W, BTN_H, "MISSÕES",        font_m),
         Button(0.15, 0.61, BTN_W, BTN_H, "TALENTOS",       font_m),
         Button(0.15, 0.67, BTN_W, BTN_H, "LOJA DE ITENS",  font_m),
-        Button(0.15, 0.73, BTN_W, BTN_H, "SAVES",          font_m),
-        Button(0.15, 0.79, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.85, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.73, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.79, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
-    menu_icons = ["play", "missions", "talents", "saves", "saves", "settings", "exit"]
+    menu_icons = ["play", "missions", "talents", "saves", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
         btn.icon = load_menu_icon_surface(loader, icon, size=(20, 20))
         btn.sprite_idx = idx % 7
@@ -4559,10 +4559,16 @@ def main():
         "MISSÕES": ("Rotina Diaria", "Acompanhe objetivos diarios, resgate recompensas e acelere sua progressao."),
         "TALENTOS": ("Arvore de Talentos", "Invista ouro em melhorias permanentes e desbloqueie builds mais fortes."),
         "LOJA DE ITENS": ("Loja de Itens", "Compre armas, escudos e equipamentos para potencializar sua proxima run."),
-        "SAVES": ("Gerenciar Saves", "Carregue e acompanhe slots de progresso para alternar entre campanhas."),
         "CONFIGURAÇÕES": ("Ajustes do Jogo", "Video, audio, controles e acessibilidade com aplicacao imediata."),
         "SAIR": ("Encerrar", "Salva progresso atual e fecha o jogo com seguranca."),
     }
+    _menu_site_url = "https://underworld-hero-landing.vercel.app/"
+    _ext_btn_w = max(160, int(SCREEN_W * 0.095))
+    _ext_btn_h = 36
+    _ext_gap = max(14, int(SCREEN_W * 0.016))
+    _ext_btn_y = int(SCREEN_H * 0.955) - _ext_btn_h // 2
+    menu_site_rect = pygame.Rect(SCREEN_W // 2 - _ext_btn_w - _ext_gap // 2, _ext_btn_y, _ext_btn_w, _ext_btn_h)
+    menu_steam_rect = pygame.Rect(SCREEN_W // 2 + _ext_gap // 2, _ext_btn_y, _ext_btn_w, _ext_btn_h)
 
     saves_slot_btns = [
         Button(0.5, 0.35, BTN_W, BTN_H, "SLOT 1", font_m),
@@ -5232,11 +5238,12 @@ def main():
                             elif menu_btns[3].rect.collidepoint(click_pos):
                                 menu_pending_action = "ITEM_SHOP"
                             elif menu_btns[4].rect.collidepoint(click_pos):
-                                menu_pending_action = "SAVES"
-                            elif menu_btns[5].rect.collidepoint(click_pos):
                                 menu_pending_action = "SETTINGS"
-                            elif menu_btns[6].rect.collidepoint(click_pos):
+                            elif menu_btns[5].rect.collidepoint(click_pos):
                                 menu_pending_action = "QUIT"
+                            elif menu_site_rect.collidepoint(click_pos):
+                                webbrowser.open(_menu_site_url)
+                                if snd_click: snd_click.play()
 
                             if menu_pending_action is not None:
                                 if snd_click:
@@ -6832,6 +6839,33 @@ def main():
             screen.blit(hint, (preview_rect.x + 20, preview_rect.bottom - 34))
 
             _menu_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos)
+
+            # ── Botões de links externos (Site Oficial / Steam) ─────────────
+            _font_ext = load_dark_font(14)
+            _site_hov = menu_site_rect.collidepoint(m_pos)
+            _sc = (30, 55, 105) if _site_hov else (16, 30, 60)
+            _sb = (80, 145, 215) if _site_hov else (42, 72, 130)
+            pygame.draw.rect(screen, _sc, menu_site_rect, border_radius=5)
+            pygame.draw.rect(screen, _sb, menu_site_rect, 1, border_radius=5)
+            _gx, _gy = menu_site_rect.x + 16, menu_site_rect.centery
+            pygame.draw.circle(screen, _sb, (_gx, _gy), 7, 1)
+            pygame.draw.line(screen, _sb, (_gx - 7, _gy), (_gx + 7, _gy), 1)
+            pygame.draw.ellipse(screen, _sb, pygame.Rect(_gx - 4, _gy - 7, 8, 14), 1)
+            _site_lbl = _font_ext.render("Site Oficial", True, (160, 210, 255) if _site_hov else (95, 145, 200))
+            screen.blit(_site_lbl, _site_lbl.get_rect(centery=menu_site_rect.centery, x=menu_site_rect.x + 30))
+
+            _steam_hov = menu_steam_rect.collidepoint(m_pos)
+            _stc = (28, 28, 38) if _steam_hov else (16, 16, 24)
+            _stb = (72, 72, 95) if _steam_hov else (42, 42, 58)
+            pygame.draw.rect(screen, _stc, menu_steam_rect, border_radius=5)
+            pygame.draw.rect(screen, _stb, menu_steam_rect, 1, border_radius=5)
+            _ssx, _ssy = menu_steam_rect.x + 16, menu_steam_rect.centery
+            pygame.draw.circle(screen, _stb, (_ssx, _ssy), 7, 0)
+            pygame.draw.circle(screen, _stc, (_ssx, _ssy), 4, 0)
+            _steam_lbl = _font_ext.render("Steam", True, (100, 100, 130) if _steam_hov else (65, 65, 88))
+            _soon_lbl = load_dark_font(11).render("em breve", True, (50, 50, 65))
+            screen.blit(_steam_lbl, _steam_lbl.get_rect(centery=menu_steam_rect.centery - 5, x=menu_steam_rect.x + 30))
+            screen.blit(_soon_lbl, _soon_lbl.get_rect(centery=menu_steam_rect.centery + 8, x=menu_steam_rect.x + 30))
 
             # Overlay de perfil/conquistas (abre ao clicar no widget)
             if menu_profile_open:
