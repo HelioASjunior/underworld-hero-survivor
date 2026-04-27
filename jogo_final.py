@@ -3498,7 +3498,7 @@ def load_menu_icon_surface(loader, kind, size=(20, 20)):
 # =========================================================
 
 def show_loading_screen(screen, load_fn, font_path=None):
-    """Exibe tela de carregamento animada enquanto load_fn() roda em background thread."""
+    """Exibe tela de carregamento com efeito de sangue escorrendo."""
     sw, sh = screen.get_size()
 
     # --- Background ---
@@ -3508,11 +3508,10 @@ def show_loading_screen(screen, load_fn, font_path=None):
         bg_surf = pygame.transform.smoothscale(raw_bg, (sw, sh))
     else:
         bg_surf = pygame.Surface((sw, sh))
-        bg_surf.fill((10, 5, 20))
+        bg_surf.fill((8, 3, 3))
 
-    # Overlay escuro para legibilidade
     overlay = pygame.Surface((sw, sh), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 140))
+    overlay.fill((0, 0, 0, 150))
 
     # --- Fontes ---
     def _make_font(size, bold=False):
@@ -3523,20 +3522,20 @@ def show_loading_screen(screen, load_fn, font_path=None):
                 pass
         return pygame.font.SysFont("arial", size, bold=bold)
 
-    font_title  = _make_font(52, bold=True)
-    font_label  = _make_font(28, bold=True)
-    font_tip    = _make_font(20)
+    font_title = _make_font(52, bold=True)
+    font_label = _make_font(28, bold=True)
+    font_tip   = _make_font(20)
 
-    # --- Dimensões da barra de progresso ---
-    bar_w   = int(sw * 0.50)
-    bar_h   = 22
-    bar_x   = (sw - bar_w) // 2
-    bar_y   = int(sh * 0.80)
-    corner  = bar_h // 2   # borda arredondada
+    # --- Dimensões da barra ---
+    bar_w  = int(sw * 0.50)
+    bar_h  = 26
+    bar_x  = (sw - bar_w) // 2
+    bar_y  = int(sh * 0.80)
+    corner = 3
 
-    # --- Thread de carregamento ---
-    _done    = [False]
-    _error   = [None]
+    # --- Thread ---
+    _done  = [False]
+    _error = [None]
 
     def _worker():
         try:
@@ -3549,22 +3548,37 @@ def show_loading_screen(screen, load_fn, font_path=None):
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
 
-    # --- Loop de animação ---
-    clock      = pygame.time.Clock()
-    elapsed    = 0.0          # segundos desde início
-    fake_prog  = 0.0          # 0.0 – 1.0 progresso fake suave
-    dot_timer  = 0.0
-    dot_count  = 0
+    # --- Pré-computa gradiente de sangue (dark → bright → dark) ---
+    _blood_pre = pygame.Surface((bar_w, bar_h - 4))
+    for _i in range(bar_w):
+        _t = _i / max(1, bar_w - 1)
+        if _t < 0.55:
+            _r = int(75 + (195 - 75) * (_t / 0.55))
+        else:
+            _r = int(195 - (195 - 110) * ((_t - 0.55) / 0.45))
+        _g = int(4 + _t * 7)
+        pygame.draw.line(_blood_pre, (min(255, _r), _g, 4), (_i, 0), (_i, bar_h - 5))
 
-    # Gradiente da barra: dourado → laranja claro
-    _bar_color_l = (220, 170, 40)
-    _bar_color_r = (255, 210, 80)
+    # --- Splatters estáticos pré-computados (surfaces com alpha) ---
+    _rng = random.Random(7)
+    _splatters = []
+    for _ in range(28):
+        _sx = bar_x + int(_rng.random() * bar_w)
+        _sy = bar_y + bar_h + int(_rng.random() * 55 + 6)
+        _sr = _rng.randint(1, 3)
+        _sa = _rng.randint(120, 200)
+        _ss = pygame.Surface((_sr * 2 + 2, _sr * 2 + 2), pygame.SRCALPHA)
+        pygame.draw.circle(_ss, (80, 5, 5, _sa), (_sr + 1, _sr + 1), _sr)
+        _splatters.append((_sx - _sr - 1, _sy - _sr - 1, _ss, _sx - bar_x))
 
-    # Cor do brilho superior
-    _shine_color = (255, 255, 200, 60)
+    # --- Gotas de sangue animadas ---
+    # Cada gota: [x, top_y, bottom_y, speed, width, phase, land_y, age]
+    # phase: 0=crescendo, 1=caindo, 2=pousada
+    _drips = []
+    _puddles = []   # (cx, cy, rx, ry) para ellipses de poça
 
-    # Pré-render do texto estático
-    title_surf = font_title.render("Carregando", True, (240, 220, 140))
+    # --- Textos ---
+    title_surf = font_title.render("Carregando", True, (190, 12, 12))
     title_rect = title_surf.get_rect(center=(sw // 2, int(sh * 0.70)))
 
     tip_texts = [
@@ -3573,74 +3587,133 @@ def show_loading_screen(screen, load_fn, font_path=None):
         "Combine upgrades para criar sinergias poderosas.",
         "Cada run é única — adapte sua estratégia.",
     ]
-    tip_surf  = font_tip.render(random.choice(tip_texts), True, (160, 155, 170))
-    tip_rect  = tip_surf.get_rect(center=(sw // 2, bar_y + bar_h + 38))
+    tip_surf = font_tip.render(random.choice(tip_texts), True, (150, 90, 90))
+    tip_rect = tip_surf.get_rect(center=(sw // 2, bar_y + bar_h + 90))
+
+    clock     = pygame.time.Clock()
+    elapsed   = 0.0
+    fake_prog = 0.0
+    dot_timer = 0.0
+    dot_count = 0
 
     while not (_done[0] and fake_prog >= 0.995 and elapsed >= 5.0):
         dt = clock.tick(60) / 1000.0
         elapsed   += dt
         dot_timer += dt
-        if dot_timer >= 0.40:
+        if dot_timer >= 0.45:
             dot_timer = 0.0
             dot_count = (dot_count + 1) % 4
 
-        # Progresso fake: sobe rápido até 85%, depois aguarda _done
-        if not _done[0]:
-            target = 0.85
-        else:
-            target = 1.0
+        target = 0.85 if not _done[0] else 1.0
         fake_prog += (target - fake_prog) * min(1.0, dt * 2.2)
+
+        fill_w = max(corner * 2, int(bar_w * fake_prog))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 raise SystemExit
 
-        # --- Desenho ---
+        # ── Spawn de novas gotas ────────────────────────────────────────────
+        active_count = sum(1 for d in _drips if d[6] < 2)
+        if fill_w > corner * 3 and active_count < 20:
+            rate = 0.05 + 0.08 * (fill_w / bar_w)
+            if random.random() < rate * dt * 60:
+                _gx  = bar_x + random.randint(corner, fill_w - corner)
+                _spd = random.uniform(22, 95)
+                _gw  = random.randint(1, 4)
+                _mlen = random.uniform(12, 55)
+                _land = bar_y + bar_h + _mlen + random.uniform(30, 110)
+                _drips.append([_gx, float(bar_y + bar_h), float(bar_y + bar_h),
+                                _spd, _gw, _mlen, 0, 0.0])
+
+        # ── Atualiza gotas ──────────────────────────────────────────────────
+        for _d in _drips:
+            _gx2, _gtop, _gbot, _spd2, _gw2, _mlen2, _phase, _age = _d
+            if _phase == 0:
+                _gbot += _spd2 * dt
+                _d[2]  = _gbot
+                if (_gbot - _gtop) >= _mlen2:
+                    _d[6] = 1
+            elif _phase == 1:
+                _gtop += _spd2 * dt * 0.35
+                _gbot += _spd2 * dt * 1.15
+                _d[1], _d[2] = _gtop, _gbot
+                if _gbot >= bar_y + bar_h + _mlen2 + 80:
+                    _d[6] = 2
+                    _pw = random.randint(3, 7)
+                    _puddles.append((int(_gx2), int(_gbot), _pw, random.randint(1, 2)))
+                    if len(_puddles) > 30:
+                        _puddles.pop(0)
+            elif _phase == 2:
+                _d[7] += dt
+
+        _drips[:] = [_d for _d in _drips if not (_d[6] == 2 and _d[7] > 4.0)]
+
+        # ═══════════════════ DESENHO ═══════════════════════════════════════
         screen.blit(bg_surf, (0, 0))
         screen.blit(overlay, (0, 0))
 
-        # Título pulsante
-        pulse = 0.85 + 0.15 * math.sin(elapsed * 2.5)
-        alpha = int(255 * pulse)
-        title_surf.set_alpha(alpha)
+        # Splatters de sangue seco (aparecem gradualmente com o progresso)
+        for _sbx, _sby, _ss2, _srel in _splatters:
+            if _srel <= fill_w * 1.15:
+                screen.blit(_ss2, (_sbx, _sby))
+
+        # Poças de sangue (gotas pousadas)
+        for _pcx, _pcy, _prx, _pry in _puddles:
+            pygame.draw.ellipse(screen, (70, 4, 4), (_pcx - _prx, _pcy - _pry, _prx * 2, _pry * 2))
+
+        # Trilho da barra (sangue ressecado/escuro)
+        pygame.draw.rect(screen, (12, 4, 4), (bar_x - 3, bar_y - 3, bar_w + 6, bar_h + 6), border_radius=corner + 2)
+        pygame.draw.rect(screen, (22, 7, 7), (bar_x, bar_y, bar_w, bar_h), border_radius=corner)
+
+        # Preenchimento de sangue (gradiente pré-computado, 1 blit)
+        if fill_w > 0:
+            screen.blit(_blood_pre, (bar_x, bar_y + 2), (0, 0, fill_w, bar_h - 4))
+
+            # Veia de textura: linhas horizontais escuras internas
+            for _vy in (bar_y + 7, bar_y + 14, bar_y + 20):
+                if _vy < bar_y + bar_h - 3:
+                    _va = 30 + int(20 * math.sin(elapsed * 2.8 + _vy))
+                    _vsurf = pygame.Surface((fill_w, 1), pygame.SRCALPHA)
+                    _vsurf.fill((0, 0, 0, _va))
+                    screen.blit(_vsurf, (bar_x, _vy))
+
+        # Borda pulsante da barra (batimento cardíaco)
+        _heart = abs(math.sin(elapsed * 3.8)) * 0.6 + 0.4
+        _br    = int(45 + _heart * 50)
+        pygame.draw.rect(screen, (_br, 5, 5), (bar_x, bar_y, bar_w, bar_h), width=1, border_radius=corner)
+
+        # Gotas ativas
+        for _d in _drips:
+            if _d[6] == 2:
+                continue
+            _dx2, _dtop, _dbot = int(_d[0]), int(_d[1]), int(_d[2])
+            _dw2  = _d[4]
+            _dlen = _dbot - _dtop
+            if _dlen >= 2:
+                pygame.draw.line(screen, (168, 10, 8), (_dx2, _dtop), (_dx2, _dbot), _dw2)
+            # Bolha na ponta (teardrop)
+            pygame.draw.circle(screen, (195, 15, 10), (_dx2, _dbot), _dw2 + 1)
+            # Brilho especular na bolha
+            if _dw2 >= 2:
+                pygame.draw.circle(screen, (230, 60, 50), (_dx2 - 1, _dbot - 1), max(1, _dw2 - 1))
+
+        # ── Título "Carregando" (pulsação de batimento cardíaco) ────────────
+        _hbeat = 0.75 + 0.25 * abs(math.sin(elapsed * 3.8))
+        title_surf.set_alpha(int(255 * _hbeat))
         screen.blit(title_surf, title_rect)
 
-        # Pontos animados
-        dots_surf = font_title.render("." * dot_count, True, (240, 220, 140))
-        dots_rect = dots_surf.get_rect(midleft=(title_rect.right + 4, title_rect.centery))
-        dots_surf.set_alpha(alpha)
-        screen.blit(dots_surf, dots_rect)
-
-        # Fundo da barra (trilho)
-        pygame.draw.rect(screen, (30, 25, 40), (bar_x - 2, bar_y - 2, bar_w + 4, bar_h + 4), border_radius=corner + 2)
-        pygame.draw.rect(screen, (55, 48, 70), (bar_x, bar_y, bar_w, bar_h), border_radius=corner)
-
-        # Preenchimento com gradiente horizontal simulado
-        fill_w = max(corner * 2, int(bar_w * fake_prog))
-        if fill_w > 0:
-            for i in range(fill_w):
-                t_grad = i / bar_w
-                r = int(_bar_color_l[0] + (_bar_color_r[0] - _bar_color_l[0]) * t_grad)
-                g = int(_bar_color_l[1] + (_bar_color_r[1] - _bar_color_l[1]) * t_grad)
-                b = int(_bar_color_l[2] + (_bar_color_r[2] - _bar_color_l[2]) * t_grad)
-                pygame.draw.line(screen, (r, g, b),
-                                 (bar_x + i, bar_y + 2), (bar_x + i, bar_y + bar_h - 2))
-            # Clip arredondado na barra preenchida
-            fill_clip = pygame.Surface((fill_w, bar_h), pygame.SRCALPHA)
-            pygame.draw.rect(fill_clip, (0, 0, 0, 0), fill_clip.get_rect(), border_radius=corner)
-            # Brilho superior
-            shine = pygame.Surface((fill_w, bar_h // 2), pygame.SRCALPHA)
-            shine.fill(_shine_color)
-            screen.blit(shine, (bar_x, bar_y), special_flags=pygame.BLEND_RGBA_ADD)
-
-        # Borda da barra
-        pygame.draw.rect(screen, (100, 85, 130), (bar_x, bar_y, bar_w, bar_h), width=1, border_radius=corner)
+        # Pontos animados em vermelho
+        _dots_surf = font_title.render("." * dot_count, True, (175, 10, 10))
+        _dots_rect = _dots_surf.get_rect(midleft=(title_rect.right + 4, title_rect.centery))
+        _dots_surf.set_alpha(int(255 * _hbeat))
+        screen.blit(_dots_surf, _dots_rect)
 
         # Percentual
-        pct_surf = font_label.render(f"{int(fake_prog * 100)}%", True, (210, 195, 120))
-        pct_rect = pct_surf.get_rect(center=(sw // 2, bar_y - 28))
-        screen.blit(pct_surf, pct_rect)
+        _pct_surf = font_label.render(f"{int(fake_prog * 100)}%", True, (175, 12, 12))
+        _pct_rect = _pct_surf.get_rect(center=(sw // 2, bar_y - 32))
+        screen.blit(_pct_surf, _pct_rect)
 
         # Dica
         screen.blit(tip_surf, tip_rect)
@@ -3650,13 +3723,13 @@ def show_loading_screen(screen, load_fn, font_path=None):
     if _error[0]:
         raise _error[0]
 
-    # Fade out suave
+    # Fade out (escurece para preto)
     fade = pygame.Surface((sw, sh))
     fade.fill((0, 0, 0))
-    for alpha in range(0, 256, 8):
+    for _fa in range(0, 256, 8):
         screen.blit(bg_surf, (0, 0))
         screen.blit(overlay, (0, 0))
-        fade.set_alpha(alpha)
+        fade.set_alpha(_fa)
         screen.blit(fade, (0, 0))
         pygame.display.flip()
         clock.tick(60)
