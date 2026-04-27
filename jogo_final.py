@@ -5761,6 +5761,13 @@ def main():
                             if snd_click: snd_click.play()
                             save_data["gold"] = save_data.get("gold", 0) + int(run_gold_collected)
                             run_gold_collected = 0.0
+                            # XP de perfil antes de clear (game_time ainda válido)
+                            if profile_mgr and profile_mgr.has_active_profile():
+                                _xp_rate = PROFILE_XP_RATES.get(selected_difficulty, 10)
+                                _xp_earned = int(game_time / 60 * _xp_rate)
+                                if _xp_earned > 0:
+                                    _ap = profile_mgr.get_active_profile()
+                                    profile_mgr.update_xp(_ap["id"], _xp_earned)
                             _saved_cid = player.char_id if player else hub_last_char_id
                             clear_current_run_state()
                             hub_last_char_id = _saved_cid
