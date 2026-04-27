@@ -5761,7 +5761,20 @@ def main():
                             if snd_click: snd_click.play()
                             save_data["gold"] = save_data.get("gold", 0) + int(run_gold_collected)
                             run_gold_collected = 0.0
+                            _saved_cid = player.char_id if player else hub_last_char_id
                             clear_current_run_state()
+                            hub_last_char_id = _saved_cid
+                            reset_game(_saved_cid)
+                            if player is not None and hub_scene is not None:
+                                _cdata_ret = CHAR_DATA.get(_saved_cid, {})
+                                hub_scene.apply_char_frames(
+                                    dir_walk      = dict(player._dir_walk_frames),
+                                    dir_idle      = dict(player._dir_idle_frames),
+                                    walk_fallback = list(player.anim_frames),
+                                    idle_fallback = list(player.idle_frames),
+                                    anim_spd      = _cdata_ret.get("anim_speed", 0.10),
+                                    idle_anim_spd = _cdata_ret.get("idle_anim_speed", 0.13),
+                                )
                             save_game()
                             state = "HUB"
                         elif pause_btns[2].rect.collidepoint(click_pos):  # MENU PRINCIPAL
