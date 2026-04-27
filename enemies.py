@@ -189,6 +189,24 @@ SPRITESHEET_CONFIGS = {
         "attack_range": 110,
         "gold_drops": 1,
     },
+    "ghost": {
+        # ghost.run.png:    384×256 → 6 cols × 4 rows, frame 64×64
+        # ghost.ataque.png: 768×256 → 12 cols × 4 rows, frame 64×64
+        # ghost.dt.png:     576×256 → 9 cols × 4 rows, frame 64×64
+        # Linhas: baixo=0, cima=1, esquerda=2, direita=3
+        "walk_sheet":   "sprite/monster/New Monster/ghost.run",
+        "atk_sheet":    "sprite/monster/New Monster/ghost.ataque",
+        "morte_sheet":  "sprite/monster/New Monster/ghost.dt",
+        "frame_w": 64, "frame_h": 64,
+        "walk_frames": 6,
+        "atk_frames":  12,
+        "morte_frames": 9,
+        "atk_sheet_cols": 12,
+        "dir_rows": {"down": 0, "up": 1, "left": 2, "right": 3},
+        "size": (130, 130),
+        "attack_range": 115,
+        "gold_drops": 2,
+    },
 }
 
 
@@ -243,6 +261,32 @@ class EnemyProjectile(pygame.sprite.Sprite):
             self.kill()
 
 
+class EnemyDeathAnim(pygame.sprite.Sprite):
+    """Reproduz a animação de morte de um inimigo uma vez e se remove."""
+
+    FRAME_SPEED = 0.08  # segundos por frame
+
+    def __init__(self, pos, frames):
+        super().__init__()
+        self.frames    = frames
+        self.frame_idx = 0
+        self.timer     = 0.0
+        self.image     = frames[0]
+        self.rect      = self.image.get_rect()
+        self.pos       = pygame.Vector2(pos)
+
+    def update(self, dt, cam):
+        self.timer += dt
+        if self.timer >= self.FRAME_SPEED:
+            self.timer = 0.0
+            self.frame_idx += 1
+            if self.frame_idx >= len(self.frames):
+                self.kill()
+                return
+            self.image = self.frames[self.frame_idx]
+        self.rect.center = self.pos + cam
+
+
 class Enemy(pygame.sprite.Sprite):
     """Classe de inimigo modularizada com suporte a IA aprimorada."""
 
@@ -264,6 +308,7 @@ class Enemy(pygame.sprite.Sprite):
         self._dir_white_frames  = {}
         self._dir_frozen_frames = {}
         self._dir_atk_frames    = {}
+        self._morte_frames      = {}
         self._atk_frames_flat         = []
         self._atk_frames_flat_flipped = []
         self._atk_active      = False
@@ -345,6 +390,7 @@ class Enemy(pygame.sprite.Sprite):
             "slime_fire":   (280,   125),
             "slime_red":    (220,   110),
             "slime_yellow": (160,   145),
+            "ghost":        (200,   120),
         }
         base_hp, base_spd = stats.get(kind, (2, 100))
 
@@ -381,6 +427,7 @@ class Enemy(pygame.sprite.Sprite):
             "slime_fire":   18.0,
             "slime_red":    16.0,
             "slime_yellow": 14.0,
+            "ghost":        15.0,
         }
         self.melee_dmg = _base_melee.get(kind, 8.0) * _dmg_m
         if kind == "mini_boss":
@@ -494,6 +541,21 @@ class Enemy(pygame.sprite.Sprite):
                     self._atk_frames_flat_flipped = [
                         pygame.transform.flip(f, True, False) for f in atk_frames]
 
+        # Animação de morte (morte_sheet) — direcional quando dir_rows está presente
+        morte_sheet = cfg.get("morte_sheet")
+        if morte_sheet and dir_rows and cfg.get("morte_frames", 0) > 0:
+            morte_fpd = cfg["morte_frames"]
+            morte_fw  = cfg.get("morte_frame_w", fw)
+            morte_fh  = cfg.get("morte_frame_h", fh)
+            morte_size = cfg.get("morte_size", size)
+            for dir_name, row_idx in dir_rows.items():
+                row_start = row_idx * morte_fpd
+                indices   = [row_start + i for i in range(morte_fpd)]
+                m_frames  = loader.load_spritesheet(morte_sheet, morte_fw, morte_fh,
+                                                    len(indices), morte_size, frame_indices=indices)
+                if m_frames:
+                    self._morte_frames[dir_name] = m_frames
+
     # ------------------------------------------------------------------
     # Helpers de render
     # ------------------------------------------------------------------
@@ -552,6 +614,14 @@ class Enemy(pygame.sprite.Sprite):
         self._atk_active    = True
         self._atk_frame_idx = 0
         self._atk_timer     = 0.0
+
+    def get_morte_frames(self):
+        """Retorna os frames de morte para a direção atual, ou None se indisponível."""
+        if not self._morte_frames:
+            return None
+        return (self._morte_frames.get(self.facing_dir)
+                or self._morte_frames.get("down")
+                or next(iter(self._morte_frames.values()), None))
 
     # ------------------------------------------------------------------
     # Helper: atualiza facing_dir com base na direção ao jogador
@@ -724,6 +794,28 @@ class Enemy(pygame.sprite.Sprite):
                             self._charging = False
                         else:
                             move_speed *= 3.0
+                            if not self._atk_active:
+                                self._trigger_atk_anim()
+
+                # GHOST — flutuação senoidal lenta com arrancada fantasmal periódica
+                elif self.kind == "ghost":
+                    self._bat_phase += dt * 2.2
+                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
+                    amplitude = 0.50 if dist > 160 else 0.20
+                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
+                    if move_dir.length_squared() > 0:
+                        move_dir = move_dir.normalize()
+                    self._charge_timer -= dt
+                    if self._charge_timer <= 0 and not self._charging:
+                        self._charge_timer    = random.uniform(3.0, 5.0)
+                        self._charging        = True
+                        self._charge_active_t = random.uniform(0.30, 0.50)
+                    if self._charging:
+                        self._charge_active_t -= dt
+                        if self._charge_active_t <= 0:
+                            self._charging = False
+                        else:
+                            move_speed *= 2.5
                             if not self._atk_active:
                                 self._trigger_atk_anim()
 

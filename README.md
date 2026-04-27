@@ -99,6 +99,14 @@ Aparecem somente quando o bioma selecionado é Vulcão, a partir de 2 minutos de
 | Slime Red | 220 | 110 | 2 min | Tanque lento com alto HP |
 | Slime Yellow | 160 | 145 | 2 min | Ágil, menos HP, ataque rápido |
 
+### Inimigos — Exclusivos dos Biomas Lua e Vulcão
+
+Aparecem nos biomas Lua e Vulcão, a partir de 2 minutos de jogo.
+
+| Tipo | HP base | Vel. base | Aparição | Descrição |
+|---|---|---|---|---|
+| Ghost | 200 | 120 | 2 min | Flutuação senoidal com arrancada fantasmal (2.5× vel); animação de morte própria |
+
 ### Chefes
 
 | Tipo | HP base | Aparição | Descrição |
@@ -170,8 +178,8 @@ Difícil e Hardcore são desbloqueados por missões específicas.
 |---|---|---|---|
 | Dungeon | Decorações de chão animadas (pentagrama, dinossauro) via `DungeonDecoManager` | Sim | — |
 | Floresta | Tilemap composto com tiles animados (fogueira, bandeira) via `ForestDecoManager` | Sim | — |
-| Vulcão | Rochas, geiseres e colisões de ambiente via `VolcanoDecoManager` | Sim | Slime Fire, Slime Red, Slime Yellow |
-| Lua | Decorações temáticas de superfície lunar via `MoonDecoManager` | Sim | — |
+| Vulcão | Rochas, geiseres e colisões de ambiente via `VolcanoDecoManager` | Sim | Slime Fire, Slime Red, Slime Yellow, Ghost |
+| Lua | Decorações temáticas de superfície lunar via `MoonDecoManager` | Sim | Ghost |
 
 ### Loja de Itens
 

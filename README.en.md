@@ -99,6 +99,14 @@ Only appear when the Volcano biome is selected, starting at 2 minutes.
 | Slime Red | 220 | 110 | 2 min | Tanky, slow, high HP |
 | Slime Yellow | 160 | 145 | 2 min | Agile, low HP, fast attacks |
 
+### Enemies — Moon and Volcano Biome exclusive
+
+Appear in both Moon and Volcano biomes, starting at 2 minutes.
+
+| Type | Base HP | Base Speed | Spawn | Description |
+|---|---|---|---|---|
+| Ghost | 200 | 120 | 2 min | Sinusoidal floating with ghostly dash (2.5× speed); unique death animation |
+
 ### Bosses
 
 | Type | Base HP | Spawn | Description |
@@ -167,8 +175,8 @@ Hard and Hardcore are unlocked through specific missions.
 |---|---|---|---|
 | Dungeon | Animated floor decor (pentagram, dinosaur) via `DungeonDecoManager` | Yes | — |
 | Forest | Composite tilemap with animated tiles (campfire, banner) via `ForestDecoManager` | Yes | — |
-| Volcano | Rocks, geysers and environment collisions via `VolcanoDecoManager` | Yes | Slime Fire, Slime Red, Slime Yellow |
-| Moon | Lunar surface decorations via `MoonDecoManager` | Yes | — |
+| Volcano | Rocks, geysers and environment collisions via `VolcanoDecoManager` | Yes | Slime Fire, Slime Red, Slime Yellow, Ghost |
+| Moon | Lunar surface decorations via `MoonDecoManager` | Yes | Ghost |
 
 ### Item Shop
 

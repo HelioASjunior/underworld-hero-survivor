@@ -17,7 +17,7 @@ from volcano_biome import build_volcano_ground, VolcanoDecoManager
 from moon_biome import build_moon_ground, MoonDecoManager
 from hub_room import HubScene
 from drops import Drop as ModularDrop
-from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile
+from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile, EnemyDeathAnim
 from upgrades import (
     get_upgrade_description as get_upgrade_description_mod,
     pick_upgrades_with_synergy as pick_upgrades_with_synergy_mod,
@@ -2338,6 +2338,7 @@ obstacles = None
 puddles = None
 damage_texts = None
 doom_seals = None
+death_anims = None
 loader = None
 SFX = {}
 snd_hover = None
@@ -3157,7 +3158,8 @@ def reset_game(char_id=0):
     global obstacle_total_placed
     global doom_seals
     global _spawn_diff, current_hardcore_stage, show_stage_victory
-    
+    global death_anims
+
     save_data["stats"]["games_played"] += 1
     
     # Resetar stats base
@@ -3237,10 +3239,11 @@ def reset_game(char_id=0):
     puddles = pygame.sprite.Group()
     damage_texts = pygame.sprite.Group()
     doom_seals = pygame.sprite.Group()
+    death_anims = pygame.sprite.Group()
     obstacle_grid_index = ObstacleGridIndex(cell_size=WORLD_GRID)
     enemy_batch_index = EnemyBatchIndex()
     last_obstacle_count = 0
-    
+
     # Resetar variáveis de estado
     kills = 0
     game_time = 0.0
@@ -3302,7 +3305,7 @@ def clear_current_run_state():
     global session_boss_kills, session_max_level, triggered_hordes
     global player_upgrades, chest_loot, chest_ui_timer, up_options, up_keys, up_rarities
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
-    global doom_seals
+    global doom_seals, death_anims
 
     player = None
     enemies = pygame.sprite.Group()
@@ -3315,6 +3318,7 @@ def clear_current_run_state():
     puddles = pygame.sprite.Group()
     damage_texts = pygame.sprite.Group()
     doom_seals = pygame.sprite.Group()
+    death_anims = pygame.sprite.Group()
     obstacle_grid_index = ObstacleGridIndex(cell_size=WORLD_GRID)
     enemy_batch_index = EnemyBatchIndex()
     last_obstacle_count = 0
@@ -6326,6 +6330,11 @@ def main():
                         spawn_list.extend(["slime_fire", "slime_red", "slime_yellow"])
                         spawn_weights.extend([18, 14, 14])
 
+                    # Ghost — Moon e Volcano a partir de 2 min
+                    if selected_bg in ("moon", "volcano") and game_time >= 120:
+                        spawn_list.append("ghost")
+                        spawn_weights.append(16)
+
                     if selected_difficulty in ["DIFÍCIL", "HARDCORE"]:
                         spawn_list.extend(["slime", "minotauro"])
                         spawn_weights.extend([15, 15])
@@ -6339,6 +6348,11 @@ def main():
                                     _vi = spawn_list.index(_vk) if _vk in spawn_list else -1
                                     if _vi >= 0:
                                         spawn_weights[_vi] += 8
+                            # Ghost com peso extra em hard/hardcore
+                            if selected_bg in ("moon", "volcano"):
+                                _gi = spawn_list.index("ghost") if "ghost" in spawn_list else -1
+                                if _gi >= 0:
+                                    spawn_weights[_gi] += 6
 
                     chosen_enemy = random.choices(spawn_list, weights=spawn_weights, k=1)[0]
                     elite_chance = min(0.15, 0.03 + (game_time / 480.0) * 0.05)
@@ -6360,6 +6374,8 @@ def main():
                 SHOOTER_PROJ_IMAGE,
                 obstacle_grid_index,
             )
+            for _da in list(death_anims):
+                _da.update(dt, cam)
             # --- Colisão física: empurra inimigos para fora do raio do player ---
             _PUSH_R = (player.rect.width + 8) // 2
             for _pe in enemy_batch_index.enemies_in_radius(player.pos, _PUSH_R + 20):
@@ -6567,6 +6583,10 @@ def main():
                                 shake_timer = 0.7; shake_strength = 22
                             elif hit.kind == "mini_boss":
                                 shake_timer = 0.4; shake_strength = 12
+                            # Animação de morte para inimigos com morte_sheet (ex: ghost)
+                            _morte_frames = hit.get_morte_frames() if hasattr(hit, "get_morte_frames") else None
+                            if _morte_frames:
+                                death_anims.add(EnemyDeathAnim(hit.pos, _morte_frames))
                             gems.add(Gem(hit.pos, loader)); hit.kill(); kills += 1
                             save_data["stats"]["total_kills"] += 1
                             update_mission_progress("kills", 1)
@@ -8512,6 +8532,7 @@ def main():
             # Culling: só blita inimigos visíveis na tela
             _scr_rect = screen.get_rect()
             screen.blits([(e.image, e.rect) for e in enemies if _scr_rect.colliderect(e.rect)])
+            screen.blits([(d.image, d.rect) for d in death_anims if _scr_rect.colliderect(d.rect)])
 
             for e in enemies:
                 if not _scr_rect.colliderect(e.rect):
