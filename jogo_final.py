@@ -340,7 +340,7 @@ RUN_SLOT_FILES = [
 # Itens que começam desbloqueados
 DEFAULT_UNLOCKS = [
     "DANO ++", "VELOCIDADE ++", "VIDA MÁXIMA", "TIRO RÁPIDO", "CURA",
-    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "CHAR_4", "CHAR_5", "DIFF_FÁCIL", "DIFF_MÉDIO"
+    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "CHAR_4", "CHAR_5", "CHAR_6", "DIFF_FÁCIL", "DIFF_MÉDIO"
 ]
 
 save_data = {
