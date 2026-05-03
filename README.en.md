@@ -41,7 +41,7 @@ Highlights:
 
 - Real-time combat with high enemy density on screen.
 - Level-by-level progression with upgrade selection and synergistic evolutions.
-- 6 playable characters with unique playstyles and ultimates.
+- 7 playable characters with unique playstyles and ultimates.
 - 4 difficulty levels and 4 pacts with risk/reward modifiers.
 - Daily missions, meta progression, and permanent talent tree.
 - 3 independent run slots with full state saved.
@@ -51,16 +51,17 @@ Highlights:
 
 ## Playable Characters
 
-| Character | HP | Speed | Damage | Mana | Ultimate |
-|---|---|---|---|---|---|
-| Warrior | 100 | 280 | 25 | 50 | Warrior's Fury |
-| Hunter | 63 | 340 | 38 | 75 | Arrow Rain |
-| Mage | 75 | 260 | 25 | 200 | Temporal Freeze |
-| Vampire | 88 | 300 | 38 | 100 | Shadow Storm |
-| Demon | 75 | 290 | 38 | 100 | Infernal Flame |
-| Golem | 113 | 240 | 50 | 50 | Earth Strike |
+| Character | HP | Speed | Damage | Mana | Ultimate | Unlock |
+|---|---|---|---|---|---|---|
+| Warrior | 100 | 280 | 25 | 50 | Warrior's Fury | Default |
+| Hunter | 63 | 340 | 38 | 75 | Arrow Rain | Default |
+| Mage | 75 | 260 | 25 | 200 | Temporal Freeze | Default |
+| Vampire | 88 | 300 | 38 | 100 | Shadow Storm | Default |
+| Demon | 75 | 290 | 38 | 100 | Infernal Flame | Default |
+| Golem | 113 | 240 | 50 | 50 | Earth Strike | Default |
+| Skeleton | 95 | 265 | 44 | 75 | Blood Frenzy | Defeat 12 Bosses |
 
-All characters are unlocked by default. Each has directional spritesheets (up/down/left/right) with walk and attack animations loaded via `characters.py`.
+Each character has directional spritesheets (up/down/left/right) with walk, idle, and attack animations loaded via `characters.py`. The Skeleton is unlocked after 12 total boss kills.
 
 ---
 

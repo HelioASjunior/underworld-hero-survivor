@@ -67,7 +67,6 @@ def load_settings(force_default=False):
             "auto_pickup_chest": "On",
             "auto_apply_chest_reward": "On",
             "show_offscreen_arrows": "On",
-            "default_difficulty": "Médio"
         },
         "accessibility": {
             "screen_shake": 100,
@@ -394,7 +393,8 @@ ACHIEVEMENTS = {
     "CHAR_3": {"type": "char", "name": "VAMPIRE", "desc": "Derrote 3 Chefões", "req": lambda s: s["boss_kills"] >= 3},
     "CHAR_4": {"type": "char", "name": "DEMÔNIO", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
     "CHAR_5": {"type": "char", "name": "GOLEM", "desc": "Derrote 8 Chefões", "req": lambda s: s["boss_kills"] >= 8},
-    
+    "CHAR_6": {"type": "char", "name": "ESQUELETO", "desc": "Derrote 12 Chefões", "req": lambda s: s["boss_kills"] >= 12},
+
     "DIFF_DIFÍCIL": {"type": "diff", "name": "DIFÍCIL", "desc": "Sobreviva 10 min (total)", "req": lambda s: s["total_time"] >= 600},
     "DIFF_HARDCORE": {"type": "diff", "name": "HARDCORE", "desc": "Complete Fácil, Médio e Difícil", "req": lambda s: len({"FÁCIL", "MÉDIO", "DIFÍCIL"} & set(save_data.get("beaten_difficulties", []))) >= 3},
 
@@ -952,6 +952,41 @@ CHAR_DATA = {
         "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
         "projectile_display_size": (96, 96),
     },
+    6: {
+        "name": "ESQUELETO", "hp": 95, "speed": 265, "damage": 44, "mana": 75,
+        "desc": "Ult: Frenesi Sanguinário", "size": (200, 200), "menu_size": (280, 280),
+        "anim_frames": 8, "menu_anim_frames": 8,
+        "dash_duration": 0.20, "dash_cooldown": 2.3,
+        "id": "CHAR_6",
+        # Walk: Skeleton3_Run_with_shadow.png — 512×256, 4 rows × 8 frames de 64×64
+        # Row 0=baixo, 1=cima, 2=esquerda, 3=direita
+        "spritesheet": "sprite/monster/new hero/Skeleton3_Run_with_shadow",
+        "spritesheet_frame_w": 64,
+        "spritesheet_frame_h": 64,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "anim_speed": 0.09,
+        # Idle: Skeleton3_Idle_with_shadow.png — 256×256, 4 rows × 4 frames de 64×64
+        "spritesheet_idle": "sprite/monster/new hero/Skeleton3_Idle_with_shadow",
+        "spritesheet_idle_frame_w": 64,
+        "spritesheet_idle_frame_h": 64,
+        "idle_anim_frames": 4,
+        "spritesheet_idle_frame_indices": [0, 1, 2, 3],
+        "idle_anim_speed": 0.14,
+        # Attack: Skeleton3_Attack_with_shadow.png — 576×256, 4 rows × 9 frames de 64×64
+        "spritesheet_attack": "sprite/monster/new hero/Skeleton3_Attack_with_shadow",
+        "spritesheet_attack_frame_w": 64,
+        "spritesheet_attack_frame_h": 64,
+        "attack_anim_frames": 9,
+        "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+        "attack_anim_speed": 0.06,
+        # Efeito melee (slash hitbox): reusa basic_golem.png em tamanho reduzido
+        "projectile_spritesheet": "sprite/monster/new hero/basic_golem",
+        "projectile_frame_w": 128,
+        "projectile_frame_h": 128,
+        "projectile_frame_count": 8,
+        "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "projectile_display_size": (80, 80),
+    },
 }
 
 # Constantes
@@ -1470,7 +1505,7 @@ UPGRADE_POOL = {k: v for k, v in ALL_UPGRADES_POOL.items() if k in DEFAULT_UNLOC
 PACTOS = {
     "NENHUM":     {"name": "SEM PACTO",       "desc": "Sem modificadores.",                     "hp": 0,  "color": (200, 200, 200)},
     "VELOCIDADE": {"name": "PACTO DA PRESSA",  "desc": "Inimigos 50% mais rápidos, +50% Ouro.",  "hp": 0,  "color": (255, 200, 0)},
-    "FRÁGIL":     {"name": "PACTO FRÁGIL",     "desc": "Começa com -2 HP máximo, +30% XP.",       "hp": -2, "color": (255, 100, 100)},
+    "FRÁGIL":     {"name": "PACTO FRÁGIL",     "desc": "Começa com 20% menos HP máximo, +30% XP.", "hp": 0, "hp_pct": -0.20, "xp_pct": 0.30, "color": (255, 100, 100)},
 }
 
 # Dados dos biomas / backgrounds
@@ -2150,6 +2185,106 @@ class Puddle(pygame.sprite.Sprite):
         self.rect.center = self.pos + cam
         self.hitbox.center = self.pos
 
+class BloodRainDrop(pygame.sprite.Sprite):
+    """Gota de sangue que cai do céu — ataque em área do Esqueleto.
+
+    Fases: queda visual (gota elongada desce), impacto (hitbox ativa + anel),
+    splash (anel se expande e some). Cada gota tem _fall_t aleatório para criar
+    dispersão temporal natural, imitando chuva real.
+    """
+
+    _COLORS = [(200, 0, 0), (180, 10, 10), (220, 20, 20), (150, 0, 0), (255, 30, 30)]
+
+    def __init__(self, world_pos, dmg):
+        super().__init__()
+        self.pos      = pygame.Vector2(world_pos)
+        self.dmg      = dmg
+        self.is_melee = True
+        self.hit_enemies = set()
+
+        self._color   = random.choice(self._COLORS)
+        self._w       = random.randint(4, 9)
+        self._h_max   = random.randint(22, 42)
+
+        # _fall_t varia → chegada dispersa no tempo (efeito de chuva)
+        self._fall_t   = random.uniform(0.10, 0.55)
+        self._impact_t = 0.16
+        self._splash_t = 0.30
+
+        self._timer = 0.0
+        self._phase = 0   # 0=queda  1=impacto  2=splash
+
+        # Superfície pré-renderizada da gota (gradiente vermelho brilhante→escuro)
+        self._drop_surf = self._bake_drop()
+
+        # Cor do anel de impacto (um tom mais brilhante)
+        self._ring_col  = (min(255, self._color[0] + 50), 25, 25)
+
+        self.image  = pygame.Surface((self._w, 1), pygame.SRCALPHA)
+        self.rect   = self.image.get_rect()
+        self.hitbox = pygame.Rect(0, 0, 0, 0)
+
+    def _bake_drop(self):
+        """Gota elongada com gradiente: topo brilhante, base escura."""
+        w, h = self._w, self._h_max
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        r0 = min(255, self._color[0] + 50);  g0, b0 = 25, 25
+        r1 = max(80,  self._color[0] - 60);  g1, b1 = 0,  0
+        for y in range(h):
+            t = y / h
+            col = (int(r0 + (r1-r0)*t), int(g0 + (g1-g0)*t), int(b0 + (b1-b0)*t), 255)
+            pygame.draw.line(surf, col, (0, y), (w-1, y))
+        return surf
+
+    def _make_ring(self, radius, alpha):
+        """Anel de sangue para as fases de impacto e splash."""
+        r    = max(1, radius)
+        size = r * 2 + 4
+        surf = pygame.Surface((size, size), pygame.SRCALPHA)
+        thickness = max(1, r // 4)
+        pygame.draw.circle(surf, (*self._ring_col, alpha), (r + 2, r + 2), r, thickness)
+        return surf
+
+    def update(self, dt, cam):
+        self._timer += dt
+        cx = int(self.pos.x + cam.x)
+        cy = int(self.pos.y + cam.y)
+
+        if self._phase == 0:   # ── queda ─────────────────────────────────────
+            ratio   = min(1.0, self._timer / self._fall_t)
+            cur_h   = max(1, int(self._h_max * ratio))
+            # Deslocamento Y visual: começa acima e desce até o ponto de impacto
+            y_off   = int(-self._h_max * (1.0 - ratio) * 0.9)
+            # Recorta a parte superior da gota pré-renderizada
+            self.image = self._drop_surf.subsurface(pygame.Rect(0, 0, self._w, cur_h))
+            self.rect  = self.image.get_rect(center=(cx, cy + y_off))
+            self.hitbox = pygame.Rect(0, 0, 0, 0)
+            if self._timer >= self._fall_t:
+                self._phase = 1
+                self._timer = 0.0
+
+        elif self._phase == 1:  # ── impacto (hitbox ativa) ───────────────────
+            r = self._w + 5
+            self.image  = self._make_ring(r, 230)
+            self.rect   = self.image.get_rect(center=(cx, cy))
+            # Hitbox em screen-space (consistente com enemy.rect)
+            self.hitbox = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
+            if self._timer >= self._impact_t:
+                self._phase = 2
+                self._timer = 0.0
+                self.hitbox = pygame.Rect(0, 0, 0, 0)
+
+        elif self._phase == 2:  # ── splash visual (sem dano) ──────────────────
+            ratio  = min(1.0, self._timer / self._splash_t)
+            r      = int((self._w + 5) * (1 + ratio * 4.5))
+            alpha  = int(220 * (1.0 - ratio))
+            self.image  = self._make_ring(r, alpha)
+            self.rect   = self.image.get_rect(center=(cx, cy))
+            self.hitbox = pygame.Rect(0, 0, 0, 0)
+            if self._timer >= self._splash_t:
+                self.kill()
+
+
 def build_character_dependencies():
     """Cria o pacote de dependências enviado ao módulo characters.
 
@@ -2203,6 +2338,7 @@ def build_character_combat_context(dmg_mult_fury=1.0):
         projectile_count=PROJ_COUNT,
         fury_multiplier=dmg_mult_fury,
         bazooka_active=has_bazuca,
+        blood_rain_cls=BloodRainDrop,
     )
 
 
@@ -5797,7 +5933,16 @@ def main():
                                 hub_last_char_id = _init_cid
                                 run_gold_collected = 0.0
                                 autosave_timer = 0.0
-                                if p_data["hp"] > 0: player.hp = p_data["hp"]
+                                if p_data["hp"] > 0:
+                                    player.hp = p_data["hp"]
+                                _hp_pct = p_data.get("hp_pct", 0)
+                                if _hp_pct != 0:
+                                    PLAYER_MAX_HP = max(1, int(PLAYER_MAX_HP * (1.0 + _hp_pct)))
+                                    player.hp = min(player.hp, PLAYER_MAX_HP)
+                                    player.base_hp = PLAYER_MAX_HP
+                                _xp_pct = p_data.get("xp_pct", 0)
+                                if _xp_pct != 0:
+                                    XP_BONUS_PCT += _xp_pct
                                 # Carrega o Hub Room multi-mapa antes de começar a partida
                                 _tmx_dir = os.path.join(BASE_DIR, "assets", "Teste", "Tiled_files")
                                 if os.path.isdir(_tmx_dir):
@@ -9635,8 +9780,7 @@ def handle_gameplay_settings_clicks(m_pos):
     options = {
         "Auto Coleta de Baú": {"key": "auto_pickup_chest", "values": ["Off", "On"]},
         "Auto Aplicar Recompensa": {"key": "auto_apply_chest_reward", "values": ["Off", "On"]},
-        "Setas Fora da Tela": {"key": "show_offscreen_arrows", "values": ["Off", "On"]},
-        "Dificuldade Padrão": {"key": "default_difficulty", "values": ["Fácil", "Médio", "Difícil", "Hardcore"]}
+        "Setas Fora da Tela": {"key": "show_offscreen_arrows", "values": ["Off", "On"]}
     }
 
     y_pos_start = SCREEN_H * 0.25

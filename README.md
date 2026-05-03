@@ -41,7 +41,7 @@ Destaques gerais:
 
 - Combate em tempo real com alto volume de inimigos em tela.
 - Progressão por nível com seleção de upgrades e evoluções sinérgicas.
-- 6 personagens jogáveis com estilos e ultimates próprios.
+- 7 personagens jogáveis com estilos e ultimates próprios.
 - 4 níveis de dificuldade e 4 pactos com modificadores de risco/recompensa.
 - Missões diárias, meta-progresso e árvore de talentos permanente.
 - 3 slots de run independentes com estado completo salvo.
@@ -51,16 +51,17 @@ Destaques gerais:
 
 ## Personagens
 
-| Personagem | HP | Velocidade | Dano | Mana | Ultimate |
-|---|---|---|---|---|---|
-| Guerreiro | 100 | 280 | 25 | 50 | Fúria do Guerreiro |
-| Caçador | 63 | 340 | 38 | 75 | Chuva de Flechas |
-| Mago | 75 | 260 | 25 | 200 | Congelamento Temporal |
-| Vampire | 88 | 300 | 38 | 100 | Tempestade Sombria |
-| Demônio | 75 | 290 | 38 | 100 | Chama Infernal |
-| Golem | 113 | 240 | 50 | 50 | Golpe da Terra |
+| Personagem | HP | Velocidade | Dano | Mana | Ultimate | Desbloqueio |
+|---|---|---|---|---|---|---|
+| Guerreiro | 100 | 280 | 25 | 50 | Fúria do Guerreiro | Padrão |
+| Caçador | 63 | 340 | 38 | 75 | Chuva de Flechas | Padrão |
+| Mago | 75 | 260 | 25 | 200 | Congelamento Temporal | Padrão |
+| Vampire | 88 | 300 | 38 | 100 | Tempestade Sombria | Padrão |
+| Demônio | 75 | 290 | 38 | 100 | Chama Infernal | Padrão |
+| Golem | 113 | 240 | 50 | 50 | Golpe da Terra | Padrão |
+| Esqueleto | 95 | 265 | 44 | 75 | Frenesi Sanguinário | Derrote 12 Chefões |
 
-Todos os personagens estão desbloqueados por padrão. Cada personagem possui spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar e atacar carregadas via `characters.py`.
+Todos os personagens possuem spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar, idle e atacar carregadas via `characters.py`. O Esqueleto é desbloqueado ao atingir 12 kills de chefões no total.
 
 ---
 

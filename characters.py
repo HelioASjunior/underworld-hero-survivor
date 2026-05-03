@@ -69,6 +69,7 @@ class CharacterCombatContext:
     fury_multiplier: float = 1.0
     bazooka_active: bool = False
     dt: float = 0.016
+    blood_rain_cls: object = None
 
 
 @dataclass
@@ -1096,6 +1097,186 @@ class Golem(Player):
         )
 
 
+class Skeleton(Player):
+    """Herói melee ágil — HP médio, golpes rápidos com esguicho de sangue e frenesi ultimate."""
+
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+
+    # Cores de sangue usadas nos efeitos de partícula do ataque
+    _BLOOD_COLORS = [
+        (200, 0, 0), (180, 10, 10), (220, 20, 20),
+        (150, 0, 0), (255, 30, 30), (140, 0, 0),
+    ]
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (200, 200))
+
+        fw = data.get("spritesheet_frame_w", 64)
+        fh = data.get("spritesheet_frame_h", 64)
+
+        # Walk direcional — Skeleton3_Run_with_shadow.png: 512×256, 4 rows × 8 frames de 64×64
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 8)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        # Idle direcional — Skeleton3_Idle_with_shadow.png: 256×256, 4 rows × 4 frames de 64×64
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+        # Attack direcional — Skeleton3_Attack_with_shadow.png: 576×256, 4 rows × 9 frames de 64×64
+        atk_sheet = data.get("spritesheet_attack")
+        atk_n = data.get("attack_anim_frames", 9)
+        atk_fw = data.get("spritesheet_attack_frame_w", fw)
+        atk_fh = data.get("spritesheet_attack_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * atk_n, (row + 1) * atk_n))
+            frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh, atk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_attack_frames[dir_name] = frames
+
+    def get_attack_name(self):
+        return "Golpe Cadavérico"
+
+    def get_dash_name(self):
+        return "Avanço Sombrio"
+
+    def get_ultimate_name(self):
+        return "Frenesi Sanguinário"
+
+    def get_attack_sound(self):
+        return "slash"
+
+    def get_projectile_damage_multiplier(self):
+        return 1.2
+
+    def atacar(self, target, combat_context):
+        """Ataque melee com gotículas de sangue — efeito grande estilo splash."""
+        if target is None:
+            return CharacterActionFeedback()
+
+        base_direction = target.pos - self.pos
+        if base_direction.length_squared() <= 0:
+            return CharacterActionFeedback()
+
+        base_direction = base_direction.normalize()
+        melee_frames = self.char_projectile_frames or combat_context.slash_frames_raw
+
+        for direction in self._attack_vectors(base_direction, combat_context.projectile_count):
+            melee_damage = int(
+                (combat_context.projectile_damage + 2)
+                * self.get_projectile_damage_multiplier()
+                * combat_context.fury_multiplier
+            )
+            slash = self.deps.melee_slash_cls(self, direction, melee_damage, melee_frames)
+            slash.distance = 100
+            combat_context.projectiles.add(slash)
+
+        # Ponto de impacto estimado
+        hit_pos = self.pos + base_direction * 100
+
+        # Blobs grandes (efeito de splash estilo tela de carregamento)
+        for _ in range(6):
+            p = self.deps.particle_cls(
+                hit_pos,
+                random.choice(self._BLOOD_COLORS[:3]),
+                random.randint(18, 32),
+                random.randint(35, 85),
+                random.uniform(0.35, 0.65),
+            )
+            p.vel.x += base_direction.x * 65
+            p.vel.y += base_direction.y * 65
+            combat_context.particles.add(p)
+
+        # Gotículas médias
+        for _ in range(10):
+            p = self.deps.particle_cls(
+                hit_pos,
+                random.choice(self._BLOOD_COLORS),
+                random.randint(6, 13),
+                random.randint(75, 170),
+                random.uniform(0.22, 0.48),
+            )
+            p.vel.x += base_direction.x * 90
+            p.vel.y += base_direction.y * 90
+            combat_context.particles.add(p)
+
+        # Spray fino em cone
+        for _ in range(8):
+            spread_dir = base_direction.rotate(random.uniform(-40, 40))
+            spray_pos = self.pos + spread_dir * random.randint(55, 135)
+            p = self.deps.particle_cls(
+                spray_pos,
+                random.choice(self._BLOOD_COLORS[2:]),
+                random.randint(3, 7),
+                random.randint(110, 210),
+                random.uniform(0.18, 0.38),
+            )
+            combat_context.particles.add(p)
+
+        self.trigger_attack_anim()
+        return self._build_action_feedback(sound_name=self.get_attack_sound())
+
+    def use_ultimate(self, combat_context):
+        """Frenesi Sanguinário: chuva de sangue massiva caindo do céu em área enorme."""
+        if self.ult_charge < self.ult_max:
+            return CharacterActionFeedback()
+
+        self.ult_charge = 0
+        rain_cls = combat_context.blood_rain_cls
+        if rain_cls is None:
+            return CharacterActionFeedback()
+
+        # Chuva centrada no próprio Esqueleto, abrangendo toda a área ao redor
+        rain_radius = 340
+        n_drops = 40
+        ult_dmg = max(1, int(
+            (combat_context.projectile_damage + 4)
+            * self.get_projectile_damage_multiplier()
+            * 0.55   # dano moderado por gota — área compensa
+            * combat_context.fury_multiplier
+        ))
+
+        for _ in range(n_drops):
+            angle = random.uniform(0, math.pi * 2)
+            r = rain_radius * math.sqrt(random.random())
+            drop_pos = self.pos + pygame.Vector2(math.cos(angle), math.sin(angle)) * r
+            combat_context.projectiles.add(rain_cls(drop_pos, ult_dmg))
+
+        # Explosão de partículas de sangue junto com a chuva
+        for _ in range(28):
+            angle = random.uniform(0, math.pi * 2)
+            dist = random.uniform(40, 180)
+            offset = pygame.Vector2(math.cos(angle), math.sin(angle)) * dist
+            p = self.deps.particle_cls(
+                self.pos + offset,
+                random.choice(self._BLOOD_COLORS),
+                random.randint(10, 28),
+                random.randint(20, 100),
+                random.uniform(0.4, 0.85),
+            )
+            p.vel.x += math.cos(angle) * 100
+            p.vel.y += math.sin(angle) * 100
+            combat_context.particles.add(p)
+
+        return self._build_action_feedback(
+            log_text=f"Ultimate: {self.get_ultimate_name()}",
+            log_color=(180, 0, 0),
+        )
+
+
 PLAYER_CLASS_FACTORY = {
     0: Warrior,
     1: Assassin,
@@ -1103,6 +1284,7 @@ PLAYER_CLASS_FACTORY = {
     3: Vampire,
     4: Demon,
     5: Golem,
+    6: Skeleton,
 }
 
 
