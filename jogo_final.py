@@ -306,20 +306,26 @@ GAME_VERSION = "1.1.0"
 BUILD_TYPE = "META"
 
 UI_THEME = dark_hud.UI_THEME
+ITEM_COLORS = dark_hud.ITEM_COLORS
 
 
 def load_dark_font(size, bold=False):
-    """Carrega a fonte temática do projeto com fallback seguro.
-
-    Regras:
-
-    - Primeiro tentamos a fonte do projeto em assets/fonts/fonte_dark.ttf.
-    - Se o arquivo não existir, usamos Georgia como fallback seguro.
-    - O cache evita recriar o mesmo objeto de fonte o tempo todo, o que ajuda
-      tanto na performance quanto na consistência visual.
-    """
-
     return dark_hud.load_dark_font(size, bold=bold, asset_dir=ASSET_DIR)
+
+
+def load_title_font(size, bold=False):
+    """Fonte gótica pesada (Blackletter) — títulos, cabeçalhos e menus."""
+    return dark_hud.load_title_font(size, bold=bold, asset_dir=ASSET_DIR)
+
+
+def load_body_font(size, bold=False):
+    """Fonte medieval (PfefferMediaeval) — descrições de itens e corpo de texto."""
+    return dark_hud.load_body_font(size, bold=bold, asset_dir=ASSET_DIR)
+
+
+def load_number_font(size, bold=False):
+    """Fonte dedicada para números e valores numéricos (Catholicon)."""
+    return dark_hud.load_number_font(size, bold=bold, asset_dir=ASSET_DIR)
 
 # =========================================================
 # META-PROGRESSÃO, SAVE E CONQUISTAS
@@ -1863,27 +1869,27 @@ class Button:
                 if isinstance(self.icon, pygame.Surface):
                     screen.blit(self.icon, self.icon.get_rect(center=icon_rect.center))
                 else:
-                    icon_surf = load_dark_font(17, bold=True).render(str(self.icon), True, UI_THEME["faded_gold"])
+                    icon_surf = load_title_font(17, bold=True).render(str(self.icon), True, UI_THEME["faded_gold"])
                     screen.blit(icon_surf, icon_surf.get_rect(center=icon_rect.center))
 
         # ── subtext / bloqueado ────────────────────────────────────────────
         if self.subtext and not self.locked:
-            sub = load_dark_font(14).render(self.subtext, True, (160, 140, 110))
+            sub = load_body_font(14).render(self.subtext, True, (160, 140, 110))
             sub.set_alpha(200)
             screen.blit(sub, sub.get_rect(center=(cx, cy + 11)))
 
         if self.locked:
-            lock_txt = load_dark_font(15, bold=True).render("BLOQUEADO", True, (180, 90, 70))
+            lock_txt = load_title_font(15, bold=True).render("BLOQUEADO", True, (180, 90, 70))
             screen.blit(lock_txt, lock_txt.get_rect(center=(cx, cy + 11)))
             if self.is_hovered and self.lock_req:
                 mx, my = pygame.mouse.get_pos()
-                tt = load_dark_font(15).render(self.lock_req, True, (210, 185, 165))
+                tt = load_body_font(15).render(self.lock_req, True, (210, 185, 165))
                 tip_rect = pygame.Rect(mx + 14, my - 10, tt.get_width() + 18, tt.get_height() + 12)
                 pygame.draw.rect(screen, (20, 10, 8), tip_rect, border_radius=3)
                 pygame.draw.rect(screen, (110, 55, 40), tip_rect, 1, border_radius=3)
                 screen.blit(tt, (tip_rect.x + 9, tip_rect.y + 6))
         elif self.subtext:
-            stxt = load_dark_font(15).render(self.subtext, True, UI_THEME["mist"])
+            stxt = load_body_font(15).render(self.subtext, True, UI_THEME["mist"])
             screen.blit(stxt, stxt.get_rect(center=(draw_rect.centerx, draw_rect.centery + 14)))
 
     def check_hover(self, m_pos, hover_sound=None):
@@ -2079,7 +2085,7 @@ class DamageText(pygame.sprite.Sprite):
         final_color = (255, 215, 0) if is_crit else color
         text_content = f"{amount}!" if is_crit else str(amount)
 
-        font = load_dark_font(size, bold=True)
+        font = load_number_font(size, bold=True)
         self.image = font.render(text_content, True, final_color)
 
         if is_crit:
@@ -3497,7 +3503,7 @@ def load_menu_icon_surface(loader, kind, size=(20, 20)):
 # TELA DE CARREGAMENTO
 # =========================================================
 
-def show_loading_screen(screen, load_fn, font_path=None):
+def show_loading_screen(screen, load_fn):
     """Exibe tela de carregamento com efeito de sangue escorrendo."""
     sw, sh = screen.get_size()
 
@@ -3514,17 +3520,9 @@ def show_loading_screen(screen, load_fn, font_path=None):
     overlay.fill((0, 0, 0, 150))
 
     # --- Fontes ---
-    def _make_font(size, bold=False):
-        if font_path and os.path.exists(font_path):
-            try:
-                return pygame.font.Font(font_path, size)
-            except Exception:
-                pass
-        return pygame.font.SysFont("arial", size, bold=bold)
-
-    font_title = _make_font(52, bold=True)
-    font_label = _make_font(28, bold=True)
-    font_tip   = _make_font(20)
+    font_title = dark_hud.load_title_font(52, bold=True, asset_dir=ASSET_DIR)
+    font_label = dark_hud.load_number_font(28, bold=True, asset_dir=ASSET_DIR)
+    font_tip   = dark_hud.load_body_font(20, asset_dir=ASSET_DIR)
 
     # --- Dimensões da barra ---
     bar_w  = int(sw * 0.50)
@@ -3836,7 +3834,7 @@ def _draw_profile_widget(screen, font_s, font_m, m_pos, align_right=True):
         pygame.draw.rect(screen, clr, pygame.Rect(av_x, av_y, av_size, av_size), border_radius=4)
 
     # Informações no retângulo direito (fonte dedicada menor para o minicard)
-    _font_name = load_dark_font(14, bold=True)
+    _font_name = load_title_font(14, bold=True)
     tx = _rx1 + 6
     cy = _sq_y1 + _sq_h // 2
 
@@ -4627,10 +4625,10 @@ def main():
         "unlock": loader.load_sound("sfx_levelup")
     }
 
-    # Fontes
-    font_s = load_dark_font(18, bold=True)
-    font_m = load_dark_font(28, bold=True)
-    font_l = load_dark_font(46, bold=True)
+    # Fontes — font_l usa Runewood (títulos puros), font_m/font_s usam Catholicon (texto+números)
+    font_s = load_number_font(18, bold=True)
+    font_m = load_number_font(28, bold=True)
+    font_l = load_title_font(46, bold=True)
 
     obstacle_grid_index = ObstacleGridIndex(cell_size=WORLD_GRID)
     enemy_batch_index = EnemyBatchIndex()
@@ -4644,7 +4642,7 @@ def main():
         load_all_assets()
         init_menu_particles()
 
-    show_loading_screen(screen, _load_everything, font_path=FONT_DARK_PATH)
+    show_loading_screen(screen, _load_everything)
 
     # Criar todos os botões da interface
     # Menu reposicionado para o canto inferior esquerdo conforme imagem
@@ -6942,13 +6940,13 @@ def main():
             for i, line in enumerate(lines[:3]):
                 screen.blit(font_s.render(line, True, UI_THEME["mist"]), (preview_rect.x + 20, preview_rect.y + 66 + i * 28))
 
-            hint = load_dark_font(16, bold=True).render("Dica: ENTER inicia quando estiver na selecao.", True, UI_THEME["faded_gold"])
+            hint = load_body_font(16, bold=True).render("Dica: ENTER inicia quando estiver na selecao.", True, UI_THEME["faded_gold"])
             screen.blit(hint, (preview_rect.x + 20, preview_rect.bottom - 34))
 
             _menu_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos)
 
             # ── Botões de links externos (Site Oficial / Steam) ─────────────
-            _font_ext = load_dark_font(14)
+            _font_ext = load_title_font(14)
             _site_hov = menu_site_rect.collidepoint(m_pos)
             _sc = (30, 55, 105) if _site_hov else (16, 30, 60)
             _sb = (80, 145, 215) if _site_hov else (42, 72, 130)
@@ -6970,7 +6968,7 @@ def main():
             pygame.draw.circle(screen, _stb, (_ssx, _ssy), 7, 0)
             pygame.draw.circle(screen, _stc, (_ssx, _ssy), 4, 0)
             _steam_lbl = _font_ext.render("Steam", True, (100, 100, 130) if _steam_hov else (65, 65, 88))
-            _soon_lbl = load_dark_font(11).render("em breve", True, (50, 50, 65))
+            _soon_lbl = load_body_font(11).render("em breve", True, (50, 50, 65))
             screen.blit(_steam_lbl, _steam_lbl.get_rect(centery=menu_steam_rect.centery - 5, x=menu_steam_rect.x + 30))
             screen.blit(_soon_lbl, _soon_lbl.get_rect(centery=menu_steam_rect.centery + 8, x=menu_steam_rect.x + 30))
 
@@ -7070,7 +7068,7 @@ def main():
                     
                     s_txt = font_s.render(f"{skill['name']} ({lvl}/{skill['max']})", True, UI_THEME["old_gold"])
                     screen.blit(s_txt, (px + 50, sy))
-                    sd_txt = load_dark_font(18).render(skill["desc"], True, (200, 200, 200))
+                    sd_txt = load_body_font(18).render(skill["desc"], True, (200, 200, 200))
                     screen.blit(sd_txt, (px + 300, sy + 5))
 
                     btn_found = shop_talent_btn_map[(p_name, s_key)]
@@ -7719,7 +7717,7 @@ def main():
 
             # --- Título com moldura ornamental ---
             _tit_text = "SELECIONAR HERÓI"
-            _tit_sf   = load_dark_font(19, bold=True).render(
+            _tit_sf   = load_title_font(19, bold=True).render(
                 _tit_text, True, UI_THEME["old_gold"])
             _tit_cy   = oy // 2          # centro vertical da margem superior
             if char_select_title_frame is not None:
@@ -7793,7 +7791,7 @@ def main():
                 screen.blit(img, img.get_rect(center=(cx, cy + float_off)))
 
                 if btn.locked:
-                    lk = load_dark_font(14, bold=True).render(
+                    lk = load_title_font(14, bold=True).render(
                         "🔒", True, UI_THEME["blood_red"])
                     screen.blit(lk, lk.get_rect(center=(cx, cy)))
 
@@ -7822,7 +7820,7 @@ def main():
 
                 # Nome
                 col_name = UI_THEME["blood_red"] if btn.locked else UI_THEME["old_gold"]
-                nm = load_dark_font(22, bold=True).render(cdata["name"], True, col_name)
+                nm = load_title_font(22, bold=True).render(cdata["name"], True, col_name)
                 screen.blit(nm, nm.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
                 cur_y += nm.get_height() + 8
 
@@ -7850,7 +7848,7 @@ def main():
                 BH = 12
 
                 def _bar(label, val, max_v, color, yy):
-                    ls = load_dark_font(13).render(label, True, UI_THEME["mist"])
+                    ls = load_body_font(13).render(label, True, UI_THEME["mist"])
                     screen.blit(ls, (sp_x + pad, yy))
                     bx, by = sp_x + pad, yy + ls.get_height() + 1
                     filled  = int(BW * min(val / max_v, 1.0))
@@ -7871,19 +7869,19 @@ def main():
                 cur_y += 6
 
                 # Ultimate
-                ult = load_dark_font(13).render(cdata["desc"], True, UI_THEME["mana_blue"])
+                ult = load_body_font(13).render(cdata["desc"], True, UI_THEME["mana_blue"])
                 screen.blit(ult, ult.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
                 cur_y += ult.get_height() + 6
 
                 if btn.locked:
-                    lk2 = load_dark_font(13, bold=True).render(
+                    lk2 = load_title_font(13, bold=True).render(
                         "🔒 BLOQUEADO", True, UI_THEME["blood_red"])
                     screen.blit(lk2, lk2.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
                     if btn.lock_req:
-                        rq = load_dark_font(11).render(btn.lock_req, True, (170, 130, 110))
+                        rq = load_body_font(11).render(btn.lock_req, True, (170, 130, 110))
                         screen.blit(rq, rq.get_rect(centerx=sp_x + SP_W // 2, top=cur_y + 18))
                 else:
-                    ht = load_dark_font(12).render("Clique para selecionar", True, (150, 150, 120))
+                    ht = load_body_font(12).render("Clique para selecionar", True, (150, 150, 120))
                     screen.blit(ht, ht.get_rect(centerx=sp_x + SP_W // 2,
                                                  top=sp_y + SP_H - 22))
 
@@ -7924,7 +7922,7 @@ def main():
                         # Tooltip de requisito ao passar o mouse em botão bloqueado
                         if btn.locked and btn.is_hovered and btn.lock_req:
                             mx, my = pygame.mouse.get_pos()
-                            tt = load_dark_font(15).render(btn.lock_req, True, (210, 185, 165))
+                            tt = load_body_font(15).render(btn.lock_req, True, (210, 185, 165))
                             tip_r = pygame.Rect(mx + 14, my - 10, tt.get_width() + 18, tt.get_height() + 12)
                             pygame.draw.rect(screen, (20, 10, 8), tip_r, border_radius=3)
                             pygame.draw.rect(screen, (110, 55, 40), tip_r, 1, border_radius=3)

@@ -14,6 +14,14 @@ UI_THEME = {
     "mist": (210, 210, 210),
 }
 
+# Paleta de raridade de itens
+ITEM_COLORS = {
+    "normal":     (252, 245, 229),   # #FCF5E5  — branco pergaminho
+    "rare":       (255, 215,   0),   # #FFD700  — dourado
+    "magic":      (  0, 116, 217),   # #0074D9  — azul arcano
+    "danger":     (255,  65,  54),   # #FF4136  — vermelho perigo / identificado
+}
+
 _font_cache = {}
 _vignette_cache = {}
 _stat_sprites = None   # carregado por init_stat_sprites()
@@ -63,29 +71,59 @@ def reset_feedback():
     }
 
 
-def load_dark_font(size, bold=False, asset_dir="assets"):
-    cache_key = (asset_dir, size, bold)
+def _load_font_from_candidates(candidates, size, bold, fallback_sys, asset_dir):
+    """Tenta cada nome de arquivo em ordem; cai para SysFont se nenhum existir."""
+    cache_key = (asset_dir, size, bold, tuple(candidates))
     if cache_key in _font_cache:
         return _font_cache[cache_key]
 
     font_path = None
-    for fname in ("Catholicon.ttf", "Catholicon.otf", "fonte_dark.ttf"):
+    for fname in candidates:
         candidate = os.path.join(asset_dir, "fonts", fname)
         if os.path.exists(candidate):
             font_path = candidate
             break
     try:
-        if font_path:
-            font = pygame.font.Font(font_path, size)
-        else:
-            font = pygame.font.SysFont("georgia", size)
+        font = pygame.font.Font(font_path, size) if font_path else pygame.font.SysFont(fallback_sys, size)
         font.set_bold(bold)
     except Exception:
-        font = pygame.font.SysFont("georgia", size)
+        font = pygame.font.SysFont(fallback_sys, size)
         font.set_bold(bold)
 
     _font_cache[cache_key] = font
     return font
+
+
+def load_dark_font(size, bold=False, asset_dir="assets"):
+    """Fonte temática principal (Catholicon) — títulos legados e HUD."""
+    return _load_font_from_candidates(
+        ("Catholicon.ttf", "Catholicon.otf", "fonte_dark.ttf"),
+        size, bold, "georgia", asset_dir,
+    )
+
+
+def load_title_font(size, bold=False, asset_dir="assets"):
+    """Fonte principal do jogo (Runewood) — títulos, cabeçalhos e menus."""
+    return _load_font_from_candidates(
+        ("Runewood.ttf",),
+        size, bold, "georgia", asset_dir,
+    )
+
+
+def load_body_font(size, bold=False, asset_dir="assets"):
+    """Fonte principal do jogo (Runewood) — descrições de itens e corpo de texto."""
+    return _load_font_from_candidates(
+        ("Runewood.ttf",),
+        size, bold, "georgia", asset_dir,
+    )
+
+
+def load_number_font(size, bold=False, asset_dir="assets"):
+    """Fonte dedicada para números e valores numéricos (Catholicon)."""
+    return _load_font_from_candidates(
+        ("Catholicon.ttf", "Catholicon.otf", "fonte_dark.ttf"),
+        size, bold, "georgia", asset_dir,
+    )
 
 
 def push_skill_feed(text, color=(220, 220, 220), duration=4.0):
@@ -343,9 +381,10 @@ def draw_dash_indicator(screen, rect, dash_ratio, font_s):
             glow_surf = pygame.Surface((outer.width, outer.height), pygame.SRCALPHA)
             glow_surf.fill((255, 200, 50, int(30 + 25 * pulse)))
             screen.blit(glow_surf, outer.topleft, special_flags=pygame.BLEND_RGBA_ADD)
-    label_txt = "DASH  PRONTO" if ready else f"DASH  {int(ratio * 100)}%"
     lbl_color = (255, 240, 80) if ready else (180, 150, 40)
+    label_txt = "DASH  PRONTO" if ready else f"DASH  {int(ratio * 100)}%"
     lbl_surf = font_s.render(label_txt, True, lbl_color)
+    screen.blit(font_s.render(label_txt, True, (0, 0, 0)), (outer.x + 15, outer.centery - lbl_surf.get_height() // 2 + 1))
     screen.blit(lbl_surf, lbl_surf.get_rect(midleft=(outer.x + 14, outer.centery)))
 
 
