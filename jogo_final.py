@@ -6,6 +6,7 @@ import json
 import threading
 import webbrowser
 from datetime import datetime, timedelta
+from pool import ParticlePool
 import balance as _bal
 from profile_manager import ProfileManager, COUNTRIES, COUNTRY_BY_CODE
 import achievements as _ach
@@ -1721,12 +1722,12 @@ upg_images = {}
 
 # =========================================================
 # TAMANHOS PADRÃO DE BOTÃO (seguem o rótulo mais largo do jogo)
-# BTN_W é largo o suficiente para "CONFIGURAÇÕES" + padding nas pontas ornamentais
+# BTN_W é largo o suficiente para "CONFIGURAÇÕES" + ícone + pontas ornamentais + margem
 # =========================================================
-BTN_W    = 440   # largura padrão de todos os botões primários
-BTN_H    = 52    # altura padrão
-BTN_SM_W = 320   # botões secundários (VOLTAR, ações)
-BTN_SM_H = 52
+BTN_W    = 540   # largura padrão de todos os botões primários
+BTN_H    = 58    # altura padrão
+BTN_SM_W = 360   # botões secundários (VOLTAR, ações)
+BTN_SM_H = 58    # mesma altura para padronizar
 
 # =========================================================
 # CLASSES AUXILIARES
@@ -2045,38 +2046,57 @@ class AssetLoader:
 # =========================================================
 
 class Particle(pygame.sprite.Sprite):
+    _pool = None  # preenchido pelo ParticlePool ao reciclar
+
     def __init__(self, pos, color, size, speed, life):
         super().__init__()
-        self.color = color
+        self._reset(pos, color, size, speed, life)
+
+    def _reset(self, pos, color, size, speed, life):
+        self.color   = color
         self.original_size = size
-        self.size = size
-        self.life = life
+        self.size    = size
+        self.life    = life
         self.max_life = life
-        self.image = pygame.Surface((int(size), int(size)))
+        sz = int(size)
+        if not hasattr(self, "image") or self.image is None or self.image.get_size() != (sz, sz):
+            self.image = pygame.Surface((sz, sz))
         self.image.fill(color)
-        self.rect = self.image.get_rect(center=pos)
-        self.pos = pygame.Vector2(pos)
-        angle = random.uniform(0, 360)
-        rad = math.radians(angle)
+        if not hasattr(self, "rect") or self.rect is None:
+            self.rect = self.image.get_rect(center=pos)
+        else:
+            self.rect.center = pos
+        if not hasattr(self, "pos") or self.pos is None:
+            self.pos = pygame.Vector2(pos)
+            self.vel = pygame.Vector2()
+        else:
+            self.pos.update(pos)
+        angle = random.uniform(0, 6.2832)   # radianos diretamente
         speed_var = random.uniform(speed * 0.5, speed * 1.5)
-        self.vel = pygame.Vector2(math.cos(rad), math.sin(rad)) * speed_var
+        self.vel.x = math.cos(angle) * speed_var
+        self.vel.y = math.sin(angle) * speed_var
 
     def update(self, dt, cam):
-        self.pos += self.vel * dt
-        self.vel *= 0.92  
+        self.pos.x += self.vel.x * dt
+        self.pos.y += self.vel.y * dt
+        self.vel.x *= 0.92
+        self.vel.y *= 0.92
         self.life -= dt
         if self.life <= 0:
-            self.kill()
-        else:
-            # Otimização: Reduzir frequência de redimensionamento
-            if int(self.life * 10) != int((self.life + dt) * 10):
-                ratio = self.life / self.max_life
-                new_size = max(1, int(self.original_size * ratio))
-                if new_size != self.size:
-                    self.size = new_size
-                    self.image = pygame.Surface((new_size, new_size))
-                    self.image.fill(self.color)
-        self.rect.center = self.pos + cam
+            if self._pool is not None:
+                self._pool.release(self)
+            else:
+                self.kill()
+            return
+        if int(self.life * 10) != int((self.life + dt) * 10):
+            ratio = self.life / self.max_life
+            new_size = max(1, int(self.original_size * ratio))
+            if new_size != self.size:
+                self.size = new_size
+                self.image = pygame.Surface((new_size, new_size))
+                self.image.fill(self.color)
+        self.rect.centerx = int(self.pos.x + cam.x)
+        self.rect.centery = int(self.pos.y + cam.y)
 
 class DamageText(pygame.sprite.Sprite):
     def __init__(self, pos, amount, is_crit=False, color=(255, 255, 255)):
@@ -2434,6 +2454,32 @@ projectile_frames_raw = []
 slash_frames_raw = []
 orb_img = None
 tornado_img = None
+
+# ── Constantes de vetor reutilizáveis (evita alloc em hot-paths) ─────────────
+_VEC2_RIGHT = pygame.Vector2(1, 0)
+
+# ── Cache de rotações pré-renderizadas do tornado (72 frames × 5°) ────────────
+_TORNADO_STEPS     = 72
+_tornado_rot_cache: list = []          # preenchido em _build_tornado_cache()
+
+# ── Vetores pré-alocados para posições dos orbs (max 8 orbs) ─────────────────
+_orb_vecs = [pygame.Vector2(0, 0) for _ in range(8)]
+
+# ── Pool de partículas ────────────────────────────────────────────────────────
+_particle_pool = ParticlePool(max_free=800)
+
+
+def _build_tornado_cache():
+    """Pré-renderiza 72 rotações do tornado_img (chamado após load)."""
+    global _tornado_rot_cache
+    if tornado_img is None:
+        _tornado_rot_cache = []
+        return
+    step = 360.0 / _TORNADO_STEPS
+    _tornado_rot_cache = [
+        pygame.transform.rotate(tornado_img, i * step)
+        for i in range(_TORNADO_STEPS)
+    ]
 
 
 class ExplosionAnimation:
@@ -3087,6 +3133,7 @@ def load_all_assets():
     slash_frames_raw = loader.load_animation("slash", 6, (120, 120), fallback_colors=((255, 255, 200, 180), (200, 200, 150, 120)))
     orb_img = loader.load_image("orb", (50, 50), ((0, 200, 255), (0, 100, 200)))
     tornado_img = loader.load_image("tornado", (300, 300), ((200, 200, 255, 150), (150, 150, 200, 100)))
+    _build_tornado_cache()
     cursor_img = loader.load_image("seta", (56, 56))
     
     # Ícones de upgrades
@@ -6290,11 +6337,15 @@ def main():
                 rot_speed = 450 if has_serras else 150
                 orb_rot_angle += rot_speed * dt
                 current_orb_dmg = (ORB_DMG * 3) if has_serras else ORB_DMG
-                
+                _px = player.pos.x
+                _py = player.pos.y
+                _orb_step = 360.0 / ORB_COUNT
                 for i in range(ORB_COUNT):
-                    rad = math.radians(orb_rot_angle + i * (360/ORB_COUNT))
-                    orb_p = player.pos + pygame.Vector2(math.cos(rad), math.sin(rad)) * ORB_DISTANCE
-                    for e in enemy_batch_index.enemies_in_radius(orb_p, 50):
+                    _rad = math.radians(orb_rot_angle + i * _orb_step)
+                    _ov = _orb_vecs[i]
+                    _ov.x = _px + math.cos(_rad) * ORB_DISTANCE
+                    _ov.y = _py + math.sin(_rad) * ORB_DISTANCE
+                    for e in enemy_batch_index.enemies_in_radius(_ov, 50):
                         tick_dmg = current_orb_dmg * dt * 10
                         if random.random() < CRIT_CHANCE: tick_dmg *= 2
                         e.hp -= tick_dmg
@@ -6509,12 +6560,14 @@ def main():
             for _da in list(death_anims):
                 _da.update(dt, cam)
             # --- Colisão física: empurra inimigos para fora do raio do player ---
-            _PUSH_R = (player.rect.width + 8) // 2
+            _PUSH_R    = (player.rect.width + 8) // 2
+            _PUSH_R_SQ = _PUSH_R * _PUSH_R
             for _pe in enemy_batch_index.enemies_in_radius(player.pos, _PUSH_R + 20):
-                _dv = _pe.pos - player.pos
-                _dl = _dv.length()
-                if 0 < _dl < _PUSH_R:
-                    _pe.pos += (_dv / _dl) * (_PUSH_R - _dl)
+                _dv    = _pe.pos - player.pos
+                _dl_sq = _dv.length_squared()
+                if 0 < _dl_sq < _PUSH_R_SQ:
+                    _dl = _dl_sq ** 0.5
+                    _pe.pos += _dv * ((_PUSH_R - _dl) / _dl)
 
             puddles.update(dt, cam)
             doom_seals.update(dt, cam)
@@ -6646,7 +6699,8 @@ def main():
                             knock_dir = (hit.pos - player.pos).normalize()
                             knock_force = 15.0 
                         else:
-                            knock_dir = p.vel.normalize() if p.vel.length() > 0 else pygame.Vector2(1,0)
+                            _vsq = p.vel.length_squared()
+                            knock_dir = (p.vel * (1.0 / _vsq**0.5)) if _vsq > 0 else _VEC2_RIGHT
                             knock_force = 3.0 
                         
                         if HAS_CHAOS_BOLT and random.random() < 0.15:
@@ -6667,9 +6721,9 @@ def main():
                             current_exp_rad *= EXPLOSION_SIZE_MULT
                             current_exp_dmg = EXPLOSION_DMG * 3 if has_bazuca else EXPLOSION_DMG
                             
-                            exp_pos = pygame.Vector2(p.pos)
+                            exp_pos = p.pos
                             active_explosions.append(ExplosionAnimation(exp_pos, current_exp_rad, explosion_frames_raw))
-                            play_sfx("explosion") 
+                            play_sfx("explosion")
                             for e in enemy_batch_index.enemies_in_radius(exp_pos, current_exp_rad):
                                 exp_dmg_dealt = current_exp_dmg
                                 exp_is_crit = random.random() < CRIT_CHANCE
@@ -6707,8 +6761,9 @@ def main():
                                 burst_count = 10
                             else:
                                 burst_count = 8
+                            _ri, _ru = random.randint, random.uniform
                             for _ in range(burst_count):
-                                particles.add(Particle(hit.pos, kill_color, random.randint(4, 8), random.randint(120, 240), random.uniform(0.25, 0.55)))
+                                _particle_pool.spawn(particles, hit.pos, kill_color, _ri(4, 8), _ri(120, 240), _ru(0.25, 0.55))
                             if hit.kind == "boss":
                                 shake_timer = 0.6; shake_strength = 18
                             elif hit.kind == "agis":
@@ -8784,7 +8839,10 @@ def main():
                     # Exibe no tamanho carregado, centralizado no jogador
                     screen.blit(_ult_frame, _ult_frame.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
                 elif player.should_draw_tornado_effect():
-                    img = pygame.transform.rotate(tornado_img, (pygame.time.get_ticks() / 5) % 360)
+                    if _tornado_rot_cache:
+                        img = _tornado_rot_cache[int(pygame.time.get_ticks() / 25) % _TORNADO_STEPS]
+                    else:
+                        img = pygame.transform.rotate(tornado_img, (pygame.time.get_ticks() / 5) % 360)
                     screen.blit(img, img.get_rect(center=(SCREEN_W//2, SCREEN_H//2)), special_flags=pygame.BLEND_RGBA_ADD)
 
             for exp in active_explosions:

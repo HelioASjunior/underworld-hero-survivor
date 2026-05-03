@@ -95,33 +95,35 @@ def _load_font_from_candidates(candidates, size, bold, fallback_sys, asset_dir):
 
 
 def load_dark_font(size, bold=False, asset_dir="assets"):
-    """Fonte temática principal (Catholicon) — títulos legados e HUD."""
+    """Legado — usa Cinzel-Regular."""
     return _load_font_from_candidates(
-        ("Catholicon.ttf", "Catholicon.otf", "fonte_dark.ttf"),
+        (os.path.join("cinzel", "Cinzel-Regular.otf"),),
         size, bold, "georgia", asset_dir,
     )
 
 
 def load_title_font(size, bold=False, asset_dir="assets"):
-    """Fonte principal do jogo (Runewood) — títulos, cabeçalhos e menus."""
+    """Títulos, cabeçalhos e menus — CinzelDecorative-Bold."""
     return _load_font_from_candidates(
-        ("Runewood.ttf",),
+        (os.path.join("cinzel", "CinzelDecorative-Bold.otf"),
+         os.path.join("cinzel", "Cinzel-Bold.otf")),
         size, bold, "georgia", asset_dir,
     )
 
 
 def load_body_font(size, bold=False, asset_dir="assets"):
-    """Fonte principal do jogo (Runewood) — descrições de itens e corpo de texto."""
+    """Descrições de itens e corpo de texto — Cinzel-Regular."""
     return _load_font_from_candidates(
-        ("Runewood.ttf",),
+        (os.path.join("cinzel", "Cinzel-Regular.otf"),),
         size, bold, "georgia", asset_dir,
     )
 
 
 def load_number_font(size, bold=False, asset_dir="assets"):
-    """Fonte dedicada para números e valores numéricos (Catholicon)."""
+    """Números e valores numéricos — Cinzel-Bold."""
     return _load_font_from_candidates(
-        ("Catholicon.ttf", "Catholicon.otf", "fonte_dark.ttf"),
+        (os.path.join("cinzel", "Cinzel-Bold.otf"),
+         os.path.join("cinzel", "Cinzel-Regular.otf")),
         size, bold, "georgia", asset_dir,
     )
 

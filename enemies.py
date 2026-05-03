@@ -3,6 +3,9 @@ import random
 
 import pygame
 
+# Vetor zero reutilizável — evita alocação por inimigo por frame no branch ranged
+_VEC2_ZERO = pygame.Vector2(0, 0)
+
 
 # ---------------------------------------------------------------------------
 # Configuração de sprites para inimigos baseados em spritesheet direcional.
@@ -674,7 +677,7 @@ class Enemy(pygame.sprite.Sprite):
             stop_dist  = 450
 
             if is_ranged and dist < stop_dist:
-                move = pygame.Vector2(0, 0)
+                move = _VEC2_ZERO
             else:
                 move_speed = self.speed
                 if selected_pact == "VELOCIDADE":
@@ -860,9 +863,12 @@ class Enemy(pygame.sprite.Sprite):
                         if pd is not None:
                             move_dir = pygame.Vector2(pd[0], pd[1])
 
-                move = move_dir * move_speed * dt
+                _msc = move_speed * dt
+                move_dir.x *= _msc
+                move_dir.y *= _msc
+                move = move_dir
 
-            if move.length_squared() > 0:
+            if move.x != 0 or move.y != 0:
                 self.pos += move
                 if self.kind not in ["boss", "mini_boss"]:
                     if obstacle_grid_index is not None:
