@@ -17,7 +17,7 @@ from forest_biome import build_forest_ground, ForestDecoManager
 from dungeon_biome import DungeonDecoManager
 from volcano_biome import build_volcano_ground, VolcanoDecoManager
 from moon_biome import build_moon_ground, MoonDecoManager
-from hub_room import HubScene
+from hub_room import HubScene, MarketScene
 from drops import Drop as ModularDrop
 from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile, EnemyDeathAnim
 from upgrades import (
@@ -5116,6 +5116,7 @@ def main():
     hub_equip_open     = False   # Janela de Equipamento (I key — layout Diablo)
     hub_status_open    = False   # Janela de Status (C key)
     hub_profile_open   = False   # Janela de Perfil/Conquistas (L key)
+    market_scene: MarketScene | None = None   # Cena do Mercado (carregada na primeira visita)
     menu_profile_open  = False   # Overlay de Perfil/Conquistas no MENU
     # Drag-and-drop: item sendo arrastado com o mouse
     _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip", "_idx":int, "_slot":str|None}
@@ -5260,16 +5261,16 @@ def main():
                         _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
 
-                if state == "HUB" and event.key == pygame.K_i:
+                if state in ("HUB", "MARKET") and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
                     _drag_item = None; _drag_active = False
                     if snd_click: snd_click.play()
 
-                if state == "HUB" and event.key == pygame.K_c:
+                if state in ("HUB", "MARKET") and event.key == pygame.K_c:
                     hub_status_open = not hub_status_open
                     if snd_click: snd_click.play()
 
-                if state == "HUB" and event.key == pygame.K_l:
+                if state in ("HUB", "MARKET") and event.key == pygame.K_l:
                     hub_profile_open = not hub_profile_open
                     if snd_click: snd_click.play()
 
@@ -5363,6 +5364,16 @@ def main():
                             _draw_profile_viewer._av_picker_open = False
                         else:
                             menu_profile_open = False
+                    elif state == "MARKET":
+                        if hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
+                            hub_chest_open   = False
+                            hub_equip_open   = False
+                            hub_status_open  = False
+                            hub_profile_open = False
+                            _drag_item       = None
+                            _drag_active     = False
+                        else:
+                            state = "HUB"
                     elif state == "HUB":
                         if hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
                             hub_chest_open   = False
@@ -5736,9 +5747,30 @@ def main():
                         _hub_rb_rw = _hub_panel_w - int(_hub_panel_w * 0.20)
                         _hub_rb_rx = _hub_panel_x + int(_hub_panel_w * 0.10)
                         _hub_rb_h  = 50
+                        _hub_market_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.285) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
                         _hub_shop_rect   = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.373) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
                         _hub_talent_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.453) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
-                        if _hub_shop_rect.collidepoint(click_pos):
+                        if _hub_market_rect.collidepoint(click_pos):
+                            if market_scene is None:
+                                _ferreiro_dir = os.path.join(BASE_DIR, "assets", "Teste", "ferreiro")
+                                market_scene = MarketScene(_ferreiro_dir)
+                                market_scene.load_all()
+                                market_scene.load_surfaces_and_bake()
+                                market_scene.setup_player()
+                            if player is not None:
+                                _cid_m  = player.char_id
+                                _cdat_m = CHAR_DATA.get(_cid_m, {})
+                                market_scene.apply_char_frames(
+                                    dir_walk      = dict(player._dir_walk_frames),
+                                    dir_idle      = dict(player._dir_idle_frames),
+                                    walk_fallback = list(player.anim_frames),
+                                    idle_fallback = list(player.idle_frames),
+                                    anim_spd      = _cdat_m.get("anim_speed", 0.10),
+                                    idle_anim_spd = _cdat_m.get("idle_anim_speed", 0.13),
+                                )
+                            state = "MARKET"
+                            if snd_click: snd_click.play()
+                        elif _hub_shop_rect.collidepoint(click_pos):
                             hub_return = True
                             state = "ITEM_SHOP"
                         elif _hub_talent_rect.collidepoint(click_pos):
@@ -5752,6 +5784,93 @@ def main():
                                 if snd_click: snd_click.play()
                             elif main._hc_rarr.collidepoint(click_pos) and current_hardcore_stage < _hc_max_unl:
                                 current_hardcore_stage += 1
+                                if snd_click: snd_click.play()
+
+                    elif state == "MARKET":
+                        if hub_profile_open:
+                            if hasattr(_draw_profile_viewer, "_av_picker_rects") and getattr(_draw_profile_viewer, "_av_picker_open", False):
+                                for _pck_idx, _pck_r in _draw_profile_viewer._av_picker_rects:
+                                    if _pck_r.collidepoint(click_pos):
+                                        profile_mgr.update_avatar(_draw_profile_viewer._av_profile_id, _pck_idx)
+                                        _avatar_icon_cache.clear()
+                                        _draw_profile_viewer._av_picker_open = False
+                                        if snd_click: snd_click.play()
+                                        break
+                            elif hasattr(_draw_profile_viewer, "_av_main_rect") and _draw_profile_viewer._av_main_rect.collidepoint(click_pos):
+                                _draw_profile_viewer._av_picker_open = not getattr(_draw_profile_viewer, "_av_picker_open", False)
+                                if snd_click: snd_click.play()
+                        elif hub_equip_open and not _drag_active:
+                            _dd_cid  = player.char_id if player else 0
+                            _dd_inv  = get_char_inventory(_dd_cid)
+                            _dd_eq   = get_char_equipped(_dd_cid)
+                            _dd_sc   = min(SCREEN_W * 0.42 / 1128, SCREEN_H * 0.80 / 1254)
+                            _dd_PW   = int(1128 * _dd_sc); _dd_PH = int(1254 * _dd_sc)
+                            _dd_PX   = (SCREEN_W - _dd_PW) // 2
+                            _dd_PY   = (SCREEN_H - _dd_PH) // 2
+                            _dd_eqslots = {
+                                "helmet": (295,143,110,104), "weapon": (141,266,106,105),
+                                "shield": (457,266,106,105),
+                                "armor":  (295,381,110,104),
+                                "legs":   (295,509,110,104), "boots":  (295,637,110,100),
+                            }
+                            _dd_hit_eq = None
+                            for _sk_dd, (ex,ey,ew,eh) in _dd_eqslots.items():
+                                _sr_dd = pygame.Rect(
+                                    _dd_PX + int(ex*_dd_sc), _dd_PY + int(ey*_dd_sc),
+                                    int(ew*_dd_sc), int(eh*_dd_sc))
+                                if _sr_dd.collidepoint(click_pos) and _dd_eq.get(_sk_dd):
+                                    _dd_hit_eq = _sk_dd; break
+                            _dd_COLS = 8
+                            _dd_gx0   = _dd_PX + int(53*_dd_sc)
+                            _dd_gy0   = _dd_PY + int(807*_dd_sc)
+                            _dd_sw    = int(93*_dd_sc)
+                            _dd_sh    = int(85*_dd_sc)
+                            _dd_stepx = int(95*_dd_sc)
+                            _dd_stepy = int(88*_dd_sc)
+                            _dd_hit_inv = -1
+                            for _di_dd in range(len(_dd_inv)):
+                                _col_dd = _di_dd % _dd_COLS
+                                _row_dd = _di_dd // _dd_COLS
+                                _ir_dd = pygame.Rect(_dd_gx0 + _col_dd*_dd_stepx,
+                                                     _dd_gy0 + _row_dd*_dd_stepy,
+                                                     _dd_sw, _dd_sh)
+                                if _ir_dd.collidepoint(click_pos):
+                                    _dd_hit_inv = _di_dd; break
+                            if _dd_hit_eq is not None:
+                                _itm_dd = _dd_eq[_dd_hit_eq]
+                                _drag_item   = {"item": _itm_dd, "from": "equip", "_idx": -1, "_slot": _dd_hit_eq}
+                                _drag_active = True
+                                _drag_offset = (click_pos[0] - int((_dd_eqslots[_dd_hit_eq][0]+_dd_eqslots[_dd_hit_eq][2]//2)*_dd_sc+_dd_PX),
+                                               click_pos[1] - int((_dd_eqslots[_dd_hit_eq][1]+_dd_eqslots[_dd_hit_eq][3]//2)*_dd_sc+_dd_PY))
+                                if snd_click: snd_click.play()
+                            elif _dd_hit_inv >= 0:
+                                _itm_dd = _dd_inv[_dd_hit_inv]
+                                _col_dd = _dd_hit_inv % _dd_COLS; _row_dd = _dd_hit_inv // _dd_COLS
+                                _cx_dd = _dd_gx0 + _col_dd*_dd_stepx + _dd_sw//2
+                                _cy_dd = _dd_gy0 + _row_dd*_dd_stepy + _dd_sh//2
+                                _drag_item   = {"item": _itm_dd, "from": "inventory", "_idx": _dd_hit_inv, "_slot": None}
+                                _drag_active = True
+                                _drag_offset = (click_pos[0]-_cx_dd, click_pos[1]-_cy_dd)
+                                if snd_click: snd_click.play()
+                        else:
+                            _mk_panel_x = int(SCREEN_W * 0.84)
+                            _mk_panel_w = SCREEN_W - _mk_panel_x
+                            _mk_rb_rw = _mk_panel_w - int(_mk_panel_w * 0.20)
+                            _mk_rb_rx = _mk_panel_x + int(_mk_panel_w * 0.10)
+                            _mk_rb_h  = 50
+                            _mk_shop_rect   = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                            _mk_talent_rect = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.453) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                            _mk_voltar_rect = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.562) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                            if _mk_shop_rect.collidepoint(click_pos):
+                                hub_return = True
+                                state = "ITEM_SHOP"
+                                if snd_click: snd_click.play()
+                            elif _mk_talent_rect.collidepoint(click_pos):
+                                hub_return = True
+                                state = "SHOP"
+                                if snd_click: snd_click.play()
+                            elif _mk_voltar_rect.collidepoint(click_pos):
+                                state = "HUB"
                                 if snd_click: snd_click.play()
 
                     elif state == "SAVES":
@@ -6169,7 +6288,7 @@ def main():
                 stop_settings_drag()
 
             # ── Drop do Drag-and-Drop de Inventário/Baú/Equipamento ──────────
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state == "HUB" and _drag_active:
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state in ("HUB", "MARKET") and _drag_active:
                 _drop_pos = event.pos
                 _dd_cid_u = player.char_id if player else 0
                 _dd_inv_u = get_char_inventory(_dd_cid_u)
@@ -6440,6 +6559,11 @@ def main():
                                 idle_anim_spd = _cdata2.get("idle_anim_speed", 0.13),
                             )
                     state = "PLAYING"
+
+        # 3b. Lógica do Mercado
+        if state == "MARKET" and market_scene is not None:
+            keys = pygame.key.get_pressed()
+            market_scene.update(dt, keys, SCREEN_W, SCREEN_H)
 
         # 3. Atualização da Lógica do Jogo
         if state == "PLAYING" and player and player.hp > 0 and not show_stage_victory:
@@ -8183,23 +8307,23 @@ def main():
                 diff_back_btn.check_hover(m_pos, snd_hover)
                 diff_back_btn.draw(screen)
 
-        elif state == "HUB" and hub_scene is not None:
+        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None):
             # ── Mapa + jogador ─────────────────────────────────────────────
-            hub_scene.draw(screen)
-
-            # ── "Press F" flutuante acima-direita do baú (2º andar) ──────────
-            if hub_scene.player_near_chest and not hub_chest_open:
-                _chest_sp = hub_scene.chest_screen_pos
-                _f_now    = pygame.time.get_ticks()
-                _f_bob    = math.sin(_f_now / 400.0) * 4   # animação flutuante
-                _f_surf   = font_s.render("[F]  Abrir Baú", True, (240, 220, 100))
-                _f_bg     = pygame.Surface((_f_surf.get_width() + 16, _f_surf.get_height() + 8), pygame.SRCALPHA)
-                _f_bg.fill((10, 8, 6, 180))
-                # Posiciona à direita e acima do baú
-                _f_rect   = _f_bg.get_rect(left=int(_chest_sp.x) + 10, bottom=int(_chest_sp.y - 36 + _f_bob))
-                screen.blit(_f_bg, _f_rect)
-                pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
-                screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
+            if state == "HUB":
+                hub_scene.draw(screen)
+                if hub_scene.player_near_chest and not hub_chest_open:
+                    _chest_sp = hub_scene.chest_screen_pos
+                    _f_now    = pygame.time.get_ticks()
+                    _f_bob    = math.sin(_f_now / 400.0) * 4
+                    _f_surf   = font_s.render("[F]  Abrir Baú", True, (240, 220, 100))
+                    _f_bg     = pygame.Surface((_f_surf.get_width() + 16, _f_surf.get_height() + 8), pygame.SRCALPHA)
+                    _f_bg.fill((10, 8, 6, 180))
+                    _f_rect   = _f_bg.get_rect(left=int(_chest_sp.x) + 10, bottom=int(_chest_sp.y - 36 + _f_bob))
+                    screen.blit(_f_bg, _f_rect)
+                    pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
+                    screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
+            else:
+                market_scene.draw(screen)
 
             # ── Janela de Inventário / Equipamento (tecla I) ───────────────
             if hub_equip_open:
@@ -8726,128 +8850,161 @@ def main():
                 _st_close = font_s.render("C / ESC — Fechar", True, (100, 90, 65))
                 screen.blit(_st_close, _st_close.get_rect(centerx=_ST_X + _ST_W // 2, bottom=_ST_Y + _ST_H - 22))
 
-            # ── Painel lateral direito (Sala do Herói) ──────────────────────
-            _hp_x = int(SCREEN_W * 0.84)
-            _hp_w = SCREEN_W - _hp_x
-            _cx   = _hp_x + _hp_w // 2
-            # Fundo escuro de segurança
-            _panel = pygame.Surface((_hp_w, SCREEN_H), pygame.SRCALPHA)
-            _panel.fill((10, 8, 6, 215))
-            screen.blit(_panel, (_hp_x, 0))
-            # Imagem sala_do_heroi.png como design do painel
-            _sh_key = (_hp_w, SCREEN_H)
-            if _sh_key not in _sala_heroi_cache:
-                try:
-                    _sh_raw = pygame.image.load(
-                        os.path.join("assets", "ui", "panels", "sala_do_heroi.png")
-                    ).convert_alpha()
-                    _sala_heroi_cache[_sh_key] = pygame.transform.smoothscale(_sh_raw, _sh_key)
-                except Exception:
-                    _sala_heroi_cache[_sh_key] = None
-            _sh_img = _sala_heroi_cache.get(_sh_key)
-            if _sh_img:
-                screen.blit(_sh_img, (_hp_x, 0))
-            pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_hp_x, 0), (_hp_x, SCREEN_H), 2)
+            # ── Painel lateral direito ──────────────────────────────────────
+            if state == "HUB":
+                _hp_x = int(SCREEN_W * 0.84)
+                _hp_w = SCREEN_W - _hp_x
+                _cx   = _hp_x + _hp_w // 2
+                _panel = pygame.Surface((_hp_w, SCREEN_H), pygame.SRCALPHA)
+                _panel.fill((10, 8, 6, 215))
+                screen.blit(_panel, (_hp_x, 0))
+                _sh_key = (_hp_w, SCREEN_H)
+                if _sh_key not in _sala_heroi_cache:
+                    try:
+                        _sh_raw = pygame.image.load(
+                            os.path.join("assets", "ui", "panels", "sala_do_heroi.png")
+                        ).convert_alpha()
+                        _sala_heroi_cache[_sh_key] = pygame.transform.smoothscale(_sh_raw, _sh_key)
+                    except Exception:
+                        _sala_heroi_cache[_sh_key] = None
+                _sh_img = _sala_heroi_cache.get(_sh_key)
+                if _sh_img:
+                    screen.blit(_sh_img, (_hp_x, 0))
+                pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_hp_x, 0), (_hp_x, SCREEN_H), 2)
+                _title_s = font_s.render("Sala do Herói", True, UI_THEME.get("old_gold", (220, 180, 80)))
+                screen.blit(_title_s, _title_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.03)))
+                _area_names = {"exterior": "Exterior", "interior_1": "1º Andar", "interior_2": "2º Andar"}
+                _area_key   = hub_scene.current_map_name if hub_scene else "exterior"
+                _area_s = font_s.render(_area_names.get(_area_key, _area_key), True, (160, 150, 120))
+                screen.blit(_area_s, _area_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.08)))
+                if player is not None:
+                    _char_name = CHAR_DATA.get(player.char_id, {}).get("name", "")
+                    _name_s = font_s.render(_char_name, True, (220, 210, 180))
+                    screen.blit(_name_s, _name_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.13)))
+                    _hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
+                    screen.blit(_hp_s, _hp_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.19)))
+                _rb_rw = _hp_w - int(_hp_w * 0.20)
+                _rb_rx = _hp_x + int(_hp_w * 0.10)
+                _rb_h  = 50
+                _market_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.285) - _rb_h//2, _rb_rw, _rb_h)
+                _shop_rect   = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
+                _talent_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
+                _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
+                for _r, _lbl in [(_market_rect, "Mercado"), (_shop_rect, "Loja de Itens"), (_talent_rect, "Talentos")]:
+                    _hov = _r.collidepoint(m_pos)
+                    _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
+                    screen.blit(_ls, _ls.get_rect(center=_r.center))
+                hub_pronto_btn.check_hover(m_pos, snd_hover)
+                _pr_hov = _pronto_rect.collidepoint(m_pos) or hub_pronto_btn.is_hovered
+                _pr_col = (200, 255, 200) if _pr_hov else (140, 220, 140)
+                _pr_s   = font_m.render("PRONTO", True, _pr_col)
+                screen.blit(_pr_s, _pr_s.get_rect(center=_pronto_rect.center))
+                if hub_countdown_active:
+                    _cd_text = f"Em {int(hub_countdown_timer) + 1}..."
+                    _cd_s = font_s.render(_cd_text, True, (255, 220, 60))
+                    screen.blit(_cd_s, _cd_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.55)))
+                if selected_difficulty == "HARDCORE":
+                    _hc_unlocked = save_data.get("hardcore_stages", {}).get("unlocked", 1)
+                    _hc_lbl = font_s.render("Fase Hardcore:", True, (220, 100, 100))
+                    screen.blit(_hc_lbl, _hc_lbl.get_rect(centerx=_cx, top=int(SCREEN_H * 0.66)))
+                    _hc_arr_y = int(SCREEN_H * 0.72)
+                    _hc_larr = pygame.Rect(_cx - 80, _hc_arr_y - 16, 32, 32)
+                    _hc_rarr = pygame.Rect(_cx + 48, _hc_arr_y - 16, 32, 32)
+                    _hcl_hov = _hc_larr.collidepoint(m_pos)
+                    _hcr_hov = _hc_rarr.collidepoint(m_pos)
+                    pygame.draw.rect(screen, (160, 60, 60) if _hcl_hov else (100, 40, 40), _hc_larr, border_radius=6)
+                    pygame.draw.rect(screen, (160, 60, 60) if _hcr_hov else (100, 40, 40), _hc_rarr, border_radius=6)
+                    _hcl_s = font_s.render("<", True, (240, 200, 100))
+                    _hcr_s = font_s.render(">", True, (240, 200, 100))
+                    screen.blit(_hcl_s, _hcl_s.get_rect(center=_hc_larr.center))
+                    screen.blit(_hcr_s, _hcr_s.get_rect(center=_hc_rarr.center))
+                    _hc_stage_s = font_m.render(f"{current_hardcore_stage} / {_hc_unlocked}", True, (255, 200, 80))
+                    screen.blit(_hc_stage_s, _hc_stage_s.get_rect(centerx=_cx, centery=_hc_arr_y))
+                    if _hc_unlocked > 1:
+                        _hc_hint = font_s.render(f"Fases desbloqueadas: {_hc_unlocked}", True, (160, 120, 60))
+                        screen.blit(_hc_hint, _hc_hint.get_rect(centerx=_cx, top=int(SCREEN_H * 0.76)))
+                    main._hc_larr = _hc_larr
+                    main._hc_rarr = _hc_rarr
+                _BG_LABELS = {"dungeon": "Dungeon", "volcano": "Vulcão", "moon": "Lua", "forest": "Floresta"}
+                _biome_y   = int(SCREEN_H * 0.81)
+                _bg_lbl_s  = font_s.render("Bioma", True, (180, 160, 100))
+                screen.blit(_bg_lbl_s, _bg_lbl_s.get_rect(centerx=_cx, top=_biome_y))
+                _bg_name_s = font_s.render(_BG_LABELS.get(selected_bg, selected_bg.capitalize()), True, (240, 210, 130))
+                screen.blit(_bg_name_s, _bg_name_s.get_rect(centerx=_cx, top=_biome_y + 22))
+                _bg_arr_y   = _biome_y + 22
+                _biome_larr = pygame.Rect(_cx - 72, _bg_arr_y, 28, 24)
+                _biome_rarr = pygame.Rect(_cx + 44, _bg_arr_y, 28, 24)
+                for _ar, _ch in ((_biome_larr, "<"), (_biome_rarr, ">")):
+                    _hov = _ar.collidepoint(m_pos)
+                    pygame.draw.rect(screen, (130, 95, 45) if _hov else (75, 58, 22), _ar, border_radius=4)
+                    _ch_s = font_s.render(_ch, True, (240, 200, 100))
+                    screen.blit(_ch_s, _ch_s.get_rect(center=_ar.center))
+                main._biome_larr = _biome_larr
+                main._biome_rarr = _biome_rarr
+                _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
+                _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
+                _hint_l = font_s.render("[L] Perfil / Conquistas", True, (160, 130, 200))
+                _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
+                _hint_top = _pronto_rect.bottom + 10
+                screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, top=_hint_top))
+                screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, top=_hint_top + 22))
+                screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
+                screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
 
-            # Título
-            _title_s = font_s.render("Sala do Herói", True, UI_THEME.get("old_gold", (220, 180, 80)))
-            screen.blit(_title_s, _title_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.03)))
-
-            # Área atual
-            _area_names = {"exterior": "Exterior", "interior_1": "1º Andar", "interior_2": "2º Andar"}
-            _area_key   = hub_scene.current_map_name if hub_scene else "exterior"
-            _area_s = font_s.render(_area_names.get(_area_key, _area_key), True, (160, 150, 120))
-            screen.blit(_area_s, _area_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.08)))
-
-            # Nome + HP
-            if player is not None:
-                _char_name = CHAR_DATA.get(player.char_id, {}).get("name", "")
-                _name_s = font_s.render(_char_name, True, (220, 210, 180))
-                screen.blit(_name_s, _name_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.13)))
-                _hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
-                screen.blit(_hp_s, _hp_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.19)))
-
-            # Retângulos interativos alinhados com a imagem sala_do_heroi.png
-            # Posições derivadas das proporções da imagem (725x2167):
-            #   Loja:    y_center ≈ 37.3%  |  Talentos: y_center ≈ 45.3%  |  PRONTO: y_center ≈ 56.2%
-            _rb_rw = _hp_w - int(_hp_w * 0.20)                   # ~80% da largura do painel
-            _rb_rx = _hp_x + int(_hp_w * 0.10)                   # ~10% de margem esquerda
-            _rb_h  = 50
-            _shop_rect   = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
-            _talent_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
-            _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
-
-            # Texto sobre os retângulos da imagem (sem borda desenhada)
-            for _r, _lbl in [(_shop_rect, "Loja de Itens"), (_talent_rect, "Talentos")]:
-                _hov = _r.collidepoint(m_pos)
-                _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
-                screen.blit(_ls, _ls.get_rect(center=_r.center))
-
-            # PRONTO — usar rect da imagem, sem desenhar botão separado
-            hub_pronto_btn.check_hover(m_pos, snd_hover)
-            _pr_hov = _pronto_rect.collidepoint(m_pos) or hub_pronto_btn.is_hovered
-            _pr_col = (200, 255, 200) if _pr_hov else (140, 220, 140)
-            _pr_s   = font_m.render("PRONTO", True, _pr_col)
-            screen.blit(_pr_s, _pr_s.get_rect(center=_pronto_rect.center))
-
-            # Countdown
-            if hub_countdown_active:
-                _cd_text = f"Em {int(hub_countdown_timer) + 1}..."
-                _cd_s = font_s.render(_cd_text, True, (255, 220, 60))
-                screen.blit(_cd_s, _cd_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.55)))
-
-            # Seleção de Fases — apenas no modo Hardcore
-            if selected_difficulty == "HARDCORE":
-                _hc_unlocked = save_data.get("hardcore_stages", {}).get("unlocked", 1)
-                _hc_lbl = font_s.render("Fase Hardcore:", True, (220, 100, 100))
-                screen.blit(_hc_lbl, _hc_lbl.get_rect(centerx=_cx, top=int(SCREEN_H * 0.66)))
-                _hc_arr_y = int(SCREEN_H * 0.72)
-                _hc_larr = pygame.Rect(_cx - 80, _hc_arr_y - 16, 32, 32)
-                _hc_rarr = pygame.Rect(_cx + 48, _hc_arr_y - 16, 32, 32)
-                _hcl_hov = _hc_larr.collidepoint(m_pos)
-                _hcr_hov = _hc_rarr.collidepoint(m_pos)
-                pygame.draw.rect(screen, (160, 60, 60) if _hcl_hov else (100, 40, 40), _hc_larr, border_radius=6)
-                pygame.draw.rect(screen, (160, 60, 60) if _hcr_hov else (100, 40, 40), _hc_rarr, border_radius=6)
-                _hcl_s = font_s.render("<", True, (240, 200, 100))
-                _hcr_s = font_s.render(">", True, (240, 200, 100))
-                screen.blit(_hcl_s, _hcl_s.get_rect(center=_hc_larr.center))
-                screen.blit(_hcr_s, _hcr_s.get_rect(center=_hc_rarr.center))
-                _hc_stage_s = font_m.render(f"{current_hardcore_stage} / {_hc_unlocked}", True, (255, 200, 80))
-                screen.blit(_hc_stage_s, _hc_stage_s.get_rect(centerx=_cx, centery=_hc_arr_y))
-                if _hc_unlocked > 1:
-                    _hc_hint = font_s.render(f"Fases desbloqueadas: {_hc_unlocked}", True, (160, 120, 60))
-                    screen.blit(_hc_hint, _hc_hint.get_rect(centerx=_cx, top=int(SCREEN_H * 0.76)))
-                main._hc_larr = _hc_larr
-                main._hc_rarr = _hc_rarr
-
-            # ── Seletor de bioma (acima das dicas de tecla) ─────────────────
-            _BG_LABELS = {"dungeon": "Dungeon", "volcano": "Vulcão", "moon": "Lua", "forest": "Floresta"}
-            _biome_y   = int(SCREEN_H * 0.81)
-            _bg_lbl_s  = font_s.render("Bioma", True, (180, 160, 100))
-            screen.blit(_bg_lbl_s, _bg_lbl_s.get_rect(centerx=_cx, top=_biome_y))
-            _bg_name_s = font_s.render(_BG_LABELS.get(selected_bg, selected_bg.capitalize()), True, (240, 210, 130))
-            screen.blit(_bg_name_s, _bg_name_s.get_rect(centerx=_cx, top=_biome_y + 22))
-            _bg_arr_y   = _biome_y + 22
-            _biome_larr = pygame.Rect(_cx - 72, _bg_arr_y, 28, 24)
-            _biome_rarr = pygame.Rect(_cx + 44, _bg_arr_y, 28, 24)
-            for _ar, _ch in ((_biome_larr, "<"), (_biome_rarr, ">")):
-                _hov = _ar.collidepoint(m_pos)
-                pygame.draw.rect(screen, (130, 95, 45) if _hov else (75, 58, 22), _ar, border_radius=4)
-                _ch_s = font_s.render(_ch, True, (240, 200, 100))
-                screen.blit(_ch_s, _ch_s.get_rect(center=_ar.center))
-            main._biome_larr = _biome_larr
-            main._biome_rarr = _biome_rarr
-
-            # Dicas de tecla — logo abaixo do botão PRONTO
-            _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
-            _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
-            _hint_l = font_s.render("[L] Perfil / Conquistas", True, (160, 130, 200))
-            _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
-            _hint_top = _pronto_rect.bottom + 10
-            screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, top=_hint_top))
-            screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, top=_hint_top + 22))
-            screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
-            screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
+            else:
+                # ── Painel lateral direito (Mercado) ─────────────────────────
+                _hp_x = int(SCREEN_W * 0.84)
+                _hp_w = SCREEN_W - _hp_x
+                _cx   = _hp_x + _hp_w // 2
+                _panel = pygame.Surface((_hp_w, SCREEN_H), pygame.SRCALPHA)
+                _panel.fill((10, 8, 6, 215))
+                screen.blit(_panel, (_hp_x, 0))
+                _sh_key = (_hp_w, SCREEN_H)
+                if _sh_key not in _sala_heroi_cache:
+                    try:
+                        _sh_raw = pygame.image.load(
+                            os.path.join("assets", "ui", "panels", "sala_do_heroi.png")
+                        ).convert_alpha()
+                        _sala_heroi_cache[_sh_key] = pygame.transform.smoothscale(_sh_raw, _sh_key)
+                    except Exception:
+                        _sala_heroi_cache[_sh_key] = None
+                _sh_img = _sala_heroi_cache.get(_sh_key)
+                if _sh_img:
+                    screen.blit(_sh_img, (_hp_x, 0))
+                pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_hp_x, 0), (_hp_x, SCREEN_H), 2)
+                _title_s = font_s.render("Mercado", True, UI_THEME.get("old_gold", (220, 180, 80)))
+                screen.blit(_title_s, _title_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.03)))
+                _area_s = font_s.render("Mercado", True, (160, 150, 120))
+                screen.blit(_area_s, _area_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.08)))
+                if player is not None:
+                    _char_name = CHAR_DATA.get(player.char_id, {}).get("name", "")
+                    _name_s = font_s.render(_char_name, True, (220, 210, 180))
+                    screen.blit(_name_s, _name_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.13)))
+                    _hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
+                    screen.blit(_hp_s, _hp_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.19)))
+                _rb_rw = _hp_w - int(_hp_w * 0.20)
+                _rb_rx = _hp_x + int(_hp_w * 0.10)
+                _rb_h  = 50
+                _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
+                for _r, _lbl in [
+                    (pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h), "Loja de Itens"),
+                    (pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h), "Talentos"),
+                ]:
+                    _hov = _r.collidepoint(m_pos)
+                    _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
+                    screen.blit(_ls, _ls.get_rect(center=_r.center))
+                _vol_hov = _pronto_rect.collidepoint(m_pos)
+                _vol_s = font_m.render("VOLTAR", True, (200, 255, 200) if _vol_hov else (140, 220, 140))
+                screen.blit(_vol_s, _vol_s.get_rect(center=_pronto_rect.center))
+                _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
+                _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
+                _hint_l = font_s.render("[L] Perfil / Conquistas", True, (160, 130, 200))
+                _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
+                _hint_top = _pronto_rect.bottom + 10
+                screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, top=_hint_top))
+                screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, top=_hint_top + 22))
+                screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
+                screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
 
         elif state == "PACT_SELECT":
             draw_menu_background(screen, m_pos, dt)
@@ -9358,12 +9515,12 @@ def main():
 
         draw_state_transition_overlay(screen, transition_timer)
 
-        # ── Overlay de Perfil/Conquistas no Hub (tecla L) ─────────────────
-        if state == "HUB" and hub_profile_open:
+        # ── Overlay de Perfil/Conquistas no Hub / Mercado (tecla L) ──────────
+        if state in ("HUB", "MARKET") and hub_profile_open:
             _draw_profile_viewer(screen, font_s, font_m, font_l, m_pos)
 
-        # ── Minicard de perfil no canto superior-direito (HUB) ────────────
-        if state == "HUB" and not hub_profile_open:
+        # ── Minicard de perfil no canto superior-esquerdo (HUB / Mercado) ─
+        if state in ("HUB", "MARKET") and not hub_profile_open:
             _hub_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos, align_right=False)
         else:
             _hub_profile_widget_rect = None

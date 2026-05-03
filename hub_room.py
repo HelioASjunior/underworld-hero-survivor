@@ -157,7 +157,8 @@ class HubMap:
         all_xs, all_ys = [], []
         raw_layers: list[dict] = []
 
-        for layer_elem in root.findall("layer"):
+        # iter("layer") percorre recursivamente grupos <group> e camadas aninhadas
+        for layer_elem in root.iter("layer"):
             data_elem = layer_elem.find("data")
             if data_elem is None:
                 continue
@@ -860,3 +861,88 @@ class HubScene:
         m.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         m.draw_top(screen, self._cam)
+
+
+# ---------------------------------------------------------------------------
+# MarketScene — mercado exterior com NPCs animados
+# ---------------------------------------------------------------------------
+
+class MarketScene:
+    """
+    Cena do Mercado: combina Market_square.tmx (ambiente) e
+    Characters.tmx (NPCs animados) numa área externa percorrível.
+    """
+
+    def __init__(self, ferreiro_dir: str):
+        self._dir = ferreiro_dir
+        self._market_map: HubMap | None = None
+        self._chars_map:  HubMap | None = None
+        self._player:     HubPlayer | None = None
+        self._cam = pygame.Vector2(0, 0)
+
+    def load_all(self):
+        """Parseia Market_square.tmx. Não requer pygame inicializado."""
+        path = os.path.join(self._dir, "Market_square.tmx")
+        if os.path.exists(path):
+            self._market_map = HubMap(path)
+            self._market_map.load()
+        else:
+            print(f"[MarketScene] Arquivo não encontrado: Market_square.tmx")
+
+    def load_surfaces_and_bake(self):
+        """Carrega imagens e bake. Requer pygame inicializado."""
+        if self._market_map is not None:
+            self._market_map.load_surfaces()
+            self._market_map.bake()
+
+    def setup_player(self):
+        """Cria o jogador no centro do mapa do mercado."""
+        if self._market_map is None:
+            return
+        self._player = HubPlayer(self._market_map)
+        if self._market_map.content_center:
+            self._player.pos = pygame.Vector2(self._market_map.content_center)
+
+    def apply_char_frames(
+        self,
+        dir_walk:      dict,
+        dir_idle:      dict,
+        walk_fallback: list | None = None,
+        idle_fallback: list | None = None,
+        anim_spd:      float = 0.10,
+        idle_anim_spd: float = 0.13,
+    ):
+        if self._player:
+            self._player.set_char_frames(
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+            )
+
+    @property
+    def player(self) -> "HubPlayer | None":
+        return self._player
+
+    @property
+    def cam(self) -> pygame.Vector2:
+        return self._cam
+
+    def update(self, dt: float, keys, screen_w: int, screen_h: int):
+        if self._market_map is None or self._player is None:
+            return
+        self._player.update(dt, keys)
+        self._market_map.update(dt)
+        if self._market_map.content_center:
+            self._cam = compute_camera_fixed(self._market_map.content_center, screen_w, screen_h)
+        else:
+            self._cam = compute_camera(
+                self._player.pos,
+                self._market_map.pixel_width,
+                self._market_map.pixel_height,
+                screen_w, screen_h,
+            )
+
+    def draw(self, screen: pygame.Surface):
+        if self._market_map is None or self._player is None:
+            return
+        self._market_map.draw_base(screen, self._cam)
+        self._player.draw(screen, self._cam)
+        self._market_map.draw_top(screen, self._cam)
