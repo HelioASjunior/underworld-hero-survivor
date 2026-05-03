@@ -1277,6 +1277,147 @@ class Skeleton(Player):
         )
 
 
+class Hurricane(Player):
+    """Herói ranged — projéteis de furacão e vórtice de tempestade em área."""
+
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+    _WIND_COLORS = [
+        (100, 200, 255), (140, 220, 255), (180, 240, 255),
+        (60, 160, 220), (200, 230, 255), (120, 180, 220),
+    ]
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (200, 200))
+
+        fw = data.get("spritesheet_frame_w", 64)
+        fh = data.get("spritesheet_frame_h", 64)
+
+        # Walk direcional — Lich3_Run_with_shadow.png 384×256, 4 rows × 6 frames de 64×64
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 6)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        # Idle direcional — Lich3_Idle_with_shadow.png 256×256, 4 rows × 4 frames de 64×64
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+        # Ataque direcional — Lich3_Attack_with_shadow.png 512×256, 4 rows × 8 frames de 64×64
+        atk_sheet = data.get("spritesheet_attack")
+        atk_n = data.get("attack_anim_frames", 8)
+        atk_fw = data.get("spritesheet_attack_frame_w", fw)
+        atk_fh = data.get("spritesheet_attack_frame_h", fh)
+        if atk_sheet:
+            for dir_name, row in self._SPRITE_DIR_ROWS.items():
+                indices = list(range(row * atk_n, (row + 1) * atk_n))
+                frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh, atk_n, char_size, frame_indices=indices)
+                if frames:
+                    self._dir_attack_frames[dir_name] = frames
+            if self._dir_attack_frames and not self.attack_frames:
+                self.attack_frames = next(iter(self._dir_attack_frames.values()))
+
+    def get_attack_name(self):
+        return "Rajada de Furacão"
+
+    def get_dash_name(self):
+        return "Impulso do Vento"
+
+    def get_ultimate_name(self):
+        return "Vórtice da Tempestade"
+
+    def get_attack_sound(self):
+        return "shoot"
+
+    def get_projectile_damage_multiplier(self):
+        return 1.15
+
+    def atacar(self, target, combat_context):
+        """Projétil de furacão — vórtice não rotaciona com a direção de disparo."""
+        if target is None:
+            return CharacterActionFeedback()
+        base_direction = target.pos - self.pos
+        if base_direction.length_squared() <= 0:
+            return CharacterActionFeedback()
+        base_direction = base_direction.normalize()
+        base_proj_frames = self.char_projectile_frames or combat_context.projectile_frames_raw
+        for direction in self._attack_vectors(base_direction, combat_context.projectile_count):
+            if combat_context.bazooka_active:
+                projectile_damage = combat_context.projectile_damage * 3
+            else:
+                projectile_damage = combat_context.projectile_damage
+            projectile_damage = int(
+                projectile_damage * self.get_projectile_damage_multiplier() * combat_context.fury_multiplier
+            )
+            proj = self.deps.projectile_cls(
+                self.pos,
+                direction * combat_context.projectile_speed,
+                projectile_damage,
+                base_proj_frames,
+            )
+            combat_context.projectiles.add(proj)
+        self.trigger_attack_anim()
+        return self._build_action_feedback(sound_name=self.get_attack_sound())
+
+    def use_ultimate(self, combat_context):
+        """Vórtice da Tempestade: 12 projéteis de furacão em círculo + rajada de vento."""
+        if self.ult_charge < self.ult_max:
+            return CharacterActionFeedback()
+
+        self.ult_charge = 0
+        base_frames = self.char_projectile_frames or combat_context.projectile_frames_raw
+
+        n_proj = 12
+        ult_dmg = int(
+            combat_context.projectile_damage
+            * self.get_projectile_damage_multiplier()
+            * 2.2
+            * combat_context.fury_multiplier
+        )
+        for i in range(n_proj):
+            angle = i * (360 / n_proj)
+            direction = pygame.Vector2(1, 0).rotate(angle)
+            proj = self.deps.projectile_cls(
+                self.pos,
+                direction * combat_context.projectile_speed * 1.2,
+                ult_dmg,
+                base_frames,
+            )
+            proj.pierce = 3
+            combat_context.projectiles.add(proj)
+
+        for _ in range(32):
+            angle = random.uniform(0, math.pi * 2)
+            dist = random.uniform(30, 180)
+            offset = pygame.Vector2(math.cos(angle), math.sin(angle)) * dist
+            p = self.deps.particle_cls(
+                self.pos + offset,
+                random.choice(self._WIND_COLORS),
+                random.randint(8, 22),
+                random.randint(25, 110),
+                random.uniform(0.3, 0.75),
+            )
+            p.vel.x += math.cos(angle) * 130
+            p.vel.y += math.sin(angle) * 130
+            combat_context.particles.add(p)
+
+        return self._build_action_feedback(
+            log_text=f"Ultimate: {self.get_ultimate_name()}",
+            log_color=(100, 200, 255),
+        )
+
+
 PLAYER_CLASS_FACTORY = {
     0: Warrior,
     1: Assassin,
@@ -1285,6 +1426,7 @@ PLAYER_CLASS_FACTORY = {
     4: Demon,
     5: Golem,
     6: Skeleton,
+    7: Hurricane,
 }
 
 

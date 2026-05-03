@@ -60,8 +60,9 @@ Highlights:
 | Demon | 75 | 290 | 38 | 100 | Infernal Flame | Default |
 | Golem | 113 | 240 | 50 | 50 | Earth Strike | Default |
 | Skeleton | 95 | 265 | 44 | 75 | Blood Frenzy | Defeat 12 Bosses |
+| Hurricane | 80 | 285 | 40 | 85 | Storm Vortex | Defeat 15 Bosses |
 
-Each character has directional spritesheets (up/down/left/right) with walk, idle, and attack animations loaded via `characters.py`. The Skeleton is unlocked after 12 total boss kills.
+Each character has directional spritesheets (up/down/left/right) with walk, idle, and attack animations loaded via `characters.py`.
 
 ---
 

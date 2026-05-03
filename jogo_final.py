@@ -340,7 +340,7 @@ RUN_SLOT_FILES = [
 # Itens que começam desbloqueados
 DEFAULT_UNLOCKS = [
     "DANO ++", "VELOCIDADE ++", "VIDA MÁXIMA", "TIRO RÁPIDO", "CURA",
-    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "CHAR_4", "CHAR_5", "CHAR_6", "DIFF_FÁCIL", "DIFF_MÉDIO"
+    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "CHAR_4", "CHAR_5", "CHAR_6", "CHAR_7", "DIFF_FÁCIL", "DIFF_MÉDIO"
 ]
 
 save_data = {
@@ -394,6 +394,7 @@ ACHIEVEMENTS = {
     "CHAR_4": {"type": "char", "name": "DEMÔNIO", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
     "CHAR_5": {"type": "char", "name": "GOLEM", "desc": "Derrote 8 Chefões", "req": lambda s: s["boss_kills"] >= 8},
     "CHAR_6": {"type": "char", "name": "ESQUELETO", "desc": "Derrote 12 Chefões", "req": lambda s: s["boss_kills"] >= 12},
+    "CHAR_7": {"type": "char", "name": "FURACÃO", "desc": "Derrote 15 Chefões", "req": lambda s: s["boss_kills"] >= 15},
 
     "DIFF_DIFÍCIL": {"type": "diff", "name": "DIFÍCIL", "desc": "Sobreviva 10 min (total)", "req": lambda s: s["total_time"] >= 600},
     "DIFF_HARDCORE": {"type": "diff", "name": "HARDCORE", "desc": "Complete Fácil, Médio e Difícil", "req": lambda s: len({"FÁCIL", "MÉDIO", "DIFÍCIL"} & set(save_data.get("beaten_difficulties", []))) >= 3},
@@ -986,6 +987,36 @@ CHAR_DATA = {
         "projectile_frame_count": 8,
         "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
         "projectile_display_size": (80, 80),
+    },
+    7: {
+        "name": "FURACÃO", "hp": 80, "speed": 285, "damage": 40, "mana": 85,
+        "desc": "Ult: Vórtice da Tempestade", "size": (160, 160), "menu_size": (230, 230),
+        "anim_frames": 6, "menu_anim_frames": 6,
+        "dash_duration": 0.18, "dash_cooldown": 2.2,
+        "id": "CHAR_7",
+        # Walk: Lich3_Run_with_shadow.png — 384×256, 4 rows × 6 frames de 64×64
+        "spritesheet": "sprite/monster/new hero/Lich3_Run_with_shadow",
+        "spritesheet_frame_w": 64,
+        "spritesheet_frame_h": 64,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5], "anim_speed": 0.10,
+        # Idle: Lich3_Idle_with_shadow.png — 256×256, 4 rows × 4 frames de 64×64
+        "spritesheet_idle": "sprite/monster/new hero/Lich3_Idle_with_shadow",
+        "spritesheet_idle_frame_w": 64,
+        "spritesheet_idle_frame_h": 64,
+        "idle_anim_frames": 4, "spritesheet_idle_frame_indices": [0, 1, 2, 3], "idle_anim_speed": 0.14,
+        # Attack: Lich3_Attack_with_shadow.png — 512×256, 4 rows × 8 frames de 64×64
+        "spritesheet_attack": "sprite/monster/new hero/Lich3_Attack_with_shadow",
+        "spritesheet_attack_frame_w": 64,
+        "spritesheet_attack_frame_h": 64,
+        "attack_anim_frames": 8,
+        "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7], "attack_anim_speed": 0.07,
+        # Projétil: hurricane_attack_sheet.png — 2080×340, 8 frames de 260×340
+        "projectile_spritesheet": "sprite/monster/new hero/hurricane_attack_sheet",
+        "projectile_frame_w": 260,
+        "projectile_frame_h": 340,
+        "projectile_frame_count": 8,
+        "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        "projectile_display_size": (96, 120),
     },
 }
 
@@ -7944,7 +7975,7 @@ def main():
             chw = max(int(CHALF * pscale), 32)
 
             # Multiplicadores de tamanho por personagem (guerreiro e mago maiores)
-            _SIZE_MULT = {0: 2.20, 1: 1.85, 2: 2.45, 3: 2.00, 4: 2.30, 5: 2.40}   # 0=guerreiro 1=caçador 2=mago 3=vampire 4=demônio 5=golem
+            _SIZE_MULT = {0: 2.20, 1: 1.85, 2: 2.45, 3: 2.00, 4: 2.30, 5: 2.40, 6: 2.10, 7: 2.10}
 
             for i in range(len(char_ids)):
                 btn   = char_btns[i]
@@ -7953,9 +7984,13 @@ def main():
                 # Idle animation — mesmo sprite do jogo parado
                 idle = menu_idle_anims[i] if i < len(menu_idle_anims) else menu_char_anims[i]
 
-                cx = ox + int(COL_CX[i] * pscale)
+                # Chars 0-6 na linha 0; chars extras preenchem a linha 1 na ordem das colunas
+                _n_cols = len(COL_CX)
+                _grid_col = i % _n_cols
+                _grid_row = i // _n_cols
+                cx = ox + int(COL_CX[_grid_col] * pscale)
                 # Descer +50% do raio da célula para enquadrar personagem no quadrado
-                cy = oy + int(ROW_CY[0] * pscale) + int(chw * 0.50)
+                cy = oy + int(ROW_CY[_grid_row] * pscale) + int(chw * 0.50)
 
                 cell_rect = pygame.Rect(cx - chw, cy - chw, chw * 2, chw * 2)
                 btn.rect  = cell_rect

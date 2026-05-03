@@ -60,8 +60,9 @@ Destaques gerais:
 | Demônio | 75 | 290 | 38 | 100 | Chama Infernal | Padrão |
 | Golem | 113 | 240 | 50 | 50 | Golpe da Terra | Padrão |
 | Esqueleto | 95 | 265 | 44 | 75 | Frenesi Sanguinário | Derrote 12 Chefões |
+| Furacão | 80 | 285 | 40 | 85 | Vórtice da Tempestade | Derrote 15 Chefões |
 
-Todos os personagens possuem spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar, idle e atacar carregadas via `characters.py`. O Esqueleto é desbloqueado ao atingir 12 kills de chefões no total.
+Todos os personagens possuem spritesheets direcionais (cima/baixo/esquerda/direita) com animações de andar, idle e atacar carregadas via `characters.py`.
 
 ---
 
