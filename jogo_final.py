@@ -2454,6 +2454,8 @@ projectile_frames_raw = []
 slash_frames_raw = []
 orb_img = None
 tornado_img = None
+_steam_btn_surf = None
+_site_btn_surf  = None
 
 # ── Constantes de vetor reutilizáveis (evita alloc em hot-paths) ─────────────
 _VEC2_RIGHT = pygame.Vector2(1, 0)
@@ -2996,7 +2998,7 @@ def load_all_assets():
     global skill_card_sprites, skill_card_sprites_hover
     global config_title_spr, config_tag_spr
     global forest_deco_manager, dungeon_deco_manager, volcano_deco_manager, moon_deco_manager
-    global cursor_img
+    global cursor_img, _steam_btn_surf, _site_btn_surf
 
     bg_name = BG_DATA.get(selected_bg, BG_DATA["dungeon"])["name"]
     current_bg_name = bg_name
@@ -3135,7 +3137,20 @@ def load_all_assets():
     tornado_img = loader.load_image("tornado", (300, 300), ((200, 200, 255, 150), (150, 150, 200, 100)))
     _build_tornado_cache()
     cursor_img = loader.load_image("seta", (56, 56))
-    
+
+    _ext_w = max(200, int(SCREEN_W * 0.13))
+    _ext_h = _ext_w * 2 // 3
+
+    _sb_path = os.path.join(ASSET_DIR, "ui", "steambotton.png")
+    if os.path.exists(_sb_path):
+        _steam_btn_surf = pygame.transform.smoothscale(
+            pygame.image.load(_sb_path).convert_alpha(), (_ext_w, _ext_h))
+
+    _site_path = os.path.join(ASSET_DIR, "ui", "sitebotton.png")
+    if os.path.exists(_site_path):
+        _site_btn_surf = pygame.transform.smoothscale(
+            pygame.image.load(_site_path).convert_alpha(), (_ext_w, _ext_h))
+
     # Ícones de upgrades
     for upg_key, icon_name in UPGRADE_ICONS.items():
         upg_images[upg_key] = loader.load_image(icon_name, (64, 64))
@@ -4715,10 +4730,10 @@ def main():
         "SAIR": ("Encerrar", "Salva progresso atual e fecha o jogo com seguranca."),
     }
     _menu_site_url = "https://underworld-hero-landing.vercel.app/"
-    _ext_btn_w = max(160, int(SCREEN_W * 0.095))
-    _ext_btn_h = 36
-    _ext_gap = max(14, int(SCREEN_W * 0.016))
-    _ext_btn_y = int(SCREEN_H * 0.955) - _ext_btn_h // 2
+    _ext_btn_w = max(200, int(SCREEN_W * 0.13))
+    _ext_btn_h = _ext_btn_w * 2 // 3
+    _ext_gap = max(20, int(SCREEN_W * 0.02))
+    _ext_btn_y = SCREEN_H - _ext_btn_h - 10
     menu_site_rect = pygame.Rect(SCREEN_W // 2 - _ext_btn_w - _ext_gap // 2, _ext_btn_y, _ext_btn_w, _ext_btn_h)
     menu_steam_rect = pygame.Rect(SCREEN_W // 2 + _ext_gap // 2, _ext_btn_y, _ext_btn_w, _ext_btn_h)
 
@@ -7001,31 +7016,17 @@ def main():
             _menu_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos)
 
             # ── Botões de links externos (Site Oficial / Steam) ─────────────
-            _font_ext = load_title_font(14)
             _site_hov = menu_site_rect.collidepoint(m_pos)
-            _sc = (30, 55, 105) if _site_hov else (16, 30, 60)
-            _sb = (80, 145, 215) if _site_hov else (42, 72, 130)
-            pygame.draw.rect(screen, _sc, menu_site_rect, border_radius=5)
-            pygame.draw.rect(screen, _sb, menu_site_rect, 1, border_radius=5)
-            _gx, _gy = menu_site_rect.x + 16, menu_site_rect.centery
-            pygame.draw.circle(screen, _sb, (_gx, _gy), 7, 1)
-            pygame.draw.line(screen, _sb, (_gx - 7, _gy), (_gx + 7, _gy), 1)
-            pygame.draw.ellipse(screen, _sb, pygame.Rect(_gx - 4, _gy - 7, 8, 14), 1)
-            _site_lbl = _font_ext.render("Site Oficial", True, (160, 210, 255) if _site_hov else (95, 145, 200))
-            screen.blit(_site_lbl, _site_lbl.get_rect(centery=menu_site_rect.centery, x=menu_site_rect.x + 30))
+            if _site_btn_surf is not None:
+                screen.blit(_site_btn_surf, menu_site_rect.topleft)
+                if _site_hov:
+                    pygame.draw.rect(screen, (200, 200, 200), menu_site_rect, 1, border_radius=3)
 
             _steam_hov = menu_steam_rect.collidepoint(m_pos)
-            _stc = (28, 28, 38) if _steam_hov else (16, 16, 24)
-            _stb = (72, 72, 95) if _steam_hov else (42, 42, 58)
-            pygame.draw.rect(screen, _stc, menu_steam_rect, border_radius=5)
-            pygame.draw.rect(screen, _stb, menu_steam_rect, 1, border_radius=5)
-            _ssx, _ssy = menu_steam_rect.x + 16, menu_steam_rect.centery
-            pygame.draw.circle(screen, _stb, (_ssx, _ssy), 7, 0)
-            pygame.draw.circle(screen, _stc, (_ssx, _ssy), 4, 0)
-            _steam_lbl = _font_ext.render("Steam", True, (100, 100, 130) if _steam_hov else (65, 65, 88))
-            _soon_lbl = load_body_font(11).render("em breve", True, (50, 50, 65))
-            screen.blit(_steam_lbl, _steam_lbl.get_rect(centery=menu_steam_rect.centery - 5, x=menu_steam_rect.x + 30))
-            screen.blit(_soon_lbl, _soon_lbl.get_rect(centery=menu_steam_rect.centery + 8, x=menu_steam_rect.x + 30))
+            if _steam_btn_surf is not None:
+                screen.blit(_steam_btn_surf, menu_steam_rect.topleft)
+                if _steam_hov:
+                    pygame.draw.rect(screen, (200, 200, 200), menu_steam_rect, 1, border_radius=3)
 
             # Overlay de perfil/conquistas (abre ao clicar no widget)
             if menu_profile_open:
