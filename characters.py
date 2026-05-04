@@ -192,6 +192,17 @@ class Player(ABC, pygame.sprite.Sprite):
                     pygame.transform.flip(f, True, False)
                     for f in self.char_projectile_frames
                 ]
+        # Suporte a lista de frames individuais (ex: Typhoon_Frame_01..12)
+        proj_frames_list = self.data.get("projectile_frames_list")
+        if proj_frames_list and hasattr(loader, "load_image"):
+            disp_size = self.data.get("projectile_display_size")
+            _pfl = []
+            for _pf_path in proj_frames_list:
+                _pf_img = loader.load_image(_pf_path, disp_size, ((100, 150, 255), (50, 100, 200)))
+                if _pf_img:
+                    _pfl.append(_pf_img)
+            if _pfl:
+                self.char_projectile_frames = _pfl
         self.facing_right = True
         self._facing_dir = "down"   # up/down/left/right — usado por subclasses com 4 direções
         # Dicts de frames direcionais (populados por subclasses como Vampire).

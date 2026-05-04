@@ -1,0 +1,191 @@
+UNDERWORLD HERO — LISTA DE ITENS DA LOJA
+=========================================
+Formato: Nome | ATQ | DEF | VEL | Preco | Nivel Minimo
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ESPADAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Espada Enferrujada    | ATQ: +15  | DEF:  +0  |  100 ouro | Nível  1
+Espada de Ferro       | ATQ: +22  | DEF:  +0  |  150 ouro | Nível  1
+Espada de Aço         | ATQ: +30  | DEF:  +1  |  200 ouro | Nível  1
+Espada Curta          | ATQ: +35  | DEF:  +0  |  260 ouro | Nível  1
+Espada de Bronze      | ATQ: +42  | DEF:  +0  |  320 ouro | Nível  5
+Espada da Guarda      | ATQ: +50  | DEF:  +2  |  390 ouro | Nível  5
+Espada Afiada         | ATQ: +60  | DEF:  +0  |  470 ouro | Nível  5
+Espada de Prata       | ATQ: +70  | DEF:  +1  |  550 ouro | Nível  5
+Espada de Brilho      | ATQ: +80  | DEF:  +2  |  640 ouro | Nível 10
+Espadão               | ATQ: +95  | DEF:  +0  |  740 ouro | Nível 10
+Espada da Tempestade  | ATQ: +108 | DEF:  +3  |  840 ouro | Nível 10
+Espada do Cavaleiro   | ATQ: +120 | DEF:  +4  |  950 ouro | Nível 10
+Espada de Flama       | ATQ: +133 | DEF:  +2  | 1060 ouro | Nível 15
+Espada Negra          | ATQ: +147 | DEF:  +0  | 1180 ouro | Nível 15
+Espada de Sombra      | ATQ: +160 | DEF:  +5  | 1300 ouro | Nível 20
+Espada Encantada      | ATQ: +172 | DEF:  +6  | 1430 ouro | Nível 20
+Espada do Caos        | ATQ: +185 | DEF:  +4  | 1560 ouro | Nível 25
+Espada das Trevas     | ATQ: +198 | DEF:  +8  | 1700 ouro | Nível 25
+Espada do Inferno     | ATQ: +215 | DEF: +10  | 1850 ouro | Nível 30
+Espada do Apocalipse  | ATQ: +250 | DEF: +15  | 2100 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MACHADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Machado de Pedra      | ATQ: +18  | DEF:  +0  |  120 ouro | Nível  1
+Machado de Osso       | ATQ: +30  | DEF:  +0  |  190 ouro | Nível  1
+Machado Rústico       | ATQ: +45  | DEF:  +0  |  270 ouro | Nível  5
+Machado de Ferro      | ATQ: +62  | DEF:  +0  |  360 ouro | Nível  5
+Machado Afiado        | ATQ: +80  | DEF:  +0  |  460 ouro | Nível 10
+Machado de Guerra     | ATQ: +100 | DEF:  +0  |  580 ouro | Nível 10
+Machado Rúnico        | ATQ: +125 | DEF:  +0  |  710 ouro | Nível 20
+Machado Sanguinário   | ATQ: +150 | DEF:  +0  |  860 ouro | Nível 20
+Machado do Berserker  | ATQ: +180 | DEF:  +0  | 1020 ouro | Nível 30
+Machado do Destruidor | ATQ: +220 | DEF:  +0  | 1200 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MARTELOS (Hammers)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Martelo de Madeira    | ATQ: +20  | DEF:  +0  |  130 ouro | Nível  1
+Martelo Tosco         | ATQ: +35  | DEF:  +0  |  210 ouro | Nível  1
+Martelo de Ferreiro   | ATQ: +52  | DEF:  +0  |  300 ouro | Nível  5
+Martelo de Ferro      | ATQ: +70  | DEF:  +0  |  400 ouro | Nível  5
+Martelo Sólido        | ATQ: +90  | DEF:  +0  |  510 ouro | Nível 10
+Martelo de Guerra     | ATQ: +115 | DEF:  +0  |  640 ouro | Nível 10
+Martelo Rúnico        | ATQ: +140 | DEF:  +0  |  780 ouro | Nível 20
+Martelo do Ogro       | ATQ: +170 | DEF:  +0  |  930 ouro | Nível 20
+Martelo do Caos       | ATQ: +200 | DEF:  +0  | 1100 ouro | Nível 30
+Martelo do Titã       | ATQ: +240 | DEF:  +0  | 1300 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ESCUDOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Escudo de Madeira     | ATQ:  +0  | DEF: +10  |   90 ouro | Nível  1
+Escudo de Couro       | ATQ:  +0  | DEF: +18  |  160 ouro | Nível  1
+Escudo de Bronze      | ATQ:  +0  | DEF: +28  |  240 ouro | Nível  5
+Escudo de Ferro       | ATQ:  +0  | DEF: +40  |  330 ouro | Nível  5
+Escudo do Guerreiro   | ATQ:  +0  | DEF: +55  |  430 ouro | Nível 10
+Escudo de Prata       | ATQ:  +0  | DEF: +72  |  550 ouro | Nível 10
+Escudo Rúnico         | ATQ:  +0  | DEF: +90  |  680 ouro | Nível 20
+Escudo de Mithril     | ATQ:  +0  | DEF: +110 |  830 ouro | Nível 20
+Escudo Abençoado      | ATQ:  +0  | DEF: +135 | 1000 ouro | Nível 30
+Escudo do Arcanjo     | ATQ:  +0  | DEF: +165 | 1200 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARCOS (Bows)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Arco Primitivo        | ATQ: +10  | DEF:  +0  |   80 ouro | Nível  1
+Arco Simples          | ATQ: +18  | DEF:  +0  |  140 ouro | Nível  1
+Arco de Caçador       | ATQ: +28  | DEF:  +0  |  200 ouro | Nível  5
+Arco Recurvo          | ATQ: +40  | DEF:  +0  |  270 ouro | Nível  5
+Arco de Madeira Nobre | ATQ: +55  | DEF:  +0  |  350 ouro | Nível 10
+Arco do Explorador    | ATQ: +72  | DEF:  +0  |  440 ouro | Nível 10
+Arco Élfico           | ATQ: +92  | DEF:  +0  |  540 ouro | Nível 20
+Arco da Tempestade    | ATQ: +115 | DEF:  +0  |  650 ouro | Nível 20
+Arco Sombrio          | ATQ: +142 | DEF:  +0  |  770 ouro | Nível 30
+Arco do Destino       | ATQ: +175 | DEF:  +0  |  910 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BESTAS (Crossbows)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Besta Simples         | ATQ: +13  | DEF:  +0  |   90 ouro | Nível  1
+Besta de Madeira      | ATQ: +22  | DEF:  +0  |  155 ouro | Nível  1
+Besta de Ferro        | ATQ: +33  | DEF:  +0  |  220 ouro | Nível  5
+Besta Mecanizada      | ATQ: +46  | DEF:  +0  |  295 ouro | Nível  5
+Besta de Precisão     | ATQ: +62  | DEF:  +0  |  380 ouro | Nível 10
+Besta do Caçador      | ATQ: +80  | DEF:  +0  |  475 ouro | Nível 10
+Besta Rúnica          | ATQ: +102 | DEF:  +0  |  580 ouro | Nível 20
+Besta das Sombras     | ATQ: +128 | DEF:  +0  |  700 ouro | Nível 20
+Besta Infernal        | ATQ: +158 | DEF:  +0  |  830 ouro | Nível 30
+Besta do Apocalipse   | ATQ: +195 | DEF:  +0  |  980 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAJADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Cajado de Aprendiz    | ATQ:  +8  | DEF:  +2  |  100 ouro | Nível  1
+Cajado de Madeira     | ATQ: +14  | DEF:  +3  |  160 ouro | Nível  1
+Cajado do Viajante    | ATQ: +22  | DEF:  +4  |  230 ouro | Nível  5
+Cajado de Cristal     | ATQ: +32  | DEF:  +6  |  310 ouro | Nível  5
+Cajado de Lava        | ATQ: +45  | DEF:  +8  |  400 ouro | Nível 10
+Cajado das Trevas     | ATQ: +60  | DEF: +10  |  500 ouro | Nível 10
+Cajado Arcano         | ATQ: +78  | DEF: +12  |  610 ouro | Nível 20
+Cajado de Pedra Rúnica| ATQ: +100 | DEF: +15  |  730 ouro | Nível 20
+Cajado do Abismo      | ATQ: +128 | DEF: +18  |  860 ouro | Nível 30
+Cajado do Lich        | ATQ: +160 | DEF: +22  | 1000 ouro | Nível 30
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CAPACETES (slot: cabeça)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Elmo de Madeira       | DEF:  +5  |   70 ouro | Nível  1
+Elmo de Couro         | DEF: +10  |  120 ouro | Nível  1
+Elmo de Bronze        | DEF: +16  |  180 ouro | Nível  1
+Elmo de Ferro         | DEF: +23  |  250 ouro | Nível  5
+Elmo do Soldado       | DEF: +30  |  330 ouro | Nível  5
+Elmo de Prata         | DEF: +38  |  420 ouro | Nível  5
+Elmo Rúnico           | DEF: +46  |  520 ouro | Nível 10
+Elmo de Mithril       | DEF: +54  |  630 ouro | Nível 10
+Elmo do Cavaleiro     | DEF: +62  |  760 ouro | Nível 15
+Elmo Abençoado        | DEF: +70  |  900 ouro | Nível 15
+Elmo do Paladino      | DEF: +78  | 1060 ouro | Nível 20
+Elmo do Arcanjo       | DEF: +86  | 1240 ouro | Nível 25
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARMADURAS (slot: corpo)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Armadura de Couro     | DEF:  +8  |  100 ouro | Nível  1
+Armadura Simples      | DEF: +16  |  165 ouro | Nível  1
+Armadura de Bronze    | DEF: +24  |  240 ouro | Nível  1
+Armadura de Ferro     | DEF: +34  |  330 ouro | Nível  5
+Armadura do Soldado   | DEF: +45  |  430 ouro | Nível  5
+Armadura de Aço       | DEF: +57  |  545 ouro | Nível  5
+Armadura Rúnica       | DEF: +70  |  675 ouro | Nível 10
+Armadura de Mithril   | DEF: +84  |  820 ouro | Nível 10
+Armadura do Cavaleiro | DEF: +98  |  980 ouro | Nível 15
+Armadura Abençoada    | DEF: +113 | 1160 ouro | Nível 15
+Armadura do Paladino  | DEF: +128 | 1360 ouro | Nível 20
+Armadura do Arcanjo   | DEF: +145 | 1580 ouro | Nível 25
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CALÇAS (slot: pernas)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Calças de Couro       | DEF:  +4  |   60 ouro | Nível  1
+Calças Reforçadas     | DEF:  +8  |  110 ouro | Nível  1
+Calças de Bronze      | DEF: +13  |  165 ouro | Nível  1
+Calças de Ferro       | DEF: +19  |  225 ouro | Nível  5
+Calças do Soldado     | DEF: +25  |  295 ouro | Nível  5
+Calças de Prata       | DEF: +32  |  375 ouro | Nível  5
+Calças Rúnicas        | DEF: +39  |  465 ouro | Nível 10
+Calças de Mithril     | DEF: +46  |  565 ouro | Nível 10
+Calças do Cavaleiro   | DEF: +54  |  675 ouro | Nível 15
+Calças Abençoadas     | DEF: +62  |  800 ouro | Nível 15
+Calças do Paladino    | DEF: +70  |  940 ouro | Nível 20
+Calças do Arcanjo     | DEF: +78  | 1100 ouro | Nível 25
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BOTAS (slot: pés)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Botas de Couro        | DEF:  +3  | VEL:  +5  |   50 ouro | Nível  1
+Botas Reforçadas      | DEF:  +6  | VEL:  +8  |   95 ouro | Nível  1
+Botas de Bronze       | DEF: +10  | VEL: +10  |  145 ouro | Nível  5
+Botas de Ferro        | DEF: +15  | VEL: +12  |  200 ouro | Nível  5
+Botas do Soldado      | DEF: +20  | VEL: +15  |  265 ouro | Nível 10
+Botas de Prata        | DEF: +26  | VEL: +18  |  340 ouro | Nível 10
+Botas Rúnicas         | DEF: +32  | VEL: +21  |  425 ouro | Nível 20
+Botas de Mithril      | DEF: +38  | VEL: +24  |  520 ouro | Nível 20
+Botas do Cavaleiro    | DEF: +45  | VEL: +27  |  625 ouro | Nível 30
+Botas do Arcanjo      | DEF: +52  | VEL: +30  |  740 ouro | Nível 30
+
+
+=========================================
+NOTA: O nivel minimo e o nivel do perfil da conta.
+Voce pode comprar qualquer item, mas so pode equipar
+itens cujo nivel requerido seja <= seu nivel de perfil.
+=========================================

@@ -556,6 +556,13 @@ def item_slot(category: str) -> str | None:
     if category == "Botas":      return "boots"
     return None
 
+def get_active_profile_level() -> int:
+    """Retorna o nível atual do perfil ativo (1 se não houver perfil)."""
+    if profile_mgr and profile_mgr.has_active_profile():
+        ap = profile_mgr.get_active_profile()
+        return ProfileManager.xp_to_level(ap.get("profile_xp", 0))[0]
+    return 1
+
 def update_mission_progress(m_type, amount, is_absolute=False):
     global save_data
     changed = False
@@ -1016,12 +1023,21 @@ CHAR_DATA = {
         "spritesheet_attack_frame_h": 64,
         "attack_anim_frames": 8,
         "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7], "attack_anim_speed": 0.07,
-        # Projétil: hurricane_attack_sheet.png — 2080×340, 8 frames de 260×340
-        "projectile_spritesheet": "sprite/monster/new hero/hurricane_attack_sheet",
-        "projectile_frame_w": 260,
-        "projectile_frame_h": 340,
-        "projectile_frame_count": 8,
-        "projectile_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
+        # Projétil: frames individuais Typhoon_Frame_01..12
+        "projectile_frames_list": [
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_01",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_02",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_03",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_04",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_05",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_06",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_07",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_08",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_09",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_10",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_11",
+            "sprite/monster/new hero/hurricane_magia/Typhoon_Frame_12",
+        ],
         "projectile_display_size": (96, 120),
     },
 }
@@ -1562,152 +1578,152 @@ BG_LOCKED = {"forest"}
 # "atk": bônus de ataque  |  "def": bônus de defesa  |  "price": custo em ouro
 ITEM_SHOP_STATS: dict[str, list[dict]] = {
     "Espadas": [
-        {"name": "Espada Enferrujada",    "atk":  15, "def":  0, "price":  100},
-        {"name": "Espada de Ferro",        "atk":  22, "def":  0, "price":  150},
-        {"name": "Espada de Aço",          "atk":  30, "def":  1, "price":  200},
-        {"name": "Espada Curta",           "atk":  35, "def":  0, "price":  260},
-        {"name": "Espada de Bronze",       "atk":  42, "def":  0, "price":  320},
-        {"name": "Espada da Guarda",       "atk":  50, "def":  2, "price":  390},
-        {"name": "Espada Afiada",          "atk":  60, "def":  0, "price":  470},
-        {"name": "Espada de Prata",        "atk":  70, "def":  1, "price":  550},
-        {"name": "Espada de Brilho",       "atk":  80, "def":  2, "price":  640},
-        {"name": "Espadão",                "atk":  95, "def":  0, "price":  740},
-        {"name": "Espada da Tempestade",   "atk": 108, "def":  3, "price":  840},
-        {"name": "Espada do Cavaleiro",    "atk": 120, "def":  4, "price":  950},
-        {"name": "Espada de Flama",        "atk": 133, "def":  2, "price": 1060},
-        {"name": "Espada Negra",           "atk": 147, "def":  0, "price": 1180},
-        {"name": "Espada de Sombra",       "atk": 160, "def":  5, "price": 1300},
-        {"name": "Espada Encantada",       "atk": 172, "def":  6, "price": 1430},
-        {"name": "Espada do Caos",         "atk": 185, "def":  4, "price": 1560},
-        {"name": "Espada das Trevas",      "atk": 198, "def":  8, "price": 1700},
-        {"name": "Espada do Inferno",      "atk": 215, "def": 10, "price": 1850},
-        {"name": "Espada do Apocalipse",   "atk": 250, "def": 15, "price": 2100},
+        {"name": "Espada Enferrujada",    "atk":  15, "def":  0, "price":  100, "level":  1},
+        {"name": "Espada de Ferro",        "atk":  22, "def":  0, "price":  150, "level":  1},
+        {"name": "Espada de Aço",          "atk":  30, "def":  1, "price":  200, "level":  1},
+        {"name": "Espada Curta",           "atk":  35, "def":  0, "price":  260, "level":  1},
+        {"name": "Espada de Bronze",       "atk":  42, "def":  0, "price":  320, "level":  5},
+        {"name": "Espada da Guarda",       "atk":  50, "def":  2, "price":  390, "level":  5},
+        {"name": "Espada Afiada",          "atk":  60, "def":  0, "price":  470, "level":  5},
+        {"name": "Espada de Prata",        "atk":  70, "def":  1, "price":  550, "level":  5},
+        {"name": "Espada de Brilho",       "atk":  80, "def":  2, "price":  640, "level": 10},
+        {"name": "Espadão",                "atk":  95, "def":  0, "price":  740, "level": 10},
+        {"name": "Espada da Tempestade",   "atk": 108, "def":  3, "price":  840, "level": 10},
+        {"name": "Espada do Cavaleiro",    "atk": 120, "def":  4, "price":  950, "level": 10},
+        {"name": "Espada de Flama",        "atk": 133, "def":  2, "price": 1060, "level": 15},
+        {"name": "Espada Negra",           "atk": 147, "def":  0, "price": 1180, "level": 15},
+        {"name": "Espada de Sombra",       "atk": 160, "def":  5, "price": 1300, "level": 20},
+        {"name": "Espada Encantada",       "atk": 172, "def":  6, "price": 1430, "level": 20},
+        {"name": "Espada do Caos",         "atk": 185, "def":  4, "price": 1560, "level": 25},
+        {"name": "Espada das Trevas",      "atk": 198, "def":  8, "price": 1700, "level": 25},
+        {"name": "Espada do Inferno",      "atk": 215, "def": 10, "price": 1850, "level": 30},
+        {"name": "Espada do Apocalipse",   "atk": 250, "def": 15, "price": 2100, "level": 30},
     ],
     "Machados": [
-        {"name": "Machado de Pedra",       "atk":  18, "def":  0, "price":  120},
-        {"name": "Machado de Osso",        "atk":  30, "def":  0, "price":  190},
-        {"name": "Machado Rústico",        "atk":  45, "def":  0, "price":  270},
-        {"name": "Machado de Ferro",       "atk":  62, "def":  0, "price":  360},
-        {"name": "Machado Afiado",         "atk":  80, "def":  0, "price":  460},
-        {"name": "Machado de Guerra",      "atk": 100, "def":  0, "price":  580},
-        {"name": "Machado Rúnico",         "atk": 125, "def":  0, "price":  710},
-        {"name": "Machado Sanguinário",    "atk": 150, "def":  0, "price":  860},
-        {"name": "Machado do Berserker",   "atk": 180, "def":  0, "price": 1020},
-        {"name": "Machado do Destruidor",  "atk": 220, "def":  0, "price": 1200},
+        {"name": "Machado de Pedra",       "atk":  18, "def":  0, "price":  120, "level":  1},
+        {"name": "Machado de Osso",        "atk":  30, "def":  0, "price":  190, "level":  1},
+        {"name": "Machado Rústico",        "atk":  45, "def":  0, "price":  270, "level":  5},
+        {"name": "Machado de Ferro",       "atk":  62, "def":  0, "price":  360, "level":  5},
+        {"name": "Machado Afiado",         "atk":  80, "def":  0, "price":  460, "level": 10},
+        {"name": "Machado de Guerra",      "atk": 100, "def":  0, "price":  580, "level": 10},
+        {"name": "Machado Rúnico",         "atk": 125, "def":  0, "price":  710, "level": 20},
+        {"name": "Machado Sanguinário",    "atk": 150, "def":  0, "price":  860, "level": 20},
+        {"name": "Machado do Berserker",   "atk": 180, "def":  0, "price": 1020, "level": 30},
+        {"name": "Machado do Destruidor",  "atk": 220, "def":  0, "price": 1200, "level": 30},
     ],
     "Hammers": [
-        {"name": "Martelo de Madeira",     "atk":  20, "def":  0, "price":  130},
-        {"name": "Martelo Tosco",          "atk":  35, "def":  0, "price":  210},
-        {"name": "Martelo de Ferreiro",    "atk":  52, "def":  0, "price":  300},
-        {"name": "Martelo de Ferro",       "atk":  70, "def":  0, "price":  400},
-        {"name": "Martelo Sólido",         "atk":  90, "def":  0, "price":  510},
-        {"name": "Martelo de Guerra",      "atk": 115, "def":  0, "price":  640},
-        {"name": "Martelo Rúnico",         "atk": 140, "def":  0, "price":  780},
-        {"name": "Martelo do Ogro",        "atk": 170, "def":  0, "price":  930},
-        {"name": "Martelo do Caos",        "atk": 200, "def":  0, "price": 1100},
-        {"name": "Martelo do Titã",        "atk": 240, "def":  0, "price": 1300},
+        {"name": "Martelo de Madeira",     "atk":  20, "def":  0, "price":  130, "level":  1},
+        {"name": "Martelo Tosco",          "atk":  35, "def":  0, "price":  210, "level":  1},
+        {"name": "Martelo de Ferreiro",    "atk":  52, "def":  0, "price":  300, "level":  5},
+        {"name": "Martelo de Ferro",       "atk":  70, "def":  0, "price":  400, "level":  5},
+        {"name": "Martelo Sólido",         "atk":  90, "def":  0, "price":  510, "level": 10},
+        {"name": "Martelo de Guerra",      "atk": 115, "def":  0, "price":  640, "level": 10},
+        {"name": "Martelo Rúnico",         "atk": 140, "def":  0, "price":  780, "level": 20},
+        {"name": "Martelo do Ogro",        "atk": 170, "def":  0, "price":  930, "level": 20},
+        {"name": "Martelo do Caos",        "atk": 200, "def":  0, "price": 1100, "level": 30},
+        {"name": "Martelo do Titã",        "atk": 240, "def":  0, "price": 1300, "level": 30},
     ],
     "Escudos": [
-        {"name": "Escudo de Madeira",      "atk":   0, "def":  10, "price":   90},
-        {"name": "Escudo de Couro",        "atk":   0, "def":  18, "price":  160},
-        {"name": "Escudo de Bronze",       "atk":   0, "def":  28, "price":  240},
-        {"name": "Escudo de Ferro",        "atk":   0, "def":  40, "price":  330},
-        {"name": "Escudo do Guerreiro",    "atk":   0, "def":  55, "price":  430},
-        {"name": "Escudo de Prata",        "atk":   0, "def":  72, "price":  550},
-        {"name": "Escudo Rúnico",          "atk":   0, "def":  90, "price":  680},
-        {"name": "Escudo de Mithril",      "atk":   0, "def": 110, "price":  830},
-        {"name": "Escudo Abençoado",       "atk":   0, "def": 135, "price": 1000},
-        {"name": "Escudo do Arcanjo",      "atk":   0, "def": 165, "price": 1200},
+        {"name": "Escudo de Madeira",      "atk":   0, "def":  10, "price":   90, "level":  1},
+        {"name": "Escudo de Couro",        "atk":   0, "def":  18, "price":  160, "level":  1},
+        {"name": "Escudo de Bronze",       "atk":   0, "def":  28, "price":  240, "level":  5},
+        {"name": "Escudo de Ferro",        "atk":   0, "def":  40, "price":  330, "level":  5},
+        {"name": "Escudo do Guerreiro",    "atk":   0, "def":  55, "price":  430, "level": 10},
+        {"name": "Escudo de Prata",        "atk":   0, "def":  72, "price":  550, "level": 10},
+        {"name": "Escudo Rúnico",          "atk":   0, "def":  90, "price":  680, "level": 20},
+        {"name": "Escudo de Mithril",      "atk":   0, "def": 110, "price":  830, "level": 20},
+        {"name": "Escudo Abençoado",       "atk":   0, "def": 135, "price": 1000, "level": 30},
+        {"name": "Escudo do Arcanjo",      "atk":   0, "def": 165, "price": 1200, "level": 30},
     ],
     "Bows": [
-        {"name": "Arco Primitivo",         "atk":  10, "def":  0, "price":   80},
-        {"name": "Arco Simples",           "atk":  18, "def":  0, "price":  140},
-        {"name": "Arco de Caçador",        "atk":  28, "def":  0, "price":  200},
-        {"name": "Arco Recurvo",           "atk":  40, "def":  0, "price":  270},
-        {"name": "Arco de Madeira Nobre",  "atk":  55, "def":  0, "price":  350},
-        {"name": "Arco do Explorador",     "atk":  72, "def":  0, "price":  440},
-        {"name": "Arco Élfico",            "atk":  92, "def":  0, "price":  540},
-        {"name": "Arco da Tempestade",     "atk": 115, "def":  0, "price":  650},
-        {"name": "Arco Sombrio",           "atk": 142, "def":  0, "price":  770},
-        {"name": "Arco do Destino",        "atk": 175, "def":  0, "price":  910},
+        {"name": "Arco Primitivo",         "atk":  10, "def":  0, "price":   80, "level":  1},
+        {"name": "Arco Simples",           "atk":  18, "def":  0, "price":  140, "level":  1},
+        {"name": "Arco de Caçador",        "atk":  28, "def":  0, "price":  200, "level":  5},
+        {"name": "Arco Recurvo",           "atk":  40, "def":  0, "price":  270, "level":  5},
+        {"name": "Arco de Madeira Nobre",  "atk":  55, "def":  0, "price":  350, "level": 10},
+        {"name": "Arco do Explorador",     "atk":  72, "def":  0, "price":  440, "level": 10},
+        {"name": "Arco Élfico",            "atk":  92, "def":  0, "price":  540, "level": 20},
+        {"name": "Arco da Tempestade",     "atk": 115, "def":  0, "price":  650, "level": 20},
+        {"name": "Arco Sombrio",           "atk": 142, "def":  0, "price":  770, "level": 30},
+        {"name": "Arco do Destino",        "atk": 175, "def":  0, "price":  910, "level": 30},
     ],
     "Crossbows": [
-        {"name": "Besta Simples",          "atk":  13, "def":  0, "price":   90},
-        {"name": "Besta de Madeira",       "atk":  22, "def":  0, "price":  155},
-        {"name": "Besta de Ferro",         "atk":  33, "def":  0, "price":  220},
-        {"name": "Besta Mecanizada",       "atk":  46, "def":  0, "price":  295},
-        {"name": "Besta de Precisão",      "atk":  62, "def":  0, "price":  380},
-        {"name": "Besta do Caçador",       "atk":  80, "def":  0, "price":  475},
-        {"name": "Besta Rúnica",           "atk": 102, "def":  0, "price":  580},
-        {"name": "Besta das Sombras",      "atk": 128, "def":  0, "price":  700},
-        {"name": "Besta Infernal",         "atk": 158, "def":  0, "price":  830},
-        {"name": "Besta do Apocalipse",    "atk": 195, "def":  0, "price":  980},
+        {"name": "Besta Simples",          "atk":  13, "def":  0, "price":   90, "level":  1},
+        {"name": "Besta de Madeira",       "atk":  22, "def":  0, "price":  155, "level":  1},
+        {"name": "Besta de Ferro",         "atk":  33, "def":  0, "price":  220, "level":  5},
+        {"name": "Besta Mecanizada",       "atk":  46, "def":  0, "price":  295, "level":  5},
+        {"name": "Besta de Precisão",      "atk":  62, "def":  0, "price":  380, "level": 10},
+        {"name": "Besta do Caçador",       "atk":  80, "def":  0, "price":  475, "level": 10},
+        {"name": "Besta Rúnica",           "atk": 102, "def":  0, "price":  580, "level": 20},
+        {"name": "Besta das Sombras",      "atk": 128, "def":  0, "price":  700, "level": 20},
+        {"name": "Besta Infernal",         "atk": 158, "def":  0, "price":  830, "level": 30},
+        {"name": "Besta do Apocalipse",    "atk": 195, "def":  0, "price":  980, "level": 30},
     ],
     "Cajados": [
-        {"name": "Cajado de Aprendiz",     "atk":   8, "def":  2, "price":  100},
-        {"name": "Cajado de Madeira",      "atk":  14, "def":  3, "price":  160},
-        {"name": "Cajado do Viajante",     "atk":  22, "def":  4, "price":  230},
-        {"name": "Cajado de Cristal",      "atk":  32, "def":  6, "price":  310},
-        {"name": "Cajado de Lava",         "atk":  45, "def":  8, "price":  400},
-        {"name": "Cajado das Trevas",      "atk":  60, "def": 10, "price":  500},
-        {"name": "Cajado Arcano",          "atk":  78, "def": 12, "price":  610},
-        {"name": "Cajado de Pedra Rúnica", "atk": 100, "def": 15, "price":  730},
-        {"name": "Cajado do Abismo",       "atk": 128, "def": 18, "price":  860},
-        {"name": "Cajado do Lich",         "atk": 160, "def": 22, "price": 1000},
+        {"name": "Cajado de Aprendiz",     "atk":   8, "def":  2, "price":  100, "level":  1},
+        {"name": "Cajado de Madeira",      "atk":  14, "def":  3, "price":  160, "level":  1},
+        {"name": "Cajado do Viajante",     "atk":  22, "def":  4, "price":  230, "level":  5},
+        {"name": "Cajado de Cristal",      "atk":  32, "def":  6, "price":  310, "level":  5},
+        {"name": "Cajado de Lava",         "atk":  45, "def":  8, "price":  400, "level": 10},
+        {"name": "Cajado das Trevas",      "atk":  60, "def": 10, "price":  500, "level": 10},
+        {"name": "Cajado Arcano",          "atk":  78, "def": 12, "price":  610, "level": 20},
+        {"name": "Cajado de Pedra Rúnica", "atk": 100, "def": 15, "price":  730, "level": 20},
+        {"name": "Cajado do Abismo",       "atk": 128, "def": 18, "price":  860, "level": 30},
+        {"name": "Cajado do Lich",         "atk": 160, "def": 22, "price": 1000, "level": 30},
     ],
     "Capacetes": [
-        {"name": "Elmo de Madeira",       "def":  5, "price":   70},
-        {"name": "Elmo de Couro",         "def": 10, "price":  120},
-        {"name": "Elmo de Bronze",        "def": 16, "price":  180},
-        {"name": "Elmo de Ferro",         "def": 23, "price":  250},
-        {"name": "Elmo do Soldado",       "def": 30, "price":  330},
-        {"name": "Elmo de Prata",         "def": 38, "price":  420},
-        {"name": "Elmo Rúnico",           "def": 46, "price":  520},
-        {"name": "Elmo de Mithril",       "def": 54, "price":  630},
-        {"name": "Elmo do Cavaleiro",     "def": 62, "price":  760},
-        {"name": "Elmo Abençoado",        "def": 70, "price":  900},
-        {"name": "Elmo do Paladino",      "def": 78, "price": 1060},
-        {"name": "Elmo do Arcanjo",       "def": 86, "price": 1240},
+        {"name": "Elmo de Madeira",       "def":  5, "price":   70, "level":  1},
+        {"name": "Elmo de Couro",         "def": 10, "price":  120, "level":  1},
+        {"name": "Elmo de Bronze",        "def": 16, "price":  180, "level":  1},
+        {"name": "Elmo de Ferro",         "def": 23, "price":  250, "level":  5},
+        {"name": "Elmo do Soldado",       "def": 30, "price":  330, "level":  5},
+        {"name": "Elmo de Prata",         "def": 38, "price":  420, "level":  5},
+        {"name": "Elmo Rúnico",           "def": 46, "price":  520, "level": 10},
+        {"name": "Elmo de Mithril",       "def": 54, "price":  630, "level": 10},
+        {"name": "Elmo do Cavaleiro",     "def": 62, "price":  760, "level": 15},
+        {"name": "Elmo Abençoado",        "def": 70, "price":  900, "level": 15},
+        {"name": "Elmo do Paladino",      "def": 78, "price": 1060, "level": 20},
+        {"name": "Elmo do Arcanjo",       "def": 86, "price": 1240, "level": 25},
     ],
     "Armaduras": [
-        {"name": "Armadura de Couro",     "def":  8, "price":  100},
-        {"name": "Armadura Simples",      "def": 16, "price":  165},
-        {"name": "Armadura de Bronze",    "def": 24, "price":  240},
-        {"name": "Armadura de Ferro",     "def": 34, "price":  330},
-        {"name": "Armadura do Soldado",   "def": 45, "price":  430},
-        {"name": "Armadura de Aço",       "def": 57, "price":  545},
-        {"name": "Armadura Rúnica",       "def": 70, "price":  675},
-        {"name": "Armadura de Mithril",   "def": 84, "price":  820},
-        {"name": "Armadura do Cavaleiro", "def": 98, "price":  980},
-        {"name": "Armadura Abençoada",    "def":113, "price": 1160},
-        {"name": "Armadura do Paladino",  "def":128, "price": 1360},
-        {"name": "Armadura do Arcanjo",   "def":145, "price": 1580},
+        {"name": "Armadura de Couro",     "def":  8, "price":  100, "level":  1},
+        {"name": "Armadura Simples",      "def": 16, "price":  165, "level":  1},
+        {"name": "Armadura de Bronze",    "def": 24, "price":  240, "level":  1},
+        {"name": "Armadura de Ferro",     "def": 34, "price":  330, "level":  5},
+        {"name": "Armadura do Soldado",   "def": 45, "price":  430, "level":  5},
+        {"name": "Armadura de Aço",       "def": 57, "price":  545, "level":  5},
+        {"name": "Armadura Rúnica",       "def": 70, "price":  675, "level": 10},
+        {"name": "Armadura de Mithril",   "def": 84, "price":  820, "level": 10},
+        {"name": "Armadura do Cavaleiro", "def": 98, "price":  980, "level": 15},
+        {"name": "Armadura Abençoada",    "def":113, "price": 1160, "level": 15},
+        {"name": "Armadura do Paladino",  "def":128, "price": 1360, "level": 20},
+        {"name": "Armadura do Arcanjo",   "def":145, "price": 1580, "level": 25},
     ],
     "Calças": [
-        {"name": "Calças de Couro",       "def":  4, "price":   60},
-        {"name": "Calças Reforçadas",     "def":  8, "price":  110},
-        {"name": "Calças de Bronze",      "def": 13, "price":  165},
-        {"name": "Calças de Ferro",       "def": 19, "price":  225},
-        {"name": "Calças do Soldado",     "def": 25, "price":  295},
-        {"name": "Calças de Prata",       "def": 32, "price":  375},
-        {"name": "Calças Rúnicas",        "def": 39, "price":  465},
-        {"name": "Calças de Mithril",     "def": 46, "price":  565},
-        {"name": "Calças do Cavaleiro",   "def": 54, "price":  675},
-        {"name": "Calças Abençoadas",     "def": 62, "price":  800},
-        {"name": "Calças do Paladino",    "def": 70, "price":  940},
-        {"name": "Calças do Arcanjo",     "def": 78, "price": 1100},
+        {"name": "Calças de Couro",       "def":  4, "price":   60, "level":  1},
+        {"name": "Calças Reforçadas",     "def":  8, "price":  110, "level":  1},
+        {"name": "Calças de Bronze",      "def": 13, "price":  165, "level":  1},
+        {"name": "Calças de Ferro",       "def": 19, "price":  225, "level":  5},
+        {"name": "Calças do Soldado",     "def": 25, "price":  295, "level":  5},
+        {"name": "Calças de Prata",       "def": 32, "price":  375, "level":  5},
+        {"name": "Calças Rúnicas",        "def": 39, "price":  465, "level": 10},
+        {"name": "Calças de Mithril",     "def": 46, "price":  565, "level": 10},
+        {"name": "Calças do Cavaleiro",   "def": 54, "price":  675, "level": 15},
+        {"name": "Calças Abençoadas",     "def": 62, "price":  800, "level": 15},
+        {"name": "Calças do Paladino",    "def": 70, "price":  940, "level": 20},
+        {"name": "Calças do Arcanjo",     "def": 78, "price": 1100, "level": 25},
     ],
     "Botas": [
-        {"name": "Botas de Couro",        "def":  3, "spd":  5, "price":   50},
-        {"name": "Botas Reforçadas",      "def":  6, "spd":  8, "price":   95},
-        {"name": "Botas de Bronze",       "def": 10, "spd": 10, "price":  145},
-        {"name": "Botas de Ferro",        "def": 15, "spd": 12, "price":  200},
-        {"name": "Botas do Soldado",      "def": 20, "spd": 15, "price":  265},
-        {"name": "Botas de Prata",        "def": 26, "spd": 18, "price":  340},
-        {"name": "Botas Rúnicas",         "def": 32, "spd": 21, "price":  425},
-        {"name": "Botas de Mithril",      "def": 38, "spd": 24, "price":  520},
-        {"name": "Botas do Cavaleiro",    "def": 45, "spd": 27, "price":  625},
-        {"name": "Botas do Arcanjo",      "def": 52, "spd": 30, "price":  740},
+        {"name": "Botas de Couro",        "def":  3, "spd":  5, "price":   50, "level":  1},
+        {"name": "Botas Reforçadas",      "def":  6, "spd":  8, "price":   95, "level":  1},
+        {"name": "Botas de Bronze",       "def": 10, "spd": 10, "price":  145, "level":  5},
+        {"name": "Botas de Ferro",        "def": 15, "spd": 12, "price":  200, "level":  5},
+        {"name": "Botas do Soldado",      "def": 20, "spd": 15, "price":  265, "level": 10},
+        {"name": "Botas de Prata",        "def": 26, "spd": 18, "price":  340, "level": 10},
+        {"name": "Botas Rúnicas",         "def": 32, "spd": 21, "price":  425, "level": 20},
+        {"name": "Botas de Mithril",      "def": 38, "spd": 24, "price":  520, "level": 20},
+        {"name": "Botas do Cavaleiro",    "def": 45, "spd": 27, "price":  625, "level": 30},
+        {"name": "Botas do Arcanjo",      "def": 52, "spd": 30, "price":  740, "level": 30},
     ],
 }
 
@@ -4885,11 +4901,10 @@ def main():
         Button(0.15, 0.49, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
         Button(0.15, 0.55, BTN_W, BTN_H, "MISSÕES",        font_m),
         Button(0.15, 0.61, BTN_W, BTN_H, "TALENTOS",       font_m),
-        Button(0.15, 0.67, BTN_W, BTN_H, "LOJA DE ITENS",  font_m),
-        Button(0.15, 0.73, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.79, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.67, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.73, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
-    menu_icons = ["play", "missions", "talents", "saves", "settings", "exit"]
+    menu_icons = ["play", "missions", "talents", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
         btn.icon = load_menu_icon_surface(loader, icon, size=(20, 20))
         btn.sprite_idx = idx % 7
@@ -4898,7 +4913,6 @@ def main():
         "JOGAR": ("Iniciar Jornada", "Selecione heroi, dificuldade e pacto para começar uma nova run de sobrevivencia."),
         "MISSÕES": ("Rotina Diaria", "Acompanhe objetivos diarios, resgate recompensas e acelere sua progressao."),
         "TALENTOS": ("Arvore de Talentos", "Invista ouro em melhorias permanentes e desbloqueie builds mais fortes."),
-        "LOJA DE ITENS": ("Loja de Itens", "Compre armas, escudos e equipamentos para potencializar sua proxima run."),
         "CONFIGURAÇÕES": ("Ajustes do Jogo", "Video, audio, controles e acessibilidade com aplicacao imediata."),
         "SAIR": ("Encerrar", "Salva progresso atual e fecha o jogo com seguranca."),
     }
@@ -5127,6 +5141,9 @@ def main():
     hub_profile_open   = False   # Janela de Perfil/Conquistas (L key)
     market_scene: MarketScene | None = None   # Cena do Mercado (carregada na primeira visita)
     menu_profile_open  = False   # Overlay de Perfil/Conquistas no MENU
+    # Mensagem de erro de equipamento (nível insuficiente)
+    _equip_err_msg       = ""
+    _equip_err_msg_start = 0
     # Drag-and-drop: item sendo arrastado com o mouse
     _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip", "_idx":int, "_slot":str|None}
     _drag_active: bool = False       # True enquanto o botão do mouse está pressionado
@@ -5605,10 +5622,8 @@ def main():
                             elif menu_btns[2].rect.collidepoint(click_pos):
                                 menu_pending_action = "SHOP"
                             elif menu_btns[3].rect.collidepoint(click_pos):
-                                menu_pending_action = "ITEM_SHOP"
-                            elif menu_btns[4].rect.collidepoint(click_pos):
                                 menu_pending_action = "SETTINGS"
-                            elif menu_btns[5].rect.collidepoint(click_pos):
+                            elif menu_btns[4].rect.collidepoint(click_pos):
                                 menu_pending_action = "QUIT"
                             elif menu_site_rect.collidepoint(click_pos):
                                 webbrowser.open(_menu_site_url)
@@ -5999,7 +6014,7 @@ def main():
                                             _price = _st.get("price", 0)
                                             _key   = {"category": _cname, "idx": _idx}
                                             _owned = _key in save_data["purchased_items"]
-                                            if not _owned and _price > 0 and save_data["gold"] >= _price:
+                                            if _price > 0 and save_data["gold"] >= _price:
                                                 item_shop_confirm = {
                                                     "category": _cname, "idx": _idx,
                                                     "price": _price, "st": _st,
@@ -6034,7 +6049,7 @@ def main():
                                             _price = _st.get("price", 0)
                                             _key   = {"category": _acname, "idx": _idx}
                                             _owned = _key in save_data["purchased_items"]
-                                            if not _owned and _price > 0 and save_data["gold"] >= _price:
+                                            if _price > 0 and save_data["gold"] >= _price:
                                                 item_shop_confirm = {
                                                     "category": _acname, "idx": _idx,
                                                     "price": _price, "st": _st,
@@ -6368,13 +6383,24 @@ def main():
                             _di_item = _drag_item["item"]
                             _di_slot = item_slot(_di_item.get("category",""))
                             if _di_slot == _sk_du:
-                                _old_eq_u = _dd_eq_u.get(_sk_du)
-                                _dd_eq_u[_sk_du] = {"category":_di_item["category"],"idx":_di_item["idx"]}
-                                if _drag_item["from"] == "inventory": _dd_inv_u.pop(_drag_item["_idx"])
-                                elif _drag_item["from"] == "equip": _dd_eq_u[_drag_item["_slot"]] = None
-                                if _old_eq_u: _dd_inv_u.append(_old_eq_u)
-                                save_game(); _dropped = True
-                                if snd_click: snd_click.play()
+                                _eq_cat_c = _di_item.get("category","")
+                                _eq_idx_c = _di_item.get("idx", 0)
+                                _eq_st_l  = ITEM_SHOP_STATS.get(_eq_cat_c, [])
+                                _eq_st_c  = _eq_st_l[_eq_idx_c] if 0 <= _eq_idx_c < len(_eq_st_l) else {}
+                                _req_lv_c = _eq_st_c.get("level", 1)
+                                _cur_lv_c = get_active_profile_level()
+                                if _cur_lv_c < _req_lv_c:
+                                    _equip_err_msg       = f"Nível {_req_lv_c} necessário para equipar!"
+                                    _equip_err_msg_start = pygame.time.get_ticks()
+                                    _dropped = True
+                                else:
+                                    _old_eq_u = _dd_eq_u.get(_sk_du)
+                                    _dd_eq_u[_sk_du] = {"category":_di_item["category"],"idx":_di_item["idx"]}
+                                    if _drag_item["from"] == "inventory": _dd_inv_u.pop(_drag_item["_idx"])
+                                    elif _drag_item["from"] == "equip": _dd_eq_u[_drag_item["_slot"]] = None
+                                    if _old_eq_u: _dd_inv_u.append(_old_eq_u)
+                                    save_game(); _dropped = True
+                                    if snd_click: snd_click.play()
                             break
 
                     if not _dropped:
@@ -7660,11 +7686,15 @@ def main():
                     _tname  = _tst.get("name", "")
                     _tatk   = _tst.get("atk", 0)
                     _tdef   = _tst.get("def", 0)
+                    _tspd   = _tst.get("spd", 0)
                     _tprice = _tst.get("price", 0)
+                    _treqlv = _tst.get("level", 1)
                     _tlines = [_tname]
                     if _tatk > 0: _tlines.append(f"ATQ: +{_tatk}")
                     if _tdef > 0: _tlines.append(f"DEF: +{_tdef}")
+                    if _tspd > 0: _tlines.append(f"VEL: +{_tspd}")
                     _tlines.append(f"Preco: {_tprice} ouro")
+                    _tlines.append(f"Req. Nivel: {_treqlv}")
                     _tpad = 8
                     _tw   = max(font_s.size(l)[0] for l in _tlines) + _tpad * 2
                     _th   = len(_tlines) * 20 + _tpad * 2
@@ -7675,11 +7705,15 @@ def main():
                     _t_surf.fill((18, 14, 10, 220))
                     screen.blit(_t_surf, _trect.topleft)
                     pygame.draw.rect(screen, UI_THEME["old_gold"], _trect, 1, border_radius=4)
+                    _cur_lv_tt = get_active_profile_level()
                     for _li, _ll in enumerate(_tlines):
                         _lc = UI_THEME["old_gold"] if _li == 0 else (200, 190, 160)
                         if "ATQ" in _ll: _lc = (220, 100, 60)
                         elif "DEF" in _ll: _lc = (80, 160, 220)
+                        elif "VEL" in _ll: _lc = (80, 220, 130)
                         elif "Preco" in _ll: _lc = UI_THEME["faded_gold"]
+                        elif "Req. Nivel" in _ll:
+                            _lc = (240, 80, 80) if _cur_lv_tt < _treqlv else (100, 220, 100)
                         screen.blit(font_s.render(_ll, True, _lc), (_tx + _tpad, _ty + _tpad + _li * 20))
 
             if item_shop_active_tab == 1:
@@ -7784,10 +7818,14 @@ def main():
                     _tsr, _tst = _tooltip_data
                     _tname  = _tst.get("name", "")
                     _tdef   = _tst.get("def", 0)
+                    _tspd   = _tst.get("spd", 0)
                     _tprice = _tst.get("price", 0)
+                    _treqlv = _tst.get("level", 1)
                     _tlines = [_tname]
                     if _tdef > 0: _tlines.append(f"DEF: +{_tdef}")
+                    if _tspd > 0: _tlines.append(f"VEL: +{_tspd}")
                     _tlines.append(f"Preco: {_tprice} ouro")
+                    _tlines.append(f"Req. Nivel: {_treqlv}")
                     _tpad = 8
                     _tw   = max(font_s.size(l)[0] for l in _tlines) + _tpad * 2
                     _th   = len(_tlines) * 20 + _tpad * 2
@@ -7798,10 +7836,14 @@ def main():
                     _t_surf.fill((18, 14, 10, 220))
                     screen.blit(_t_surf, _trect.topleft)
                     pygame.draw.rect(screen, UI_THEME["old_gold"], _trect, 1, border_radius=4)
+                    _cur_lv_tt2 = get_active_profile_level()
                     for _li, _ll in enumerate(_tlines):
                         _lc = UI_THEME["old_gold"] if _li == 0 else (200, 190, 160)
                         if "DEF" in _ll: _lc = (80, 160, 220)
+                        elif "VEL" in _ll: _lc = (80, 220, 130)
                         elif "Preco" in _ll: _lc = UI_THEME["faded_gold"]
+                        elif "Req. Nivel" in _ll:
+                            _lc = (240, 80, 80) if _cur_lv_tt2 < _treqlv else (100, 220, 100)
                         screen.blit(font_s.render(_ll, True, _lc), (_tx + _tpad, _ty + _tpad + _li * 20))
 
             # ── Aba VENDER ────────────────────────────────────────────────────
@@ -8648,6 +8690,16 @@ def main():
 
                 # Tooltip por cima de tudo (desenhado por último)
                 _ie_draw_pending_tooltip()
+
+            # ── Mensagem de nível insuficiente ─────────────────────────────
+            if _equip_err_msg and pygame.time.get_ticks() - _equip_err_msg_start < 3000:
+                _em_surf = font_m.render(_equip_err_msg, True, (240, 80, 80))
+                _em_bg   = pygame.Surface((_em_surf.get_width() + 24, _em_surf.get_height() + 14), pygame.SRCALPHA)
+                _em_bg.fill((30, 8, 8, 210))
+                _em_rect = _em_bg.get_rect(centerx=SCREEN_W // 2, centery=int(SCREEN_H * 0.25))
+                screen.blit(_em_bg, _em_rect)
+                pygame.draw.rect(screen, (200, 60, 60), _em_rect, 2, border_radius=6)
+                screen.blit(_em_surf, _em_surf.get_rect(center=_em_rect.center))
 
             # ── Janela de Baú (tecla F) — painel compacto lado a lado ──────
             elif hub_chest_open:
