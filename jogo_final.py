@@ -834,21 +834,31 @@ CHAR_DATA = {
     },
     2: {
         "name": "MAGO", "hp": 75, "speed": 260, "damage": 25, "mana": 200,
-        "desc": "Ult: Congelamento Temporal", "size": (300, 300), "menu_size": (350, 350),
+        "desc": "Ult: Congelamento Temporal", "size": (150, 150), "menu_size": (220, 220),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.20, "dash_cooldown": 2.5,
         "id": "CHAR_2",
-        # Walk: 1200x150 px, 8 frames de 150x150 px.
-        "spritesheet": "sprite/mago",
-        "spritesheet_frame_w": 150,
-        "spritesheet_frame_h": 150,
+        # Walk: Imp3_Run_with_shadow.png — 512×256, 4 rows × 8 frames de 64×64
+        # Row 0=baixo, 1=cima, 2=esquerda, 3=direita
+        "spritesheet": "sprite/monster/new hero/Imp3_Run_with_shadow",
+        "spritesheet_frame_w": 64,
+        "spritesheet_frame_h": 64,
+        "spritesheet_frame_indices": [0, 1, 2, 3, 4, 5, 6, 7],
         "anim_speed": 0.10,
-        # Idle: 1200x150 px, 8 frames de 150x150 px.
-        "spritesheet_idle": "sprite/magoidle",
-        "spritesheet_idle_frame_w": 150,
-        "spritesheet_idle_frame_h": 150,
-        "idle_anim_frames": 8,
-        "idle_anim_speed": 0.12,
+        # Idle: Imp3_Idle_with_shadow.png — 256×256, 4 rows × 4 frames de 64×64
+        "spritesheet_idle": "sprite/monster/new hero/Imp3_Idle_with_shadow",
+        "spritesheet_idle_frame_w": 64,
+        "spritesheet_idle_frame_h": 64,
+        "idle_anim_frames": 4,
+        "spritesheet_idle_frame_indices": [0, 1, 2, 3],
+        "idle_anim_speed": 0.14,
+        # Attack: Imp3_Attack_with_shadow.png — 384×256, 4 rows × 6 frames de 64×64
+        "spritesheet_attack": "sprite/monster/new hero/Imp3_Attack_with_shadow",
+        "spritesheet_attack_frame_w": 64,
+        "spritesheet_attack_frame_h": 64,
+        "attack_anim_frames": 6,
+        "spritesheet_attack_frame_indices": [0, 1, 2, 3, 4, 5],
+        "attack_anim_speed": 0.07,
         # Projétil básico: attackbase.png, 4 frames de 48x32 px.
         # O sprite aponta para a esquerda → flip_x=True corrige para o sistema de rotação.
         "projectile_spritesheet": "sprite/attackbase",

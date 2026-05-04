@@ -791,6 +791,51 @@ class Assassin(Player):
 class Mage(Player):
     """Personagem de controle, com foco em utilidade e congelamento de massa."""
 
+    # Imp3_*_with_shadow.png: baixo=0, cima=1, esquerda=2, direita=3
+    _SPRITE_DIR_ROWS = {"down": 0, "up": 1, "left": 2, "right": 3}
+
+    def __init__(self, loader, char_id, dependencies):
+        super().__init__(loader, char_id, dependencies)
+        data = dependencies.char_data_map[char_id]
+        char_size = data.get("size", (150, 150))
+
+        fw = data.get("spritesheet_frame_w", 64)
+        fh = data.get("spritesheet_frame_h", 64)
+
+        # Walk direcional — Imp3_Run_with_shadow.png 4 rows × 8 frames de 64×64
+        walk_sheet = data.get("spritesheet")
+        walk_n = data.get("anim_frames", 8)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * walk_n, (row + 1) * walk_n))
+            frames = loader.load_spritesheet(walk_sheet, fw, fh, walk_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_walk_frames[dir_name] = frames
+
+        # Idle direcional — Imp3_Idle_with_shadow.png 4 rows × 4 frames de 64×64
+        idle_sheet = data.get("spritesheet_idle")
+        idle_n = data.get("idle_anim_frames", 4)
+        idle_fw = data.get("spritesheet_idle_frame_w", fw)
+        idle_fh = data.get("spritesheet_idle_frame_h", fh)
+        for dir_name, row in self._SPRITE_DIR_ROWS.items():
+            indices = list(range(row * idle_n, (row + 1) * idle_n))
+            frames = loader.load_spritesheet(idle_sheet, idle_fw, idle_fh, idle_n, char_size, frame_indices=indices)
+            if frames:
+                self._dir_idle_frames[dir_name] = frames
+
+        # Attack direcional — Imp3_Attack_with_shadow.png 4 rows × 6 frames de 64×64
+        atk_sheet = data.get("spritesheet_attack")
+        atk_n = data.get("attack_anim_frames", 6)
+        atk_fw = data.get("spritesheet_attack_frame_w", fw)
+        atk_fh = data.get("spritesheet_attack_frame_h", fh)
+        if atk_sheet and atk_n:
+            for dir_name, row in self._SPRITE_DIR_ROWS.items():
+                indices = list(range(row * atk_n, (row + 1) * atk_n))
+                frames = loader.load_spritesheet(atk_sheet, atk_fw, atk_fh, atk_n, char_size, frame_indices=indices)
+                if frames:
+                    self._dir_attack_frames[dir_name] = frames
+            if self._dir_attack_frames and not self.attack_frames:
+                self.attack_frames = next(iter(self._dir_attack_frames.values()))
+
     def get_attack_name(self):
         return "Orbe Arcano"
 
