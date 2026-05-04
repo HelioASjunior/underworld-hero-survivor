@@ -379,11 +379,18 @@ save_data = {
 
 # Definição das Missões Diárias
 DAILY_MISSIONS_POOL = [
-    {"id": "kill_100", "name": "CAÇADOR DIÁRIO", "desc": "Mate 100 inimigos em uma partida", "goal": 100, "reward": 500, "type": "kills"},
-    {"id": "survive_5m", "name": "SOBREVIVENTE", "desc": "Sobreviva por 5 minutos", "goal": 300, "reward": 800, "type": "time"},
-    {"id": "boss_1", "name": "MATADOR DE GIGANTES", "desc": "Derrote 1 Chefão", "goal": 1, "reward": 1200, "type": "boss"},
-    {"id": "level_15", "name": "TREINAMENTO INTENSO", "desc": "Alcance o Nível 15", "goal": 15, "reward": 1000, "type": "level"},
-    {"id": "gold_200", "name": "GANÂNCIA", "desc": "Colete 200 de Ouro em uma partida", "goal": 200, "reward": 600, "type": "gold"}
+    {"id": "kill_250",   "name": "EXTERMINADOR",      "desc": "Mate 250 inimigos em uma partida",    "goal": 250,  "reward": 800,  "type": "kills"},
+    {"id": "kill_500",   "name": "CEIFADOR",           "desc": "Mate 500 inimigos em uma partida",    "goal": 500,  "reward": 1500, "type": "kills"},
+    {"id": "kill_800",   "name": "LORDE DA MORTE",     "desc": "Mate 800 inimigos em uma partida",    "goal": 800,  "reward": 2500, "type": "kills"},
+    {"id": "survive_8m", "name": "RESISTENTE",         "desc": "Sobreviva por 8 minutos",             "goal": 480,  "reward": 1200, "type": "time"},
+    {"id": "survive_12m","name": "IMORTAL",            "desc": "Sobreviva por 12 minutos",            "goal": 720,  "reward": 2000, "type": "time"},
+    {"id": "survive_18m","name": "ETERNO",             "desc": "Sobreviva por 18 minutos",            "goal": 1080, "reward": 3200, "type": "time"},
+    {"id": "boss_2",     "name": "CAÇADOR DE CHEFÕES", "desc": "Derrote 2 Chefões numa partida",      "goal": 2,    "reward": 2200, "type": "boss"},
+    {"id": "boss_4",     "name": "TERROR DOS TITÃS",   "desc": "Derrote 4 Chefões numa partida",      "goal": 4,    "reward": 4000, "type": "boss"},
+    {"id": "level_20",   "name": "VETERANO",           "desc": "Alcance o Nível 20 numa partida",     "goal": 20,   "reward": 1600, "type": "level"},
+    {"id": "level_30",   "name": "LENDA",              "desc": "Alcance o Nível 30 numa partida",     "goal": 30,   "reward": 3000, "type": "level"},
+    {"id": "gold_600",   "name": "SAQUEADOR",          "desc": "Colete 600 de Ouro em uma partida",   "goal": 600,  "reward": 1000, "type": "gold"},
+    {"id": "gold_1500",  "name": "MAGNATA",            "desc": "Colete 1500 de Ouro em uma partida",  "goal": 1500, "reward": 2400, "type": "gold"},
 ]
 
 # Definição das Conquistas e Requisitos
@@ -507,8 +514,7 @@ def check_daily_reset():
     today = datetime.now().strftime("%Y-%m-%d")
     if save_data["daily_missions"]["last_reset"] != today:
         save_data["daily_missions"]["last_reset"] = today
-        # Sorteia 3 missões novas (preciso corrigir isso depois)
-        new_missions = random.sample(DAILY_MISSIONS_POOL, 3)
+        new_missions = random.sample(DAILY_MISSIONS_POOL, 6)
         save_data["daily_missions"]["active"] = []
         for m in new_missions:
             m_copy = m.copy()
@@ -705,7 +711,7 @@ DIFFICULTIES = {
 # Atributos Modificáveis (Base)
 PLAYER_SPEED = 280.0
 PLAYER_MAX_HP = 100
-SHOT_COOLDOWN = 0.35
+SHOT_COOLDOWN = 0.50
 HAS_FURY = False
 PROJECTILE_DMG = 25
 PROJECTILE_SPEED = 560.0
@@ -3404,7 +3410,7 @@ def reset_game(char_id=0):
     PLAYER_MAX_HP = char_data["hp"]
     PLAYER_SPEED = char_data["speed"]
     PROJECTILE_DMG = char_data.get("damage", 2)
-    SHOT_COOLDOWN = 0.35
+    SHOT_COOLDOWN = 0.50
 
     # Aplicar bônus de equipamento (arma e escudo da loja de itens)
     _eq        = get_char_equipped(char_id)
@@ -4918,8 +4924,8 @@ def main():
     mission_btns = [Button(0.5, 0.90, BTN_SM_W, BTN_SM_H, "VOLTAR", font_m, color=(80, 30, 30))]
     mission_btns[0].sprite_idx = 6
     mission_claim_btns = [
-        Button(0.75, 0.25 + i * 0.12, BTN_SM_W, BTN_H, "COLETAR", font_m, color=(40, 100, 40))
-        for i in range(3)
+        Button(0.75, 0.25 + i * 0.10, BTN_SM_W, BTN_H, "COLETAR", font_m, color=(40, 100, 40))
+        for i in range(6)
     ]
     for btn in mission_claim_btns:
         btn.sprite_idx = 3
@@ -5112,6 +5118,9 @@ def main():
     hub_last_char_id     = 0   # char_id da última partida iniciada pelo HUB
     hub_pronto_btn = Button(0.920, 0.562, 200, BTN_H, "PRONTO", font_m, color=(30, 80, 30))
     hub_return         = False   # True when SHOP/ITEM_SHOP was opened from HUB
+    market_return      = False   # True when ITEM_SHOP was opened from MARKET via Ferreiro
+    market_shop_open   = False   # Overlay flutuante de Talentos no Mercado
+    market_missions_open = False # Overlay flutuante de Missões no Mercado
     hub_chest_open     = False   # Janela do Baú (F key — abre baú + inventário)
     hub_equip_open     = False   # Janela de Equipamento (I key — layout Diablo)
     hub_status_open    = False   # Janela de Status (C key)
@@ -5261,6 +5270,13 @@ def main():
                         _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
 
+                if state == "MARKET" and event.key == pygame.K_f:
+                    if (market_scene is not None and market_scene.player_near_ferreiro
+                            and not hub_equip_open and not hub_status_open and not hub_profile_open):
+                        market_return = True
+                        state = "ITEM_SHOP"
+                        if snd_click: snd_click.play()
+
                 if state in ("HUB", "MARKET") and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
                     _drag_item = None; _drag_active = False
@@ -5365,7 +5381,12 @@ def main():
                         else:
                             menu_profile_open = False
                     elif state == "MARKET":
-                        if hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
+                        if market_shop_open:
+                            market_shop_open = False
+                            save_game()
+                        elif market_missions_open:
+                            market_missions_open = False
+                        elif hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
                             hub_chest_open   = False
                             hub_equip_open   = False
                             hub_status_open  = False
@@ -5402,6 +5423,9 @@ def main():
                             item_shop_sell_selected = None
                         elif item_shop_confirm is not None:
                             item_shop_confirm = None
+                        elif market_return and market_scene is not None:
+                            market_return = False
+                            state = "MARKET"
                         elif hub_return and hub_scene is not None:
                             hub_return = False
                             state = "HUB"
@@ -5609,15 +5633,7 @@ def main():
                             elif hasattr(_draw_profile_viewer, "_av_main_rect") and _draw_profile_viewer._av_main_rect.collidepoint(click_pos):
                                 _draw_profile_viewer._av_picker_open = not getattr(_draw_profile_viewer, "_av_picker_open", False)
                                 if snd_click: snd_click.play()
-                        # ── Minicard de perfil no canto superior-esquerdo ──────────
-                        if (not hub_profile_open and not hub_equip_open and not hub_chest_open
-                                and _hub_profile_widget_rect is not None
-                                and _hub_profile_widget_rect.collidepoint(click_pos)):
-                            _prof_mode = "list"
-                            _active_prof = profile_mgr.get_active_profile()
-                            _all_profs   = profile_mgr.get_all_profiles()
-                            _prof_sel_idx = next((i for i, p in enumerate(_all_profs) if _active_prof and p["id"] == _active_prof["id"]), 0)
-                            state = "PROFILE_SELECT"
+                        # Perfil no canto esquerdo: use a tecla L para abrir (não clicável)
                         # ── Inicio de Drag-and-Drop nas janelas de Inventário / Baú ──
                         elif hub_equip_open and not _drag_active:
                             _dd_cid  = player.char_id if player else 0
@@ -5741,14 +5757,13 @@ def main():
                             hub_countdown_active = True
                             hub_countdown_timer  = 5.0
                             if snd_click: snd_click.play()
-                        # Botões de atalho: Talentos e Loja
+                        # Botões de atalho: Mercado e Talentos
                         _hub_panel_x = int(SCREEN_W * 0.84)
                         _hub_panel_w = SCREEN_W - _hub_panel_x
                         _hub_rb_rw = _hub_panel_w - int(_hub_panel_w * 0.20)
                         _hub_rb_rx = _hub_panel_x + int(_hub_panel_w * 0.10)
                         _hub_rb_h  = 50
-                        _hub_market_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.285) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
-                        _hub_shop_rect   = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.373) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
+                        _hub_market_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.373) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
                         _hub_talent_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.453) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
                         if _hub_market_rect.collidepoint(click_pos):
                             if market_scene is None:
@@ -5770,9 +5785,6 @@ def main():
                                 )
                             state = "MARKET"
                             if snd_click: snd_click.play()
-                        elif _hub_shop_rect.collidepoint(click_pos):
-                            hub_return = True
-                            state = "ITEM_SHOP"
                         elif _hub_talent_rect.collidepoint(click_pos):
                             hub_return = True
                             state = "SHOP"
@@ -5852,22 +5864,50 @@ def main():
                                 _drag_active = True
                                 _drag_offset = (click_pos[0]-_cx_dd, click_pos[1]-_cy_dd)
                                 if snd_click: snd_click.play()
+                        elif market_shop_open:
+                            if shop_back_btn.rect.collidepoint(click_pos):
+                                market_shop_open = False
+                                save_game()
+                                if snd_click: snd_click.play()
+                            else:
+                                for p_name, s_key, btn in shop_talent_btns:
+                                    if btn.rect.collidepoint(click_pos):
+                                        skill = TALENT_TREE[p_name]["skills"][s_key]
+                                        lvl = save_data["perm_upgrades"].get(s_key, 0)
+                                        if lvl < skill["max"]:
+                                            price = skill["cost"][lvl]
+                                            if save_data["gold"] >= price:
+                                                save_data["gold"] -= price
+                                                save_data["perm_upgrades"][s_key] = lvl + 1
+                                                if snd_click: snd_click.play()
+                        elif market_missions_open:
+                            if mission_btns[0].rect.collidepoint(click_pos):
+                                market_missions_open = False
+                                if snd_click: snd_click.play()
+                            else:
+                                for i, m in enumerate(save_data["daily_missions"]["active"]):
+                                    if m["completed"] and not m["claimed"]:
+                                        if mission_claim_btns[i].rect.collidepoint(click_pos):
+                                            m["claimed"] = True
+                                            save_data["gold"] += m["reward"]
+                                            achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + m["reward"]
+                                            play_sfx("win")
+                                            save_game()
                         else:
                             _mk_panel_x = int(SCREEN_W * 0.84)
                             _mk_panel_w = SCREEN_W - _mk_panel_x
                             _mk_rb_rw = _mk_panel_w - int(_mk_panel_w * 0.20)
                             _mk_rb_rx = _mk_panel_x + int(_mk_panel_w * 0.10)
                             _mk_rb_h  = 50
-                            _mk_shop_rect   = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                            _mk_talent_rect = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.453) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                            _mk_voltar_rect = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.562) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                            if _mk_shop_rect.collidepoint(click_pos):
-                                hub_return = True
-                                state = "ITEM_SHOP"
+                            _mk_missions_rect = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                            _mk_talent_rect   = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.453) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                            _mk_voltar_rect   = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.562) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                            if _mk_missions_rect.collidepoint(click_pos):
+                                market_missions_open = True
                                 if snd_click: snd_click.play()
                             elif _mk_talent_rect.collidepoint(click_pos):
-                                hub_return = True
-                                state = "SHOP"
+                                market_shop_open = True
+                                update_shop_talent_button_layout()
                                 if snd_click: snd_click.play()
                             elif _mk_voltar_rect.collidepoint(click_pos):
                                 state = "HUB"
@@ -5919,7 +5959,10 @@ def main():
 
                     elif state == "ITEM_SHOP":
                         if item_shop_back_btn.rect.collidepoint(click_pos):
-                            if hub_return and hub_scene is not None:
+                            if market_return and market_scene is not None:
+                                market_return = False
+                                state = "MARKET"
+                            elif hub_return and hub_scene is not None:
                                 hub_return = False
                                 state = "HUB"
                             else:
@@ -6451,6 +6494,9 @@ def main():
                     elif state in ["SHOP", "ITEM_SHOP"]:
                         if item_shop_confirm is not None:
                             item_shop_confirm = None
+                        elif market_return and market_scene is not None:
+                            market_return = False
+                            state = "MARKET"
                         elif hub_return and hub_scene is not None:
                             hub_return = False
                             state = "HUB"
@@ -7363,30 +7409,29 @@ def main():
             screen.blit(timer_txt, timer_txt.get_rect(center=(SCREEN_W//2, SCREEN_H*0.18)))
             
             for i, m in enumerate(save_data["daily_missions"]["active"]):
-                y_base = SCREEN_H * 0.29 + i * 120
-                box_rect = pygame.Rect(SCREEN_W/2 - 300, y_base, 600, 100)
-                pygame.draw.rect(screen, (30, 30, 50, 200), box_rect, border_radius=10)
-                pygame.draw.rect(screen, (100, 100, 255), box_rect, 2, border_radius=10)
-
+                y_base = int(SCREEN_H * 0.22) + i * 74
+                box_rect = pygame.Rect(SCREEN_W//2 - 310, y_base, 620, 66)
+                pygame.draw.rect(screen, (30, 30, 50, 200), box_rect, border_radius=8)
+                pygame.draw.rect(screen, (100, 100, 255), box_rect, 2, border_radius=8)
                 title = font_m.render(m['name'], True, (255, 255, 100))
-                screen.blit(title, (box_rect.x + 20, box_rect.y + 10))
-                desc = font_s.render(m['desc'], True, (200, 200, 200))
-                screen.blit(desc, (box_rect.x + 20, box_rect.y + 55))
-
-                progress = m['progress'] / m['goal']
-                prog_bar_rect = pygame.Rect(box_rect.x + 20, box_rect.y + 80, 300, 15)
-                pygame.draw.rect(screen, (0,0,0), prog_bar_rect)
-                pygame.draw.rect(screen, (0, 255, 0), (prog_bar_rect.x, prog_bar_rect.y, prog_bar_rect.width * progress, prog_bar_rect.height))
-                pygame.draw.rect(screen, (255,255,255), prog_bar_rect, 1)
-
+                screen.blit(title, (box_rect.x + 14, box_rect.y + 6))
+                _prog_pct = min(1.0, m['progress'] / max(1, m['goal']))
+                _prog_txt = font_s.render(f"{m['progress']}/{m['goal']}", True, (180, 220, 180))
+                screen.blit(_prog_txt, (box_rect.x + 14, box_rect.y + 34))
+                prog_bar_rect = pygame.Rect(box_rect.x + 130, box_rect.y + 38, 240, 12)
+                pygame.draw.rect(screen, (0, 0, 0), prog_bar_rect)
+                pygame.draw.rect(screen, (0, 220, 80), (prog_bar_rect.x, prog_bar_rect.y, int(prog_bar_rect.width * _prog_pct), prog_bar_rect.height))
+                pygame.draw.rect(screen, (180, 180, 180), prog_bar_rect, 1)
+                _rew_txt = font_s.render(f"+{m['reward']}G", True, (255, 200, 60))
+                screen.blit(_rew_txt, (box_rect.right - 110, box_rect.y + 6))
                 if m['completed']:
                     if m['claimed']:
                         claim_txt = font_s.render("COLETADO!", True, (100, 255, 100))
-                        screen.blit(claim_txt, (box_rect.right - 150, box_rect.centery - 10))
+                        screen.blit(claim_txt, (box_rect.right - 110, box_rect.centery - 8))
                     else:
+                        mission_claim_btns[i].rect.midright = (box_rect.right - 6, box_rect.centery)
                         mission_claim_btns[i].check_hover(m_pos, snd_hover)
                         mission_claim_btns[i].draw(screen)
-            
             mission_btns[0].check_hover(m_pos, snd_hover); mission_btns[0].draw(screen)
 
         elif state == "SHOP":
@@ -8318,12 +8363,32 @@ def main():
                     _f_surf   = font_s.render("[F]  Abrir Baú", True, (240, 220, 100))
                     _f_bg     = pygame.Surface((_f_surf.get_width() + 16, _f_surf.get_height() + 8), pygame.SRCALPHA)
                     _f_bg.fill((10, 8, 6, 180))
-                    _f_rect   = _f_bg.get_rect(left=int(_chest_sp.x) + 10, bottom=int(_chest_sp.y - 36 + _f_bob))
+                    _f_rect   = _f_bg.get_rect(centerx=int(_chest_sp.x), bottom=int(_chest_sp.y - 150 + _f_bob))
                     screen.blit(_f_bg, _f_rect)
                     pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
                     screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
             else:
                 market_scene.draw(screen)
+
+                # ── Label "Ferreiro" acima do NPC + hint [F] quando perto ──
+                _ferr_sp  = market_scene.ferreiro_screen_pos
+                _ferr_now = pygame.time.get_ticks()
+                _ferr_bob = math.sin(_ferr_now / 400.0) * 4
+                _fn_surf  = font_s.render("Ferreiro", True, (255, 220, 50))
+                _fn_bg    = pygame.Surface((_fn_surf.get_width() + 12, _fn_surf.get_height() + 6), pygame.SRCALPHA)
+                _fn_bg.fill((10, 8, 6, 160))
+                _fn_rect  = _fn_bg.get_rect(centerx=int(_ferr_sp.x), bottom=int(_ferr_sp.y - 72 + _ferr_bob))
+                screen.blit(_fn_bg, _fn_rect)
+                pygame.draw.rect(screen, (200, 170, 60), _fn_rect, 1, border_radius=3)
+                screen.blit(_fn_surf, _fn_surf.get_rect(center=_fn_rect.center))
+                if market_scene.player_near_ferreiro and not hub_equip_open and not hub_status_open and not hub_profile_open:
+                    _fi_surf = font_s.render("[F]  Loja de Itens", True, (240, 220, 100))
+                    _fi_bg   = pygame.Surface((_fi_surf.get_width() + 16, _fi_surf.get_height() + 8), pygame.SRCALPHA)
+                    _fi_bg.fill((10, 8, 6, 180))
+                    _fi_rect = _fi_bg.get_rect(centerx=int(_ferr_sp.x), bottom=_fn_rect.top - 4)
+                    screen.blit(_fi_bg, _fi_rect)
+                    pygame.draw.rect(screen, (200, 170, 60), _fi_rect, 1, border_radius=4)
+                    screen.blit(_fi_surf, _fi_surf.get_rect(center=_fi_rect.center))
 
             # ── Janela de Inventário / Equipamento (tecla I) ───────────────
             if hub_equip_open:
@@ -8886,11 +8951,10 @@ def main():
                 _rb_rw = _hp_w - int(_hp_w * 0.20)
                 _rb_rx = _hp_x + int(_hp_w * 0.10)
                 _rb_h  = 50
-                _market_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.285) - _rb_h//2, _rb_rw, _rb_h)
-                _shop_rect   = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
+                _market_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
                 _talent_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
                 _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
-                for _r, _lbl in [(_market_rect, "Mercado"), (_shop_rect, "Loja de Itens"), (_talent_rect, "Talentos")]:
+                for _r, _lbl in [(_market_rect, "Mercado"), (_talent_rect, "Talentos")]:
                     _hov = _r.collidepoint(m_pos)
                     _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
                     screen.blit(_ls, _ls.get_rect(center=_r.center))
@@ -8931,13 +8995,15 @@ def main():
                 screen.blit(_bg_lbl_s, _bg_lbl_s.get_rect(centerx=_cx, top=_biome_y))
                 _bg_name_s = font_s.render(_BG_LABELS.get(selected_bg, selected_bg.capitalize()), True, (240, 210, 130))
                 screen.blit(_bg_name_s, _bg_name_s.get_rect(centerx=_cx, top=_biome_y + 22))
-                _bg_arr_y   = _biome_y + 22
-                _biome_larr = pygame.Rect(_cx - 72, _bg_arr_y, 28, 24)
-                _biome_rarr = pygame.Rect(_cx + 44, _bg_arr_y, 28, 24)
+                _bg_name_w  = font_s.size(_BG_LABELS.get(selected_bg, selected_bg.capitalize()))[0]
+                _bg_arr_cy  = _biome_y + 32
+                _biome_larr = pygame.Rect(_cx - _bg_name_w//2 - 46, _bg_arr_cy - 16, 38, 32)
+                _biome_rarr = pygame.Rect(_cx + _bg_name_w//2 + 8,  _bg_arr_cy - 16, 38, 32)
                 for _ar, _ch in ((_biome_larr, "<"), (_biome_rarr, ">")):
                     _hov = _ar.collidepoint(m_pos)
-                    pygame.draw.rect(screen, (130, 95, 45) if _hov else (75, 58, 22), _ar, border_radius=4)
-                    _ch_s = font_s.render(_ch, True, (240, 200, 100))
+                    pygame.draw.rect(screen, (150, 110, 50) if _hov else (85, 65, 25), _ar, border_radius=5)
+                    pygame.draw.rect(screen, (200, 160, 80), _ar, 1, border_radius=5)
+                    _ch_s = font_m.render(_ch, True, (255, 220, 120) if _hov else (200, 170, 80))
                     screen.blit(_ch_s, _ch_s.get_rect(center=_ar.center))
                 main._biome_larr = _biome_larr
                 main._biome_rarr = _biome_rarr
@@ -8987,7 +9053,7 @@ def main():
                 _rb_h  = 50
                 _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
                 for _r, _lbl in [
-                    (pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h), "Loja de Itens"),
+                    (pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h), "Missões"),
                     (pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h), "Talentos"),
                 ]:
                     _hov = _r.collidepoint(m_pos)
@@ -9005,6 +9071,87 @@ def main():
                 screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, top=_hint_top + 22))
                 screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
                 screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
+
+                # ── Overlay flutuante de Talentos (Mercado) ──────────────────
+                if market_shop_open:
+                    _mko = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    _mko.fill((0, 0, 0, 200))
+                    screen.blit(_mko, (0, 0))
+                    shop_header = pygame.Rect(int(SCREEN_W * 0.08), int(SCREEN_H * 0.06), int(SCREEN_W * 0.84), 105)
+                    draw_dark_panel(screen, shop_header, alpha=180, border_color=UI_THEME["old_gold"])
+                    draw_screen_title(screen, font_l, "ÁRVORE DE TALENTOS", SCREEN_W//2, int(SCREEN_H*0.1))
+                    _mko_gold = font_m.render(f"OURO: {save_data['gold']}", True, UI_THEME["faded_gold"])
+                    screen.blit(_mko_gold, _mko_gold.get_rect(topright=(SCREEN_W - 30, 20)))
+                    for p_idx, p_name in enumerate(path_names):
+                        path = TALENT_TREE[p_name]
+                        px = int(SCREEN_W * 0.1)
+                        py = int(SCREEN_H * (SHOP_PATH_TOP_RATIO + p_idx * SHOP_PATH_GAP_RATIO))
+                        row_panel = pygame.Rect(px - 20, py - 16, int(SCREEN_W * 0.80), SHOP_ROW_PANEL_HEIGHT)
+                        draw_dark_panel(screen, row_panel, alpha=175, border_color=UI_THEME["iron"])
+                        p_title = font_m.render(path["title"], True, UI_THEME["parchment"])
+                        screen.blit(p_title, (px, py))
+                        p_desc = font_s.render(path["desc"], True, UI_THEME["mist"])
+                        screen.blit(p_desc, (px, py + 40))
+                        skill_keys = list(path["skills"].keys())
+                        for s_idx, s_key in enumerate(skill_keys):
+                            skill = path["skills"][s_key]
+                            lvl = save_data["perm_upgrades"].get(s_key, 0)
+                            sy = py + SHOP_SKILL_TOP_OFFSET + s_idx * SHOP_SKILL_GAP
+                            s_txt = font_s.render(f"{skill['name']} ({lvl}/{skill['max']})", True, UI_THEME["old_gold"])
+                            screen.blit(s_txt, (px + 50, sy))
+                            sd_txt = load_body_font(18).render(skill["desc"], True, (200, 200, 200))
+                            screen.blit(sd_txt, (px + 300, sy + 5))
+                            btn_found = shop_talent_btn_map[(p_name, s_key)]
+                            if lvl < skill["max"]:
+                                price = skill["cost"][lvl]
+                                btn_found.text = f"{price} G"
+                                btn_found.color = (40, 100, 40) if save_data["gold"] >= price else (100, 40, 40)
+                            else:
+                                btn_found.text = "MAX"
+                                btn_found.color = (60, 60, 60)
+                            btn_found.check_hover(m_pos, snd_hover)
+                            btn_found.draw(screen)
+                    shop_back_btn.check_hover(m_pos, snd_hover)
+                    shop_back_btn.draw(screen)
+
+                # ── Overlay flutuante de Missões (Mercado) ───────────────────
+                elif market_missions_open:
+                    _mko = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    _mko.fill((0, 0, 0, 200))
+                    screen.blit(_mko, (0, 0))
+                    draw_screen_title(screen, font_l, "MISSÕES DIÁRIAS", SCREEN_W//2, int(SCREEN_H*0.12), text_color=(255, 215, 0))
+                    _now_dt = datetime.now()
+                    _next_reset = (_now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                    _remaining = max(0, int((_next_reset - _now_dt).total_seconds()))
+                    _rem_h = _remaining // 3600; _rem_m = (_remaining % 3600) // 60; _rem_s = _remaining % 60
+                    _timer_txt = font_s.render(f"RESET EM: {_rem_h:02}:{_rem_m:02}:{_rem_s:02}", True, (255, 240, 140))
+                    screen.blit(_timer_txt, _timer_txt.get_rect(center=(SCREEN_W//2, SCREEN_H*0.18)))
+                    for i, m in enumerate(save_data["daily_missions"]["active"]):
+                        y_base = int(SCREEN_H * 0.22) + i * 74
+                        box_rect = pygame.Rect(SCREEN_W//2 - 310, y_base, 620, 66)
+                        pygame.draw.rect(screen, (30, 30, 50, 200), box_rect, border_radius=8)
+                        pygame.draw.rect(screen, (100, 100, 255), box_rect, 2, border_radius=8)
+                        title = font_m.render(m['name'], True, (255, 255, 100))
+                        screen.blit(title, (box_rect.x + 14, box_rect.y + 6))
+                        _prog_pct = min(1.0, m['progress'] / max(1, m['goal']))
+                        _prog_txt = font_s.render(f"{m['progress']}/{m['goal']}", True, (180, 220, 180))
+                        screen.blit(_prog_txt, (box_rect.x + 14, box_rect.y + 34))
+                        prog_bar_rect = pygame.Rect(box_rect.x + 130, box_rect.y + 38, 240, 12)
+                        pygame.draw.rect(screen, (0, 0, 0), prog_bar_rect)
+                        pygame.draw.rect(screen, (0, 220, 80), (prog_bar_rect.x, prog_bar_rect.y, int(prog_bar_rect.width * _prog_pct), prog_bar_rect.height))
+                        pygame.draw.rect(screen, (180, 180, 180), prog_bar_rect, 1)
+                        _rew_txt = font_s.render(f"+{m['reward']}G", True, (255, 200, 60))
+                        screen.blit(_rew_txt, (box_rect.right - 110, box_rect.y + 6))
+                        if m['completed']:
+                            if m['claimed']:
+                                claim_txt = font_s.render("COLETADO!", True, (100, 255, 100))
+                                screen.blit(claim_txt, (box_rect.right - 110, box_rect.centery - 8))
+                            else:
+                                mission_claim_btns[i].rect.midright = (box_rect.right - 6, box_rect.centery)
+                                mission_claim_btns[i].check_hover(m_pos, snd_hover)
+                                mission_claim_btns[i].draw(screen)
+                    mission_btns[0].check_hover(m_pos, snd_hover)
+                    mission_btns[0].draw(screen)
 
         elif state == "PACT_SELECT":
             draw_menu_background(screen, m_pos, dt)
