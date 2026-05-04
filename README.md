@@ -374,6 +374,8 @@ O jogo já é otimizado em múltiplas camadas:
 | Consultas espaciais | NumPy vetorizado (`EnemyBatchIndex`) | Buscas O(n) em array sem loop Python |
 | Spawn de hordas | Fila assíncrona (6/frame) | Elimina picos de CPU ao spawnar grupos |
 | Cache de frames | Indexado por `(id(raw_frames), size)` | Sprites efeito pre-escalados, sem recomputar |
+| AI LOD | Inimigos >1 200 px atualizam em frames alternados | ~40-50 % menos cálculos de IA em hordas densas |
+| Frustum culling | `screen.blits()` com `colliderect` em todos os grupos | Inimigos/projéteis fora da tela ignorados pelo GPU |
 
 ### Build opcional com Cython (avançado)
 
@@ -687,6 +689,8 @@ gcc --version
 - [x] Double buffering (`pygame.DOUBLEBUF`) para reduzir tearing.
 - [x] Cache de chão — tilemap pré-renderizado (~54 blits/frame → 1 blit/frame).
 - [x] Frame time smoothing — média móvel de 6 frames elimina micro-stutters.
+- [x] AI LOD — inimigos distantes (>1 200 px) atualizam IA em frames alternados.
+- [x] Frustum culling em todos os grupos de sprites via `screen.blits()` + `colliderect`.
 - [x] Bioma Vulcão com decorações, geiseres e inimigos exclusivos.
 - [x] Bioma Lua com decorações temáticas.
 - [ ] SDL3 quando Pygame-CE lançar (GPU acceleration e melhor performance).

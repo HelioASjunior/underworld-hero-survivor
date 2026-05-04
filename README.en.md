@@ -355,6 +355,8 @@ On Windows, without activating the venv:
 | Spatial queries | Vectorized NumPy (`EnemyBatchIndex`) | O(n) array searches without Python loops |
 | Horde spawning | Async queue (6/frame) | Eliminates CPU spikes when spawning groups |
 | Frame cache | Indexed by `(id(raw_frames), size)` | Effect sprites pre-scaled, no per-frame recomputation |
+| AI LOD | Enemies >1 200 px update every other frame | ~40-50% fewer AI calculations during dense hordes |
+| Frustum culling | `screen.blits()` + `colliderect` on all sprite groups | Off-screen sprites skipped entirely by GPU |
 
 ### Optional Cython build (advanced)
 
@@ -660,6 +662,8 @@ gcc --version
 - [x] New run mechanics: lifesteal, gold multiplier, XP bonus.
 - [x] Numba JIT on enemy separation kernel (`hot_kernels.py`).
 - [x] Double buffering (`pygame.DOUBLEBUF`) to reduce tearing.
+- [x] AI LOD — enemies farther than 1 200 px update their AI every other frame.
+- [x] Frustum culling on all sprite groups via `screen.blits()` + `colliderect`.
 - [x] Volcano biome with decorations, geysers, and exclusive enemies.
 - [x] Moon biome with lunar themed decorations.
 - [ ] SDL3 when Pygame-CE releases it (GPU acceleration and better performance).

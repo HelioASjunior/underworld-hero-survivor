@@ -7054,20 +7054,26 @@ def main():
 
                     enemies.add(create_enemy(chosen_enemy, sp, _spawn_diff, time_scale=time_scale, is_elite=is_elite))
 
-            enemies.update(
-                dt,
-                player.pos,
-                cam,
-                obstacles,
-                enemy_projectiles,
-                puddles,
-                loader,
-                selected_pact,
-                ModularEnemyProjectile,
-                Puddle,
-                SHOOTER_PROJ_IMAGE,
-                obstacle_grid_index,
-            )
+            # AI LOD: inimigos distantes (>1200 px) atualizam em frames alternados
+            _lod_dist_sq = 1_440_000  # 1200**2
+            for _lod_e in list(enemies):
+                if (_lod_e.kind in ("boss", "mini_boss", "agis")
+                        or _sep_frame == 0
+                        or (_lod_e.pos - player.pos).length_squared() < _lod_dist_sq):
+                    _lod_e.update(
+                        dt,
+                        player.pos,
+                        cam,
+                        obstacles,
+                        enemy_projectiles,
+                        puddles,
+                        loader,
+                        selected_pact,
+                        ModularEnemyProjectile,
+                        Puddle,
+                        SHOOTER_PROJ_IMAGE,
+                        obstacle_grid_index,
+                    )
             for _da in list(death_anims):
                 _da.update(dt, cam)
             # --- Colisão física: empurra inimigos para fora do raio do player ---
@@ -9425,12 +9431,15 @@ def main():
             if selected_bg == "moon" and moon_deco_manager is not None:
                 moon_deco_manager.draw_floor(screen, SCREEN_W, SCREEN_H)
 
-            puddles.draw(screen)
-            doom_seals.draw(screen)
-            obstacles.draw(screen); gems.draw(screen); drops.draw(screen); projectiles.draw(screen); enemy_projectiles.draw(screen)
-
-            # Culling: só blita inimigos visíveis na tela
+            # Culling: só blita sprites visíveis na tela
             _scr_rect = screen.get_rect()
+            screen.blits([(s.image, s.rect) for s in puddles if _scr_rect.colliderect(s.rect)])
+            doom_seals.draw(screen)
+            screen.blits([(s.image, s.rect) for s in obstacles if _scr_rect.colliderect(s.rect)])
+            screen.blits([(s.image, s.rect) for s in gems if _scr_rect.colliderect(s.rect)])
+            screen.blits([(s.image, s.rect) for s in drops if _scr_rect.colliderect(s.rect)])
+            screen.blits([(s.image, s.rect) for s in projectiles if _scr_rect.colliderect(s.rect)])
+            screen.blits([(s.image, s.rect) for s in enemy_projectiles if _scr_rect.colliderect(s.rect)])
             screen.blits([(e.image, e.rect) for e in enemies if _scr_rect.colliderect(e.rect)])
             screen.blits([(d.image, d.rect) for d in death_anims if _scr_rect.colliderect(d.rect)])
 
