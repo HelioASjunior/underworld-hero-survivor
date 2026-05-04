@@ -113,9 +113,9 @@ Aparecem nos biomas Lua e Vulcão, a partir de 2 minutos de jogo.
 
 | Tipo | HP base | Aparição | Descrição |
 |---|---|---|---|
-| Mini Boss | 6000 | ~10 min | Barra de vida própria, escala com tempo (+30 % × time_scale) |
-| Chefe | escalável | 5 min (a cada 5 min) | Multi-fase, fica mais forte a cada onda |
-| Agis | 10000 | 15 min (selo de invocação) | Boss lento, orbe dupla + magia em área a cada 5s (+25 % × time_scale) |
+| Mini Boss | 6000 | ~10 s (teste) | Barra de vida própria, escala com tempo (+30 % × time_scale) |
+| Chefe | escalável | 2.5 min (a cada 2.5 min) | Multi-fase, fica mais forte a cada onda |
+| Agis | 10000 | 8 min (selo de invocação) | Boss lento, orbe dupla + magia em área a cada 5s (+25 % × time_scale) |
 
 **Agis** é invocado por um selo animado (`doom_agis.png`) que aparece próximo ao herói ~30s antes do spawn. Possui ataque básico de projétil (orbe dupla roxa) e magia em área que dispara 8 orbes em todas as direções. Dropa baú + 15 moedas ao morrer.
 

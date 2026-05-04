@@ -746,10 +746,10 @@ ULTIMATE_MAX_CHARGE = 25
 
 # Configuração de Drops e Boss
 DROP_CHANCE = 0.025
-BOSS_SPAWN_TIME = 300.0  # 5 Minutos para cada boss
+BOSS_SPAWN_TIME = 150.0  # 2.5 Minutos para cada boss (partida de 8 min)
 BOSS_MAX_HP = 6250
 MINI_BOSS_SPAWN_TIME = 10.0  # TESTE: mini boss aparece logo no início
-AGIS_SPAWN_TIME = 900.0       # Agis nasce no minuto 15
+AGIS_SPAWN_TIME = 480.0       # Agis nasce no minuto 8
 SHOOTER_PROJ_IMAGE = "enemy_arrow" 
 
 # Dados dos Personagens - MENU DE ANIME FRAMES - QUANTIDADE DE IMAGENS
@@ -2613,6 +2613,11 @@ new_unlocks_this_session = []
 selected_difficulty = "MÉDIO"
 current_hardcore_stage = 1
 show_stage_victory = False
+show_reward_dialog   = False   # diálogo "Entrar na Sala de Recompensas?" após Agis
+reward_room_player_pos = None  # posição do jogador na sala de recompensa (screen coords)
+reward_room_anim_t   = 0.0
+reward_room_anim_idx = 0
+_reward_room_bg      = None    # cache da imagem de fundo da sala de recompensa
 _spawn_diff = None  # set by reset_game() before use
 selected_pact = "NENHUM"
 selected_bg = "dungeon"
@@ -3426,7 +3431,7 @@ def reset_game(char_id=0):
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval
     global obstacle_total_placed
     global doom_seals
-    global _spawn_diff, current_hardcore_stage, show_stage_victory
+    global _spawn_diff, current_hardcore_stage, show_stage_victory, show_reward_dialog
     global death_anims
 
     save_data["stats"]["games_played"] += 1
@@ -3557,6 +3562,7 @@ def reset_game(char_id=0):
         _spawn_diff["dmg_mult"] = _spawn_diff["dmg_mult"] * _stage_mult
         _spawn_diff["spd_mult"] = _spawn_diff["spd_mult"] * _stage_mult
     show_stage_victory = False
+    show_reward_dialog = False
 
     dark_hud.reset_feedback()
 
@@ -4852,7 +4858,8 @@ def main():
     global PLAYER_MAX_HP, PROJECTILE_DMG, SHOT_COOLDOWN, PLAYER_SPEED, PROJECTILE_SPEED, PICKUP_RANGE, AURA_DMG, PROJ_COUNT, PROJ_PIERCE, EXPLOSION_RADIUS, ORB_COUNT, CRIT_CHANCE, EXECUTE_THRESH, HAS_FURY
     global CRIT_DMG_MULT, EXPLOSION_SIZE_MULT, REGEN_RATE, DAMAGE_RES, THORNS_PERCENT, FIRE_DMG_MULT, BURN_AURA_MULT, HAS_CHAOS_BOLT, HAS_INFERNO
     global selected_difficulty, selected_pact, selected_bg, current_bg_name, bg_choices
-    global current_hardcore_stage, show_stage_victory, _spawn_diff
+    global current_hardcore_stage, show_stage_victory, show_reward_dialog, _spawn_diff
+    global reward_room_player_pos, reward_room_anim_t, reward_room_anim_idx, _reward_room_bg
     global player, enemies, projectiles, enemy_projectiles, gems, drops, particles, obstacles, puddles, damage_texts
     global kills, game_time, level, xp, shot_t, aura_t, aura_anim_timer, aura_frame_idx, orb_rot_angle
     global spawn_t, bosses_spawned, session_boss_kills, session_max_level, triggered_hordes
@@ -4908,11 +4915,11 @@ def main():
     # Criar todos os botões da interface
     # Menu reposicionado para o canto inferior esquerdo conforme imagem
     menu_btns = [
-        Button(0.15, 0.49, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
-        Button(0.15, 0.55, BTN_W, BTN_H, "MISSÕES",        font_m),
-        Button(0.15, 0.61, BTN_W, BTN_H, "TALENTOS",       font_m),
-        Button(0.15, 0.67, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.73, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.53, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
+        Button(0.15, 0.59, BTN_W, BTN_H, "MISSÕES",        font_m),
+        Button(0.15, 0.65, BTN_W, BTN_H, "TALENTOS",       font_m),
+        Button(0.15, 0.71, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.77, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
     menu_icons = ["play", "missions", "talents", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
@@ -5304,12 +5311,12 @@ def main():
                         state = "ITEM_SHOP"
                         if snd_click: snd_click.play()
 
-                if state in ("HUB", "MARKET") and event.key == pygame.K_i:
+                if state in ("HUB", "MARKET", "REWARD_ROOM") and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
                     _drag_item = None; _drag_active = False
                     if snd_click: snd_click.play()
 
-                if state in ("HUB", "MARKET") and event.key == pygame.K_c:
+                if state in ("HUB", "MARKET", "REWARD_ROOM") and event.key == pygame.K_c:
                     hub_status_open = not hub_status_open
                     if snd_click: snd_click.play()
 
@@ -5434,6 +5441,17 @@ def main():
                             hub_countdown_active = False
                             hub_countdown_timer  = 0.0
                             state = "PACT_SELECT"
+                    elif state == "REWARD_ROOM":
+                        if hub_equip_open or hub_status_open:
+                            hub_equip_open  = False
+                            hub_status_open = False
+                            _drag_item = None; _drag_active = False
+                        else:
+                            hub_equip_open  = False
+                            hub_status_open = False
+                            _drag_item = None; _drag_active = False
+                            save_game()
+                            state = "HUB"
                     elif state == "PLAYING": state = "PAUSED"
                     elif state == "PAUSED": state = "PLAYING"
                     elif state == "SETTINGS":
@@ -5541,6 +5559,35 @@ def main():
                                     state = "HUB"
                                 break
 
+                    # Diálogo "Entrar na Sala de Recompensas?" (após morte do Agis)
+                    if show_reward_dialog:
+                        _rrd_w = 460; _rrd_h = 210
+                        _rrd_x = (SCREEN_W - _rrd_w) // 2; _rrd_y = (SCREEN_H - _rrd_h) // 2
+                        _rrd_sim = pygame.Rect(_rrd_x + 40,  _rrd_y + 140, 160, 48)
+                        _rrd_nao = pygame.Rect(_rrd_x + 260, _rrd_y + 140, 160, 48)
+                        if _rrd_sim.collidepoint(click_pos):
+                            show_reward_dialog = False
+                            _reward_room_bg = None
+                            try:
+                                _rr_path = os.path.join(ASSET_DIR, "Teste", "recompensa", "sala_recompença.png")
+                                _raw_rr = pygame.image.load(_rr_path).convert_alpha()
+                                _reward_room_bg = pygame.transform.smoothscale(_raw_rr, (SCREEN_W, SCREEN_H))
+                            except Exception:
+                                pass
+                            reward_room_player_pos = pygame.Vector2(SCREEN_W // 2, int(SCREEN_H * 0.65))
+                            reward_room_anim_t = 0.0; reward_room_anim_idx = 0
+                            hub_equip_open = False; hub_status_open = False
+                            save_game()
+                            state = "REWARD_ROOM"
+                            if snd_click: snd_click.play()
+                        elif _rrd_nao.collidepoint(click_pos):
+                            show_reward_dialog = False
+                            hub_equip_open = False; hub_status_open = False
+                            save_game()
+                            state = "HUB"
+                            if snd_click: snd_click.play()
+                        continue
+
                     # Diálogo de confirmação de venda (prioridade máxima)
                     if item_shop_sell_confirm is not None and state == "ITEM_SHOP":
                         _scfd_w = 420; _scfd_h = 200
@@ -5586,7 +5633,8 @@ def main():
                             _cf = item_shop_confirm
                             save_data["gold"] -= _cf["price"]
                             save_data["purchased_items"].append({"category": _cf["category"], "idx": _cf["idx"]})
-                            save_data["chest_items"].append({"category": _cf["category"], "idx": _cf["idx"]})
+                            _buy_cid = player.char_id if player else hub_last_char_id
+                            get_char_inventory(_buy_cid).append({"category": _cf["category"], "idx": _cf["idx"]})
                             item_shop_confirm = None
                             save_game()
                             if snd_click: snd_click.play()
@@ -5937,6 +5985,15 @@ def main():
                             elif _mk_voltar_rect.collidepoint(click_pos):
                                 state = "HUB"
                                 if snd_click: snd_click.play()
+
+                    elif state == "REWARD_ROOM":
+                        _rr_sair_rect = pygame.Rect(SCREEN_W // 2 - 110, SCREEN_H - 78, 220, 54)
+                        if _rr_sair_rect.collidepoint(click_pos):
+                            hub_equip_open = False; hub_status_open = False
+                            _drag_item = None; _drag_active = False
+                            save_game()
+                            state = "HUB"
+                            if snd_click: snd_click.play()
 
                     elif state == "SAVES":
                         if saves_back_btn.rect.collidepoint(click_pos):
@@ -6647,8 +6704,65 @@ def main():
             keys = pygame.key.get_pressed()
             market_scene.update(dt, keys, SCREEN_W, SCREEN_H)
 
+        # 3c. Lógica da Sala de Recompensa
+        if state == "REWARD_ROOM" and player is not None:
+            if reward_room_player_pos is None:
+                reward_room_player_pos = pygame.Vector2(SCREEN_W // 2, int(SCREEN_H * 0.65))
+            keys = pygame.key.get_pressed()
+            _rr_mv = pygame.Vector2(0, 0)
+            if not hub_equip_open and not hub_status_open:
+                if keys[pygame.K_w] or keys[pygame.K_UP]:    _rr_mv.y -= 1
+                if keys[pygame.K_s] or keys[pygame.K_DOWN]:  _rr_mv.y += 1
+                if keys[pygame.K_a] or keys[pygame.K_LEFT]:  _rr_mv.x -= 1
+                if keys[pygame.K_d] or keys[pygame.K_RIGHT]: _rr_mv.x += 1
+            _rr_is_moving = _rr_mv.length_squared() > 0
+            if _rr_is_moving:
+                _rr_mv = _rr_mv.normalize() * player.base_speed * dt
+                reward_room_player_pos += _rr_mv
+                _rr_bounds = pygame.Rect(int(SCREEN_W * 0.12), int(SCREEN_H * 0.28),
+                                         int(SCREEN_W * 0.76), int(SCREEN_H * 0.55))
+                reward_room_player_pos.x = max(_rr_bounds.left, min(_rr_bounds.right,  reward_room_player_pos.x))
+                reward_room_player_pos.y = max(_rr_bounds.top,  min(_rr_bounds.bottom, reward_room_player_pos.y))
+                # Atualiza direção de encaramento (igual ao player.update)
+                if _rr_mv.x > 0:
+                    player.facing_right = True;  player._facing_dir = "right"
+                elif _rr_mv.x < 0:
+                    player.facing_right = False; player._facing_dir = "left"
+                elif _rr_mv.y > 0:
+                    player._facing_dir = "down"
+                elif _rr_mv.y < 0:
+                    player._facing_dir = "up"
+                # Animação de caminhada
+                player.anim_timer += dt
+                if player.anim_timer >= player.anim_speed:
+                    player.anim_timer = 0.0
+                    player.frame_idx = (player.frame_idx + 1) % len(player.anim_frames)
+                player.idle_frame_idx = 0; player.idle_anim_timer = 0.0
+            else:
+                # Animação idle
+                player.frame_idx = 0
+                player.idle_anim_timer += dt
+                if player.idle_anim_timer >= player.idle_anim_speed:
+                    player.idle_anim_timer = 0.0
+                    player.idle_frame_idx = (player.idle_frame_idx + 1) % len(player.idle_frames)
+            # Atualiza player.image com a direção e frame corretos
+            if _rr_is_moving:
+                if player._dir_walk_frames:
+                    _rr_dir_f = player._dir_walk_frames.get(player._facing_dir) or next(iter(player._dir_walk_frames.values()))
+                    player.image = _rr_dir_f[player.frame_idx % len(_rr_dir_f)]
+                else:
+                    _rr_fset = player.anim_frames if player.facing_right else player.flipped_frames
+                    player.image = _rr_fset[player.frame_idx % len(_rr_fset)]
+            else:
+                if player._dir_idle_frames:
+                    _rr_dir_f = player._dir_idle_frames.get(player._facing_dir) or next(iter(player._dir_idle_frames.values()))
+                    player.image = _rr_dir_f[player.idle_frame_idx % len(_rr_dir_f)]
+                else:
+                    _rr_fset = player.idle_frames if player.facing_right else player.idle_flipped_frames
+                    player.image = _rr_fset[player.idle_frame_idx % len(_rr_fset)]
+
         # 3. Atualização da Lógica do Jogo
-        if state == "PLAYING" and player and player.hp > 0 and not show_stage_victory:
+        if state == "PLAYING" and player and player.hp > 0 and not show_stage_victory and not show_reward_dialog:
 
             current_xp_to_level = _bal.xp_to_level(level)
 
@@ -7198,6 +7312,8 @@ def main():
                                     drops.add(create_drop(hit.pos + offset, "coin"))
                                 if selected_difficulty == "HARDCORE":
                                     show_stage_victory = True
+                                else:
+                                    show_reward_dialog = True
                                 _check_achievements()
                             elif hit.kind == "mini_boss":
                                 # Mini boss conta como kill de boss e dropa várias moedas
@@ -7398,17 +7514,11 @@ def main():
             _menu_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos)
 
             # ── Botões de links externos (Site Oficial / Steam) ─────────────
-            _site_hov = menu_site_rect.collidepoint(m_pos)
             if _site_btn_surf is not None:
                 screen.blit(_site_btn_surf, menu_site_rect.topleft)
-                if _site_hov:
-                    pygame.draw.rect(screen, (200, 200, 200), menu_site_rect, 1, border_radius=3)
 
-            _steam_hov = menu_steam_rect.collidepoint(m_pos)
             if _steam_btn_surf is not None:
                 screen.blit(_steam_btn_surf, menu_steam_rect.topleft)
-                if _steam_hov:
-                    pygame.draw.rect(screen, (200, 200, 200), menu_steam_rect, 1, border_radius=3)
 
             # Overlay de perfil/conquistas (abre ao clicar no widget)
             if menu_profile_open:
@@ -8404,7 +8514,7 @@ def main():
                 diff_back_btn.check_hover(m_pos, snd_hover)
                 diff_back_btn.draw(screen)
 
-        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None):
+        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None) or state == "REWARD_ROOM":
             # ── Mapa + jogador ─────────────────────────────────────────────
             if state == "HUB":
                 hub_scene.draw(screen)
@@ -8419,7 +8529,7 @@ def main():
                     screen.blit(_f_bg, _f_rect)
                     pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
                     screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
-            else:
+            elif state == "MARKET":
                 market_scene.draw(screen)
 
                 # ── Label "Ferreiro" acima do NPC + hint [F] quando perto ──
@@ -8441,6 +8551,35 @@ def main():
                     screen.blit(_fi_bg, _fi_rect)
                     pygame.draw.rect(screen, (200, 170, 60), _fi_rect, 1, border_radius=4)
                     screen.blit(_fi_surf, _fi_surf.get_rect(center=_fi_rect.center))
+
+            else:
+                # ── SALA DE RECOMPENSA ──────────────────────────────────────
+                if _reward_room_bg is not None:
+                    screen.blit(_reward_room_bg, (0, 0))
+                else:
+                    screen.fill((18, 14, 10))
+                # Desenha jogador com animação direcional
+                if player is not None and reward_room_player_pos is not None:
+                    _rr_img = getattr(player, "image", None)
+                    if _rr_img is not None:
+                        screen.blit(_rr_img, _rr_img.get_rect(center=(int(reward_room_player_pos.x),
+                                                                        int(reward_room_player_pos.y))))
+                # Dica de teclas
+                if not hub_equip_open and not hub_status_open:
+                    _rr_hint = font_s.render("[I] Inventário   [C] Status   [ESC] Sair", True, (220, 200, 140))
+                    _rr_hint_bg = pygame.Surface((_rr_hint.get_width() + 20, _rr_hint.get_height() + 8), pygame.SRCALPHA)
+                    _rr_hint_bg.fill((8, 6, 4, 180))
+                    _rr_hint_rect = _rr_hint_bg.get_rect(centerx=SCREEN_W // 2, top=14)
+                    screen.blit(_rr_hint_bg, _rr_hint_rect)
+                    screen.blit(_rr_hint, _rr_hint.get_rect(center=_rr_hint_rect.center))
+                # Botão "Sair"
+                _rr_sair_rect = pygame.Rect(SCREEN_W // 2 - 110, SCREEN_H - 78, 220, 54)
+                _rr_sair_hov  = _rr_sair_rect.collidepoint(m_pos)
+                _rr_sair_col  = (120, 50, 50) if _rr_sair_hov else (80, 30, 30)
+                pygame.draw.rect(screen, _rr_sair_col, _rr_sair_rect, border_radius=10)
+                pygame.draw.rect(screen, (200, 160, 60), _rr_sair_rect, 2, border_radius=10)
+                _rr_sair_lbl  = font_m.render("SAIR", True, (240, 220, 180))
+                screen.blit(_rr_sair_lbl, _rr_sair_lbl.get_rect(center=_rr_sair_rect.center))
 
             # ── Janela de Inventário / Equipamento (tecla I) ───────────────
             if hub_equip_open:
@@ -9503,6 +9642,28 @@ def main():
                 else:
                     click_txt = font_s.render("CLIQUE EM UMA OPÇÃO PARA APLICAR", True, (255, 220, 120))
                     screen.blit(click_txt, click_txt.get_rect(center=(SCREEN_W//2, box_rect.bottom + 75)))
+
+            if show_reward_dialog:
+                if not hasattr(main, "_rrd_ov"): main._rrd_ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                main._rrd_ov.fill((0, 0, 0, 190))
+                screen.blit(main._rrd_ov, (0, 0))
+                _rrd_w = 460; _rrd_h = 210
+                _rrd_x = SCREEN_W // 2 - _rrd_w // 2; _rrd_y = SCREEN_H // 2 - _rrd_h // 2
+                pygame.draw.rect(screen, (28, 20, 12), (_rrd_x, _rrd_y, _rrd_w, _rrd_h), border_radius=14)
+                pygame.draw.rect(screen, (200, 160, 50), (_rrd_x, _rrd_y, _rrd_w, _rrd_h), 3, border_radius=14)
+                _rrd_title = font_l.render("AGIS DERROTADO!", True, (255, 215, 0))
+                screen.blit(_rrd_title, _rrd_title.get_rect(centerx=SCREEN_W // 2, top=_rrd_y + 18))
+                _rrd_sub = font_s.render("Entrar na Sala de Recompensas?", True, (220, 200, 160))
+                screen.blit(_rrd_sub, _rrd_sub.get_rect(centerx=SCREEN_W // 2, top=_rrd_y + 72))
+                _rrd_sim = pygame.Rect(_rrd_x + 40,  _rrd_y + 140, 160, 48)
+                _rrd_nao = pygame.Rect(_rrd_x + 260, _rrd_y + 140, 160, 48)
+                for _rb, _rl, _rc in [(_rrd_sim, "SIM", (40, 120, 40)), (_rrd_nao, "NÃO", (120, 40, 40))]:
+                    _rhov = _rb.collidepoint(m_pos)
+                    _rfc = tuple(min(255, c + 35) for c in _rc) if _rhov else _rc
+                    pygame.draw.rect(screen, _rfc, _rb, border_radius=8)
+                    pygame.draw.rect(screen, (200, 170, 60), _rb, 2, border_radius=8)
+                    _rls = font_m.render(_rl, True, (240, 230, 200))
+                    screen.blit(_rls, _rls.get_rect(center=_rb.center))
 
             if show_stage_victory:
                 if not hasattr(main, "_svo"): main._svo = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)

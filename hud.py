@@ -651,7 +651,7 @@ def draw_ui(screen, player, state, font_s, font_m, font_l, hud_scale, high_contr
         screen.blit(time_text, time_text.get_rect(center=top_panel.center))
 
         # Aviso do Boss Agis abaixo do painel de kills
-        _agis_spawn_min = 15
+        _agis_spawn_min = 8
         if time_m < _agis_spawn_min:
             _warn_text = f"O BOSS AGIS IRÁ NASCER NO MINUTO {_agis_spawn_min}, SOBREVIVA ATÉ LÁ"
             _warn_pulse = abs(math.sin(game_time * 1.5))

@@ -113,9 +113,9 @@ Appear in both Moon and Volcano biomes, starting at 2 minutes.
 
 | Type | Base HP | Spawn | Description |
 |---|---|---|---|
-| Mini Boss | 6000 | ~10 min | Own health bar, scales with time (+30% × time_scale) |
-| Boss | scalable | every 5 min | Multi-phase, grows stronger each wave |
-| Agis | 10000 | 15 min (summoning seal) | Slow boss, double-orb + 8-orb area magic every 5s (+25% × time_scale) |
+| Mini Boss | 6000 | ~10 s (test) | Own health bar, scales with time (+30% × time_scale) |
+| Boss | scalable | every 2.5 min | Multi-phase, grows stronger each wave |
+| Agis | 10000 | 8 min (summoning seal) | Slow boss, double-orb + 8-orb area magic every 5s (+25% × time_scale) |
 
 **Agis** is summoned through an animated seal (`doom_agis.png`) appearing near the player ~30s before spawn. Has a basic ranged attack (purple double orb) and an area spell firing 8 orbs in all directions. Drops a chest + 15 coins on death.
 
