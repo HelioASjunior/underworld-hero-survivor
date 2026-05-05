@@ -6,17 +6,24 @@ class Projectile(pygame.sprite.Sprite):
 
     A classe foi extraída para o módulo de combate para reduzir acoplamento com
     o arquivo principal. Ela mantém a interface usada no gameplay.
+    
+    Suporta Object Pooling via método _reset() para evitar alocação/GC repetitivo.
     """
 
     def __init__(self, pos, vel, dmg, frames, pierce=0, ricochet=0, screen_size_getter=lambda: (1920, 1080)):
         super().__init__()
+        self._pool = None  # Referência ao pool (preenchida pelo pool)
+        self._reset(pos, vel, dmg, frames, pierce, ricochet, screen_size_getter)
+
+    def _reset(self, pos, vel, dmg, frames, pierce=0, ricochet=0, screen_size_getter=lambda: (1920, 1080)):
+        """Reseta o projétil para ser reutilizado do pool."""
         self.anim_frames = frames
         self.frame_idx = 0
         self.anim_timer = 0.0
         self.image = self.anim_frames[0]
         self.rect = self.image.get_rect()
         self.hitbox = self.rect.inflate(-max(4, self.rect.width // 6), -max(4, self.rect.height // 6))
-        self.pos = pygame.Vector2(pos.x, pos.y)
+        self.pos = pygame.Vector2(pos.x, pos.y) if isinstance(pos, pygame.math.Vector2) else pygame.Vector2(*pos)
         self.vel = vel
         self.dmg = dmg
         self.pierce = pierce
@@ -24,6 +31,8 @@ class Projectile(pygame.sprite.Sprite):
         self.ricochet = ricochet
         self.is_melee = False
         self._screen_size_getter = screen_size_getter
+        self.max_range = None
+        self._spawn_pos = None
 
     def update(self, dt, cam):
         self.pos += self.vel * dt
@@ -37,21 +46,36 @@ class Projectile(pygame.sprite.Sprite):
         self.hitbox.center = self.rect.center
 
         # Suporte a alcance máximo (usado por ataques mid-range como o Guerreiro)
-        if hasattr(self, 'max_range') and hasattr(self, '_spawn_pos'):
+        if self.max_range is not None and self._spawn_pos is not None:
             if (self.pos - self._spawn_pos).length_squared() > self.max_range ** 2:
-                self.kill()
+                self._on_death()
                 return
 
         screen_w, screen_h = self._screen_size_getter()
         if not pygame.Rect(-1000, -1000, screen_w + 2000, screen_h + 2000).collidepoint(self.rect.center):
+            self._on_death()
+
+    def _on_death(self):
+        """Chamado quando o projétil morre. Se estiver em um pool, recicla; senão, mata."""
+        if hasattr(self, '_pool') and self._pool is not None:
+            self._pool.release(self)
+        else:
             self.kill()
 
 
 class MeleeSlash(pygame.sprite.Sprite):
-    """Golpe melee animado que acompanha a posição do jogador."""
+    """Golpe melee animado que acompanha a posição do jogador.
+    
+    Suporta Object Pooling via método _reset() para evitar alocação/GC repetitivo.
+    """
 
     def __init__(self, player, target_dir, dmg, frames):
         super().__init__()
+        self._pool = None  # Referência ao pool (preenchida pelo pool)
+        self._reset(player, target_dir, dmg, frames)
+
+    def _reset(self, player, target_dir, dmg, frames):
+        """Reseta o golpe melee para ser reutilizado do pool."""
         self.anim_frames = frames
         self.frame_idx = 0
         self.anim_timer = 0.0
@@ -74,12 +98,19 @@ class MeleeSlash(pygame.sprite.Sprite):
             self.anim_timer = 0.0
             self.frame_idx += 1
             if self.frame_idx >= len(self.anim_frames):
-                self.kill()
+                self._on_death()
                 return
             self.image = self.anim_frames[self.frame_idx]
 
         self.pos = self.player.pos + (self.target_dir * self.distance)
         self.rect.center = self.pos + cam
+
+    def _on_death(self):
+        """Chamado quando o golpe termina sua animação."""
+        if hasattr(self, '_pool') and self._pool is not None:
+            self._pool.release(self)
+        else:
+            self.kill()
 
 
 def projectile_enemy_collision(projectile, enemy):

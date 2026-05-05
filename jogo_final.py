@@ -20,6 +20,10 @@ from moon_biome import build_moon_ground, MoonDecoManager
 from hub_room import HubScene, MarketScene
 from drops import Drop as ModularDrop
 from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile, EnemyDeathAnim
+from ecs_world import World as ECSWorld
+from ecs_systems import (
+    EnemyAISystem, EnemyCombatSystem, EnemyAnimationSystem, EnemyRenderSystem,
+)
 from upgrades import (
     get_upgrade_description as get_upgrade_description_mod,
     pick_upgrades_with_synergy as pick_upgrades_with_synergy_mod,
@@ -32,6 +36,9 @@ from combat.projectiles import (
 import numpy as np
 from spatial_index import EnemyBatchIndex, ObstacleGridIndex, PERF, _CYTHON_ACTIVE
 from hot_kernels import enemy_separation, NUMBA_ACTIVE
+from projectile_pool import ProjectilePool, MeleeSlashPool, init_pools as init_projectile_pools, projectile_pool, melee_slash_pool
+from ui_scaler import init_ui_scaler, Anchor
+from performance import frame_profiler, profile_section
 
 # =========================================================
 # CONFIGURAÇÕES DE PERSISTÊNCIA -SETTINGS.JSON-
@@ -214,66 +221,88 @@ def _native_resolution():
 _resolution_cache: list[str] | None = None
 
 def _get_available_resolutions() -> list[str]:
-    """Detecta resoluções suportadas pelo monitor via pygame.display.list_modes().
-    Resultado é cacheado — a lista não muda durante a execução."""
+    """Retorna resoluções estáveis para o menu de vídeo.
+    Evita modos exóticos que quebram o layout (ex.: 1128x634)."""
     global _resolution_cache
     if _resolution_cache is not None:
         return _resolution_cache
 
-    modes = pygame.display.list_modes()
     native_w, native_h = _native_resolution()
+    min_w, min_h = 1280, 720
+    if native_w < min_w or native_h < min_h:
+        min_w, min_h = 800, 600
 
-    if not modes or modes == -1:
-        # Monitor reporta suporte a qualquer resolução — monta lista manual
-        candidates = [
-            (1280, 720), (1366, 768), (1600, 900), (1920, 1080),
-            (2560, 1440), (3440, 1440), (3840, 2160),
-        ]
-        modes = [m for m in candidates if m[0] <= native_w and m[1] <= native_h]
+    curated_modes = [
+        (1280, 720), (1280, 800), (1280, 960), (1280, 1024),
+        (1360, 768), (1366, 768), (1440, 900),
+        (1600, 900), (1600, 1200), (1680, 1050),
+        (1920, 1080), (1920, 1200),
+        (2560, 1080), (2560, 1440), (2560, 1600),
+        (3440, 1440), (3840, 2160),
+    ]
 
-    seen: set[str] = set()
-    result: list[str] = []
-    for w, h in modes:
-        # Filtra: mínimo 1280×720, máximo resolução nativa do monitor
-        if w >= 1280 and h >= 720 and w <= native_w and h <= native_h:
-            key = f"{w}x{h}"
-            if key not in seen:
-                seen.add(key)
-                result.append(key)
+    accepted: set[tuple[int, int]] = set()
 
-    # list_modes() vem em ordem decrescente; inverte para crescente
-    result.reverse()
+    for w, h in curated_modes:
+        if min_w <= w <= native_w and min_h <= h <= native_h:
+            accepted.add((w, h))
 
-    # Garante que pelo menos 1280x720 e a nativa estão presentes
-    if "1280x720" not in seen:
-        result.insert(0, "1280x720")
+    try:
+        modes = pygame.display.list_modes()
+        if modes and modes != -1:
+            for w, h in modes:
+                if min_w <= w <= native_w and min_h <= h <= native_h:
+                    accepted.add((w, h))
+    except Exception:
+        pass
+
     native_key = f"{native_w}x{native_h}"
-    if native_key not in seen:
+    result = [f"{w}x{h}" for (w, h) in sorted(accepted, key=lambda m: (m[0] * m[1], m[0], m[1]))]
+
+    if native_key not in result:
         result.append(native_key)
 
+    if "1920x1080" not in result and native_w >= 1920 and native_h >= 1080:
+        result.append("1920x1080")
+
+    if not result:
+        result = [native_key]
+
     _resolution_cache = result
+    print(f"[Resoluções] Nativa: {native_w}x{native_h} | Detectadas: {len(result)} resoluções")
     return result
 
 def apply_settings(settings_dict):
     global SCREEN_W, SCREEN_H, screen, FPS, MUSIC_VOLUME, SFX_VOLUME
 
-    # Resolução: usa a salva ou auto-detecta para "auto"
+    # Resolução: usa a salva, mas sanitiza contra a lista suportada
     raw_res = settings_dict["video"].get("resolution", "auto")
     native_w, native_h = _native_resolution()
-    if raw_res == "auto":
+    fullscreen = settings_dict["video"].get("fullscreen") == "On"
+
+    # Em fullscreen usa sempre a nativa para evitar distorção/corte de UI
+    if fullscreen:
         res_w, res_h = native_w, native_h
     else:
-        try:
-            res_w, res_h = map(int, raw_res.split('x'))
-        except ValueError:
+        available = _get_available_resolutions()
+        if raw_res == "auto":
             res_w, res_h = native_w, native_h
-        # Se a resolução salva não cabe no monitor, usa nativo
-        if res_w > native_w or res_h > native_h:
-            res_w, res_h = native_w, native_h
+        elif raw_res in available:
+            try:
+                res_w, res_h = map(int, raw_res.split('x'))
+            except ValueError:
+                res_w, res_h = native_w, native_h
+        else:
+            # Fallback seguro para resolução inválida salva em arquivo
+            fallback = "1920x1080" if "1920x1080" in available else f"{native_w}x{native_h}"
+            try:
+                res_w, res_h = map(int, fallback.split('x'))
+            except ValueError:
+                res_w, res_h = native_w, native_h
+            settings_dict["video"]["resolution"] = fallback
 
     SCREEN_W, SCREEN_H = res_w, res_h
 
-    fullscreen = settings_dict["video"].get("fullscreen") == "On"
     vsync      = settings_dict["video"].get("vsync")     == "On"
 
     # Monta flags progressivamente com fallback para garantir que o jogo abre
@@ -2355,21 +2384,37 @@ def build_character_dependencies():
     sistema de personagens usa vem daqui, de forma centralizada.
     """
 
+    def _create_projectile(pos, vel, dmg, frames):
+        """Cria projétil usando pool se disponível, senão cria direto"""
+        if projectile_pool is not None:
+            return projectile_pool.spawn(
+                pos, vel, dmg, frames,
+                pierce=PROJ_PIERCE,
+                ricochet=PROJ_RICOCHET,
+                screen_size_getter=lambda: (SCREEN_W, SCREEN_H),
+            )
+        else:
+            return CoreProjectile(
+                pos, vel, dmg, frames,
+                pierce=PROJ_PIERCE,
+                ricochet=PROJ_RICOCHET,
+                screen_size_getter=lambda: (SCREEN_W, SCREEN_H),
+            )
+
+    def _create_melee_slash(player, target_dir, dmg, frames):
+        """Cria golpe melee usando pool se disponível, senão cria direto"""
+        if melee_slash_pool is not None:
+            return melee_slash_pool.spawn(player, target_dir, dmg, frames)
+        else:
+            return CoreMeleeSlash(player, target_dir, dmg, frames)
+
     return CharacterDependencies(
         char_data_map=CHAR_DATA,
         control_reader=is_control_pressed,
         particle_cls=Particle,
         damage_text_cls=DamageText,
-        projectile_cls=lambda pos, vel, dmg, frames: CoreProjectile(
-            pos,
-            vel,
-            dmg,
-            frames,
-            pierce=PROJ_PIERCE,
-            ricochet=PROJ_RICOCHET,
-            screen_size_getter=lambda: (SCREEN_W, SCREEN_H),
-        ),
-        melee_slash_cls=CoreMeleeSlash,
+        projectile_cls=_create_projectile,
+        melee_slash_cls=_create_melee_slash,
         gem_cls=Gem,
         dash_speed=DASH_SPEED,
         dash_duration=DASH_DURATION,
@@ -2554,6 +2599,7 @@ class Gem(pygame.sprite.Sprite):
 # =========================================================
 
 # Referências globais que serão preenchidas em main()
+ecs_world = None
 player = None
 enemies = None
 projectiles = None
@@ -3433,6 +3479,7 @@ def reset_game(char_id=0):
     global doom_seals
     global _spawn_diff, current_hardcore_stage, show_stage_victory, show_reward_dialog
     global death_anims
+    global ecs_world
 
     save_data["stats"]["games_played"] += 1
     
@@ -3518,6 +3565,24 @@ def reset_game(char_id=0):
     enemy_batch_index = EnemyBatchIndex()
     last_obstacle_count = 0
 
+    # Inicializar pools de objetos para otimização
+    try:
+        init_projectile_pools()
+        projectile_pool.set_projectile_class(CoreProjectile)
+        melee_slash_pool.set_melee_class(CoreMeleeSlash)
+        projectile_pool.set_group(projectiles)
+        melee_slash_pool.set_group(projectiles)
+    except Exception as e:
+        print(f"[Projectile Pool] Aviso: Falha ao inicializar pools: {e}")
+
+    # Inicializar mundo ECS
+    ecs_world = ECSWorld()
+    ecs_world.add_system(EnemyAISystem())
+    ecs_world.add_system(EnemyCombatSystem())
+    ecs_world.add_system(EnemyAnimationSystem())
+    ecs_world.add_system(EnemyRenderSystem())
+    ModularEnemy._ecs_world = ecs_world
+
     # Resetar variáveis de estado
     kills = 0
     game_time = 0.0
@@ -3581,6 +3646,7 @@ def clear_current_run_state():
     global player_upgrades, chest_loot, chest_ui_timer, up_options, up_keys, up_rarities
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
     global doom_seals, death_anims
+    global ecs_world
 
     player = None
     enemies = pygame.sprite.Group()
@@ -3597,6 +3663,14 @@ def clear_current_run_state():
     obstacle_grid_index = ObstacleGridIndex(cell_size=WORLD_GRID)
     enemy_batch_index = EnemyBatchIndex()
     last_obstacle_count = 0
+
+    # Inicializar mundo ECS
+    ecs_world = ECSWorld()
+    ecs_world.add_system(EnemyAISystem())
+    ecs_world.add_system(EnemyCombatSystem())
+    ecs_world.add_system(EnemyAnimationSystem())
+    ecs_world.add_system(EnemyRenderSystem())
+    ModularEnemy._ecs_world = ecs_world
 
     kills = 0
     game_time = 0.0
@@ -4874,6 +4948,12 @@ def main():
     pygame.display.set_caption("UnderWorld Hero")
     clock = pygame.time.Clock()
 
+    # Inicializar sistema de UI Scaler para responsividade (opcional, usar quando necessário)
+    try:
+        init_ui_scaler(base_res=(1920, 1080), current_res=(SCREEN_W, SCREEN_H))
+    except Exception as e:
+        print(f"[UI Scaler] Aviso: Falha ao inicializar UI Scaler: {e}")
+
     # Carregador de assets e sons
     loader = AssetLoader()
     snd_hover, snd_click = loader.load_sound("hover", 0.3), loader.load_sound("click", 0.6)
@@ -5184,6 +5264,25 @@ def main():
     _sep_frame = 0          # throttle: separação de inimigos roda em frames alternados
     SEP_DIST  = 52
     SEP_FORCE = 18.0
+
+    # Console in-game (temporário) para comandos de criador.
+    _dev_console_open = False
+    _dev_console_input = ""
+    _dev_console_msg = ""
+    _dev_console_msg_timer = 0.0
+
+    def _is_creator_cheat_enabled() -> bool:
+        # Libera no ambiente local do criador (username do SO) e também por nickname do perfil.
+        _os_user = os.environ.get("USERNAME", "").strip().lower()
+        if _os_user in {"athed"}:
+            return True
+        if profile_mgr is not None and profile_mgr.has_active_profile():
+            _p = profile_mgr.get_active_profile() or {}
+            _nick = str(_p.get("nickname", "")).strip().lower()
+            if "xinoqs" in _nick:
+                return True
+        return False
+
     while running:
         # 1. Delta Time (dt) com clamp e smoothing por média móvel (6 frames)
         PERF.begin_frame()
@@ -5192,6 +5291,9 @@ def main():
         _dt_history[_dt_idx] = dt_clamped
         _dt_idx = (_dt_idx + 1) % 6
         dt = sum(_dt_history) / 6
+
+        if _dev_console_msg_timer > 0.0:
+            _dev_console_msg_timer = max(0.0, _dev_console_msg_timer - dt_raw)
 
         if pause_save_feedback_timer > 0:
             pause_save_feedback_timer = max(0.0, pause_save_feedback_timer - dt_raw)
@@ -5255,6 +5357,70 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F3:
                     debug_overlay_on = not debug_overlay_on
+
+                # Toggle do console com a tecla ' (apóstrofo).
+                if event.key == pygame.K_QUOTE or (event.unicode in ("'", '"')):
+                    _dev_console_open = not _dev_console_open
+                    if _dev_console_open:
+                        _dev_console_input = ""
+                        _dev_console_msg = ""
+                    if snd_click:
+                        snd_click.play()
+                    continue
+
+                # Quando console está aberto, ele consome o teclado.
+                if _dev_console_open:
+                    if event.key == pygame.K_ESCAPE:
+                        _dev_console_open = False
+                        continue
+
+                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                        _cmd = _dev_console_input.strip().lower()
+                        _dev_console_input = ""
+
+                        if _cmd == "":
+                            _dev_console_msg = "Digite um comando."
+                        elif _cmd == "recompensa":
+                            if not _is_creator_cheat_enabled():
+                                _dev_console_msg = "Sem permissao para este comando."
+                            elif state != "PLAYING" or player is None:
+                                _dev_console_msg = "Use durante a run (estado PLAYING)."
+                            else:
+                                show_reward_dialog = False
+                                _reward_room_bg = None
+                                try:
+                                    _rr_path = os.path.join(ASSET_DIR, "Teste", "recompensa", "sala_recompença.png")
+                                    _raw_rr = pygame.image.load(_rr_path).convert_alpha()
+                                    _reward_room_bg = pygame.transform.smoothscale(_raw_rr, (SCREEN_W, SCREEN_H))
+                                except Exception:
+                                    pass
+                                reward_room_player_pos = pygame.Vector2(SCREEN_W // 2, int(SCREEN_H * 0.65))
+                                reward_room_anim_t = 0.0
+                                reward_room_anim_idx = 0
+                                hub_equip_open = False
+                                hub_status_open = False
+                                save_game()
+                                state = "REWARD_ROOM"
+                                push_skill_feed("CONSOLE: Sala de recompensa", (255, 215, 80))
+                                _dev_console_msg = "Teleportado para sala de recompensa."
+                                _dev_console_open = False
+                                if snd_click:
+                                    snd_click.play()
+                        else:
+                            _dev_console_msg = f"Comando desconhecido: {_cmd}"
+
+                        _dev_console_msg_timer = 2.5
+                        continue
+
+                    if event.key == pygame.K_BACKSPACE:
+                        _dev_console_input = _dev_console_input[:-1]
+                        continue
+
+                    _ch = event.unicode or ""
+                    if _ch.isprintable() and _ch not in ("\r", "\n"):
+                        _dev_console_input += _ch
+                        _dev_console_input = _dev_console_input[:48]
+                    continue
 
                 if state == "SETTINGS" and settings_category == "controls" and settings_control_waiting:
                     if event.key == pygame.K_ESCAPE:
@@ -6658,6 +6824,8 @@ def main():
                 menu_exit_timer = max(0.0, menu_exit_timer - dt_raw)
                 if menu_exit_timer <= 0.0:
                     if menu_pending_action == "SETTINGS":
+                        global _resolution_cache
+                        _resolution_cache = None  # Limpa cache para recarregar resoluções
                         state = "SETTINGS"
                         settings_category = "main"
                         temp_settings = json.loads(json.dumps(settings))
@@ -7054,26 +7222,24 @@ def main():
 
                     enemies.add(create_enemy(chosen_enemy, sp, _spawn_diff, time_scale=time_scale, is_elite=is_elite))
 
-            # AI LOD: inimigos distantes (>1200 px) atualizam em frames alternados
+            # ECS batch update — substitui o loop LOD por inimigo
             _lod_dist_sq = 1_440_000  # 1200**2
-            for _lod_e in list(enemies):
-                if (_lod_e.kind in ("boss", "mini_boss", "agis")
-                        or _sep_frame == 0
-                        or (_lod_e.pos - player.pos).length_squared() < _lod_dist_sq):
-                    _lod_e.update(
-                        dt,
-                        player.pos,
-                        cam,
-                        obstacles,
-                        enemy_projectiles,
-                        puddles,
-                        loader,
-                        selected_pact,
-                        ModularEnemyProjectile,
-                        Puddle,
-                        SHOOTER_PROJ_IMAGE,
-                        obstacle_grid_index,
-                    )
+            ecs_world.context.update(
+                p_pos=player.pos,
+                cam=cam,
+                obstacles=obstacles,
+                enemy_projectiles=enemy_projectiles,
+                puddles=puddles,
+                loader=loader,
+                selected_pact=selected_pact,
+                enemy_projectile_cls=ModularEnemyProjectile,
+                puddle_cls=Puddle,
+                shooter_proj_image=SHOOTER_PROJ_IMAGE,
+                obstacle_grid_index=obstacle_grid_index,
+                lod_dist_sq=_lod_dist_sq,
+                sep_frame=_sep_frame,
+            )
+            ecs_world.process(dt)
             for _da in list(death_anims):
                 _da.update(dt, cam)
             # --- Colisão física: empurra inimigos para fora do raio do player ---
@@ -9913,6 +10079,25 @@ def main():
                 _draw_achievement_toast(screen, _achievement_notifs[0][0], font_s, font_m)
 
         # Cursor personalizado — desenhado por último, sempre por cima de tudo
+        if _dev_console_open or _dev_console_msg_timer > 0.0:
+            _dc_h = 54 if _dev_console_open else 34
+            _dc_rect = pygame.Rect(18, SCREEN_H - _dc_h - 18, SCREEN_W - 36, _dc_h)
+            _dc_bg = pygame.Surface((_dc_rect.width, _dc_rect.height), pygame.SRCALPHA)
+            _dc_bg.fill((8, 8, 8, 210))
+            screen.blit(_dc_bg, _dc_rect.topleft)
+            pygame.draw.rect(screen, (160, 140, 90), _dc_rect, 1, border_radius=6)
+
+            if _dev_console_open:
+                _cmd_lbl = font_s.render("Console > " + _dev_console_input, True, (220, 220, 220))
+                screen.blit(_cmd_lbl, (_dc_rect.x + 10, _dc_rect.y + 8))
+                _hint_lbl = font_s.render("Enter=executar  Esc=fechar", True, (140, 130, 110))
+                screen.blit(_hint_lbl, (_dc_rect.x + 10, _dc_rect.y + 28))
+
+            if _dev_console_msg_timer > 0.0 and _dev_console_msg:
+                _msg_lbl = font_s.render(_dev_console_msg, True, (255, 215, 120))
+                _msg_y = _dc_rect.y + (28 if _dev_console_open else 8)
+                screen.blit(_msg_lbl, (_dc_rect.x + 280, _msg_y))
+
         if cursor_img is not None:
             mx, my = pygame.mouse.get_pos()
             screen.blit(cursor_img, (mx, my))
@@ -10053,8 +10238,13 @@ def draw_main_settings(screen, m_pos, font_m):
         btn.draw(screen)
 
 def draw_video_settings(screen, temp_settings, m_pos, font_m, font_s):
+    available_resolutions = _get_available_resolutions()
+    current_res = str(temp_settings["video"].get("resolution", ""))
+    if current_res not in available_resolutions:
+        temp_settings["video"]["resolution"] = "1920x1080" if "1920x1080" in available_resolutions else available_resolutions[-1]
+
     options = [
-        ("Resolução", temp_settings["video"]["resolution"], _get_available_resolutions()),
+        ("Resolução", temp_settings["video"]["resolution"], available_resolutions),
         ("Tela cheia", temp_settings["video"]["fullscreen"], ["Off", "On"]),
         ("VSync", temp_settings["video"]["vsync"], ["Off", "On"]),
         ("Limite de FPS", str(temp_settings["video"]["fps_limit"]), ["30", "60", "120"]),
@@ -10425,6 +10615,10 @@ def handle_video_settings_clicks(m_pos):
             key = data["key"]
             values = data["values"]
             current_value = temp_settings["video"][key]
+            if str(current_value) not in values:
+                # Valor salvo inválido: reposiciona para uma opção segura.
+                current_value = "1920x1080" if (key == "resolution" and "1920x1080" in values) else values[0]
+                temp_settings["video"][key] = current_value
             current_index = values.index(str(current_value))
             new_index = (current_index + 1) % len(values)
             new_value = values[new_index]

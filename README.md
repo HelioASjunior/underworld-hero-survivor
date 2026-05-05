@@ -247,6 +247,9 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 | `balance.py` | Fórmulas de progressão: XP, escala de inimigos, custo de upgrades, drop rates |
 | `characters.py` | Classes de personagem, habilidades e ultimates |
 | `enemies.py` | Inimigos, IA direcional, spritesheets, projéteis inimigos |
+| `ecs_world.py` | Mundo ECS leve: entidades como IDs inteiros, componentes e systems |
+| `ecs_components.py` | Componentes pure-data: Position, Health, AIState, Combat, AnimationState |
+| `ecs_systems.py` | EnemyAISystem, EnemyCombatSystem, EnemyAnimationSystem, EnemyRenderSystem |
 | `hud.py` | HUD in-game, tema visual, notificações de upgrade |
 | `upgrades.py` | Pool de upgrades, sinergia, evoluções |
 | `drops.py` | Gemas, itens e lógica de coleta |
@@ -261,6 +264,7 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 
 ### Decisões técnicas
 
+- **ECS adapter pattern**: inimigos permanecem `pygame.sprite.Sprite`; componentes pure-data são criados em `Enemy.__init__` e registrados no `ECSWorld`. Quatro systems processam todos os inimigos em batch por frame substituindo `Enemy.update()`.
 - **Fila de spawn de hordas**: producer/consumer (6 inimigos/frame) — elimina picos de CPU.
 - **Cache de explosões**: indexado por `(id(raw_frames), size)` — evita reescalonamento repetido.
 - **AssetLoader recursivo**: `os.walk` em `assets/` mapeia stem → path completo; mover arquivos não quebra o código.

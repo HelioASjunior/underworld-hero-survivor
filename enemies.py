@@ -3,6 +3,11 @@ import random
 
 import pygame
 
+from ecs_components import (
+    Position, Health, Velocity, EnemyTag,
+    AIState, Combat, AnimationState,
+)
+
 # Vetor zero reutilizável — evita alocação por inimigo por frame no branch ranged
 _VEC2_ZERO = pygame.Vector2(0, 0)
 
@@ -291,22 +296,148 @@ class EnemyDeathAnim(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    """Classe de inimigo modularizada com suporte a IA aprimorada."""
+    """Sprite de inimigo — armazena dados de sprite e referências a componentes ECS.
+
+    Todo o comportamento (movimento, IA, combate, animação) é processado em batch
+    pelos sistemas ECS registrados em ecs_world (EnemyAISystem, EnemyCombatSystem,
+    EnemyAnimationSystem, EnemyRenderSystem). O método update() é um stub vazio.
+    """
+
+    # Referência ao mundo ECS ativo — definida em jogo_final.py no início de cada run.
+    _ecs_world = None
+
+    # ── Propriedades para acesso externo retrocompatível ─────────────────────
+    # Scalars: delegam ao componente correto.
+
+    @property
+    def hp(self) -> float:
+        return self._health_comp.hp
+
+    @hp.setter
+    def hp(self, v: float) -> None:
+        self._health_comp.hp = v
+
+    @property
+    def max_hp(self) -> float:
+        return self._health_comp.max_hp
+
+    @max_hp.setter
+    def max_hp(self, v: float) -> None:
+        self._health_comp.max_hp = v
+
+    @property
+    def speed(self) -> float:
+        return self._vel_comp.speed
+
+    @speed.setter
+    def speed(self, v: float) -> None:
+        self._vel_comp.speed = v
+
+    @property
+    def frozen_timer(self) -> float:
+        return self._ai_comp.frozen_timer
+
+    @frozen_timer.setter
+    def frozen_timer(self, v: float) -> None:
+        self._ai_comp.frozen_timer = v
+
+    @property
+    def flash_timer(self) -> float:
+        return self._ai_comp.flash_timer
+
+    @flash_timer.setter
+    def flash_timer(self, v: float) -> None:
+        self._ai_comp.flash_timer = v
+
+    # AnimationState scalars — accessed by helper methods and indirectly by systems.
+
+    @property
+    def facing_right(self) -> bool:
+        return self._anim_comp.facing_right
+
+    @facing_right.setter
+    def facing_right(self, v: bool) -> None:
+        self._anim_comp.facing_right = v
+
+    @property
+    def facing_dir(self) -> str:
+        return self._anim_comp.facing_dir
+
+    @facing_dir.setter
+    def facing_dir(self, v: str) -> None:
+        self._anim_comp.facing_dir = v
+
+    @property
+    def frame_idx(self) -> int:
+        return self._anim_comp.frame_idx
+
+    @frame_idx.setter
+    def frame_idx(self, v: int) -> None:
+        self._anim_comp.frame_idx = v
+
+    @property
+    def anim_timer(self) -> float:
+        return self._anim_comp.anim_timer
+
+    @anim_timer.setter
+    def anim_timer(self, v: float) -> None:
+        self._anim_comp.anim_timer = v
+
+    # Combat flags — written by ECS systems, read/reset by jogo_final.py.
+
+    @property
+    def pending_melee_hit(self) -> bool:
+        return self._combat_comp.pending_melee_hit
+
+    @pending_melee_hit.setter
+    def pending_melee_hit(self, v: bool) -> None:
+        self._combat_comp.pending_melee_hit = v
+
+    @property
+    def melee_dmg(self) -> float:
+        return self._combat_comp.melee_dmg
+
+    @property
+    def pending_agis_shot(self) -> bool:
+        return self._combat_comp.pending_agis_shot
+
+    @pending_agis_shot.setter
+    def pending_agis_shot(self, v: bool) -> None:
+        self._combat_comp.pending_agis_shot = v
+
+    @property
+    def pending_agis_area(self) -> bool:
+        return self._combat_comp.pending_agis_area
+
+    @pending_agis_area.setter
+    def pending_agis_area(self, v: bool) -> None:
+        self._combat_comp.pending_agis_area = v
+
+    # ── Constructor ───────────────────────────────────────────────────────────
 
     def __init__(self, kind, pos, loader, diff_mults, screen_size_getter,
                  time_scale=1.0, boss_tier=1, is_elite=False, boss_max_hp=500):
         super().__init__()
-        self.kind       = kind
-        self.is_elite   = is_elite
+
+        # ── Cria stubs de componentes ANTES de qualquer property setter ──────
+        self._health_comp = Health()
+        self._vel_comp    = Velocity()
+        self._ai_comp     = AIState()
+        self._combat_comp = Combat()
+        self._anim_comp   = AnimationState()
+        self._ecs_id      = -1
+
+        # ── Identidade (atributos diretos — imutáveis após construção) ───────
+        self.kind               = kind
+        self.is_elite           = is_elite
         self.screen_size_getter = screen_size_getter
 
-        self.knockback    = pygame.Vector2(0, 0)
-        self.flash_timer  = 0.0
-        self.frozen_timer = 0.0
+        # Vector2 compartilhados: self.X e componente.X são o MESMO objeto.
+        self.knockback     = self._ai_comp.knockback         # Vector2(0,0)
+        self.agis_shot_dir = self._combat_comp.agis_shot_dir # Vector2(1,0)
 
-        # --- Animação direcional (novos inimigos) ---
+        # ── Dados de sprite direcional ────────────────────────────────────────
         self.use_directional    = False
-        self.facing_dir         = "down"
         self._dir_walk_frames   = {}
         self._dir_white_frames  = {}
         self._dir_frozen_frames = {}
@@ -314,67 +445,38 @@ class Enemy(pygame.sprite.Sprite):
         self._morte_frames      = {}
         self._atk_frames_flat         = []
         self._atk_frames_flat_flipped = []
-        self._atk_active      = False
-        self._atk_frame_idx   = 0
-        self._atk_timer       = 0.0
-        self._atk_frame_speed = 0.10
-        self._atk_range       = 0
-        self._atk_overlay     = False   # True = sobreposição; False = substitui walk
+        self._atk_range   = 0
+        self._atk_overlay = False   # True = overlay; False = substitui walk
 
-        # --- Drop extra (mini_boss) ---
+        # ── Drop metadata ─────────────────────────────────────────────────────
         self.gold_drops = 0
 
-        # --- Melee (mini_boss) ---
-        self.melee_range       = 0
-        self.melee_timer       = 0.0
-        self.pending_melee_hit = False
-        self.melee_dmg         = 0.0
+        # ── Ajuste do charge_timer por tipo (AIState default = 3.5–5.0 s) ────
+        if kind == "slime_fire":
+            self._ai_comp.charge_timer = random.uniform(2.5, 4.5)
+        elif kind == "slime_yellow":
+            self._ai_comp.charge_timer = random.uniform(1.8, 3.2)
+        elif kind == "ghost":
+            self._ai_comp.charge_timer = random.uniform(3.0, 5.0)
 
-        # ================================================================
-        # IA aprimorada — atributos por tipo
-        # ================================================================
-        # Bat: zigzag sinusoidal
-        self._bat_phase = random.uniform(0, math.pi * 2)
-
-        # Orc: flanqueamento periódico
-        self._flank_timer    = random.uniform(1.5, 3.5)
-        self._flank_angle    = 0.0
-        self._flank_active   = False
-        self._flank_active_t = 0.0
-
-        # Mini_boss: fase de carga + fase de raiva
-        self._charge_cooldown = random.uniform(3.5, 5.0)
-        self._charge_timer    = self._charge_cooldown
-        self._charging        = False
-        self._charge_active_t = 0.0
-
-        # ================================================================
-        # Carrega sprites
-        # ================================================================
+        # ── Carrega sprites ───────────────────────────────────────────────────
         cfg = SPRITESHEET_CONFIGS.get(kind)
         if cfg:
             self._init_spritesheet_enemy(kind, loader, cfg)
         else:
             self._init_legacy_enemy(kind, loader, boss_max_hp)
 
-        # --- Timers de animação / projéteis ---
-        self.frame_idx    = 0
-        self.anim_timer   = 0.0
-        self.facing_right = True
-        self.shot_timer   = 0.0
-        self.shot_cooldown = self._resolve_shot_cooldown(kind)
-        self.puddle_timer = 0.0
-        self.path_recalc_timer      = 0.0
-        self.cached_path_start_cell = None
-        self.cached_path_goal_cell  = None
-        self.cached_path_dir        = None
+        self._combat_comp.shot_cooldown = self._resolve_shot_cooldown(kind)
 
         self.image = self.anim_frames[0]
         self.rect  = self.image.get_rect()
-        self.pos   = pos
 
-        # --- Stats base ---
-        # HP aumentado ~2x para manter equilíbrio com bônus de itens equipados
+        # Posição: Position.vec é o MESMO Vector2 que self.pos — sem cópia.
+        _spawn        = pos if isinstance(pos, pygame.Vector2) else pygame.Vector2(pos)
+        self._pos_comp = Position(vec=pygame.Vector2(_spawn.x, _spawn.y))
+        self.pos       = self._pos_comp.vec
+
+        # ── Stats base ────────────────────────────────────────────────────────
         stats = {
             "runner":     (50,    150),
             "tank":       (260,    65),
@@ -398,22 +500,24 @@ class Enemy(pygame.sprite.Sprite):
         base_hp, base_spd = stats.get(kind, (2, 100))
 
         if kind == "boss":
-            self.hp = base_hp * diff_mults["hp_mult"] * time_scale * boss_tier
+            _hp = base_hp * diff_mults["hp_mult"] * time_scale * boss_tier
         elif kind == "mini_boss":
-            self.hp = base_hp * diff_mults["hp_mult"] * (1.0 + time_scale * 0.3)
+            _hp = base_hp * diff_mults["hp_mult"] * (1.0 + time_scale * 0.3)
         elif kind == "agis":
-            self.hp = base_hp * diff_mults["hp_mult"] * (1.0 + time_scale * 0.25)
+            _hp = base_hp * diff_mults["hp_mult"] * (1.0 + time_scale * 0.25)
         else:
-            self.hp = base_hp * diff_mults["hp_mult"] * time_scale
+            _hp = base_hp * diff_mults["hp_mult"] * time_scale
 
         if kind == "agis":
-            # Agis é lento — speed quase não escala com o tempo
-            self.speed = base_spd * diff_mults["spd_mult"] * min(1.1, time_scale)
+            _spd = base_spd * diff_mults["spd_mult"] * min(1.1, time_scale)
         else:
-            self.speed = base_spd * diff_mults["spd_mult"] * min(1.5, time_scale)
-        self.max_hp = self.hp
+            _spd = base_spd * diff_mults["spd_mult"] * min(1.5, time_scale)
 
-        # Dano corpo-a-corpo por tipo (escala com dificuldade)
+        self._health_comp.hp     = _hp
+        self._health_comp.max_hp = _hp
+        self._vel_comp.speed     = _spd
+
+        # ── Stats de combate ──────────────────────────────────────────────────
         _dmg_m = diff_mults.get("dmg_mult", 1.0)
         _base_melee = {
             "runner":     8.0,
@@ -432,24 +536,22 @@ class Enemy(pygame.sprite.Sprite):
             "slime_yellow": 14.0,
             "ghost":        15.0,
         }
-        self.melee_dmg = _base_melee.get(kind, 8.0) * _dmg_m
+        self._combat_comp.melee_dmg = _base_melee.get(kind, 8.0) * _dmg_m
         if kind == "mini_boss":
-            self.melee_range = 155
+            self._combat_comp.melee_range = 155
 
-        # Dano de projétil para shooter / boss (escala com dificuldade)
-        self.proj_dmg = 1.0
+        self._combat_comp.proj_dmg = 1.0
         if kind == "shooter":
-            self.proj_dmg = 15.0 * _dmg_m
+            self._combat_comp.proj_dmg = 15.0 * _dmg_m
         elif kind == "boss":
-            self.proj_dmg = 10.0 * _dmg_m
+            self._combat_comp.proj_dmg = 10.0 * _dmg_m
 
-        # Agis — ataque a distância + magia em área (projéteis criados em jogo_final.py)
         if kind == "agis":
-            self.agis_shot_timer   = 0.0
-            self.agis_shot_dir     = pygame.Vector2(1, 0)
-            self.pending_agis_shot = False
-            self.agis_area_timer   = 3.0   # começa com 3 s para não disparar na hora
-            self.pending_agis_area = False
+            self._combat_comp.agis_area_timer = 3.0  # não dispara imediatamente
+
+        # ── Registra no mundo ECS ─────────────────────────────────────────────
+        if Enemy._ecs_world is not None:
+            Enemy._ecs_world.register_enemy(self)
 
     # ------------------------------------------------------------------
     # Inicialização interna
@@ -588,35 +690,17 @@ class Enemy(pygame.sprite.Sprite):
         if self._dir_atk_frames:
             frames = self._dir_atk_frames.get(self.facing_dir, [])
             if frames:
-                return frames[self._atk_frame_idx % len(frames)]
+                return frames[self._anim_comp.atk_frame_idx % len(frames)]
         if self._atk_frames_flat:
             pool = self._atk_frames_flat if self.facing_right else self._atk_frames_flat_flipped
-            return pool[self._atk_frame_idx % len(pool)]
+            return pool[self._anim_comp.atk_frame_idx % len(pool)]
         return None
-
-    def _advance_atk_anim(self, dt):
-        if not self._atk_active:
-            return False
-        self._atk_timer += dt
-        if self._atk_timer >= self._atk_frame_speed:
-            self._atk_timer = 0.0
-            self._atk_frame_idx += 1
-            max_f = self._count_atk_frames()
-            if self._atk_frame_idx >= max_f:
-                self._atk_active    = False
-                self._atk_frame_idx = 0
-        return self._atk_active
 
     def _count_atk_frames(self):
         if self._dir_atk_frames:
             frames = self._dir_atk_frames.get(self.facing_dir, [])
             return len(frames) if frames else 1
         return len(self._atk_frames_flat) if self._atk_frames_flat else 1
-
-    def _trigger_atk_anim(self):
-        self._atk_active    = True
-        self._atk_frame_idx = 0
-        self._atk_timer     = 0.0
 
     def get_morte_frames(self):
         """Retorna os frames de morte para a direção atual, ou None se indisponível."""
@@ -643,360 +727,13 @@ class Enemy(pygame.sprite.Sprite):
                 self.facing_dir = "down"  if direction.y >= 0 else "up"
 
     # ------------------------------------------------------------------
-    # Update principal
+    # Update principal — lógica movida para ECS systems
     # ------------------------------------------------------------------
 
-    def update(self, dt, p_pos, cam, obstacles, enemy_projectiles, puddles,
-               loader, selected_pact, enemy_projectile_cls, puddle_cls,
-               shooter_proj_image, obstacle_grid_index=None):
+    def update(self, dt=None, *args, **kwargs):
+        pass
 
-        self.pos      += self.knockback
-        self.knockback *= 0.85
-        if self.path_recalc_timer > 0:
-            self.path_recalc_timer -= dt
-        if self.flash_timer > 0:
-            self.flash_timer -= dt
-
-        # --- Congelado ---
-        if self.frozen_timer > 0:
-            self.frozen_timer -= dt
-            self.image = self._get_frozen_frame()
-            self.rect.center = self.pos + cam
-            return
-
-        direction = p_pos - self.pos
-        dist      = direction.length()
-
-        # Atualiza facing sempre (resolve ataque na direção errada)
-        self._update_facing(direction, dist)
-
-        can_move = self.knockback.length() < 3.0
-
-        if dist > 0 and can_move:
-            is_ranged  = self.kind in ["shooter"]
-            stop_dist  = 450
-
-            if is_ranged and dist < stop_dist:
-                move = _VEC2_ZERO
-            else:
-                move_speed = self.speed
-                if selected_pact == "VELOCIDADE":
-                    move_speed *= 1.5
-
-                # Boss enraivecido em baixo HP
-                if self.kind == "boss":
-                    if   self.hp < self.max_hp * 0.25: move_speed *= 2.0
-                    elif self.hp < self.max_hp * 0.50: move_speed *= 1.5
-
-                move_dir = direction / dist  # direção normalizada
-
-                # ============================================================
-                # IA aprimorada por tipo
-                # ============================================================
-
-                # BAT — zigzag sinusoidal perpendicular ao alvo
-                if self.kind == "bat":
-                    self._bat_phase += dt * 3.5
-                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
-                    amplitude = 0.75 if dist > 200 else 0.35
-                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
-                    if move_dir.length_squared() > 0:
-                        move_dir = move_dir.normalize()
-
-                # GOBLIN — zigzag rápido e agressivo, perseguição frenética
-                elif self.kind == "goblin":
-                    self._bat_phase += dt * 4.5
-                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
-                    amplitude = 0.55 if dist > 150 else 0.22
-                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
-                    if move_dir.length_squared() > 0:
-                        move_dir = move_dir.normalize()
-
-                # BEHOLDER — flutuação suave e oscilação lenta ao redor do alvo
-                elif self.kind == "beholder":
-                    self._bat_phase += dt * 1.8
-                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
-                    amplitude = 0.40 if dist > 180 else 0.15
-                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
-                    if move_dir.length_squared() > 0:
-                        move_dir = move_dir.normalize()
-
-                # RAT — perseguição direta com pequeno zigzag nervoso
-                elif self.kind == "rat":
-                    self._bat_phase += dt * 3.0
-                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
-                    amplitude = 0.30 if dist > 200 else 0.12
-                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
-                    if move_dir.length_squared() > 0:
-                        move_dir = move_dir.normalize()
-
-                # ORC — flanqueamento periódico
-                elif self.kind == "orc":
-                    self._flank_timer -= dt
-                    if self._flank_timer <= 0:
-                        self._flank_timer    = random.uniform(2.0, 4.5)
-                        self._flank_angle    = random.choice([-55, -40, 40, 55])
-                        self._flank_active   = True
-                        self._flank_active_t = random.uniform(0.5, 0.9)
-                    if self._flank_active:
-                        self._flank_active_t -= dt
-                        if self._flank_active_t <= 0:
-                            self._flank_active = False
-                        else:
-                            move_dir = pygame.Vector2(
-                                move_dir.x * math.cos(math.radians(self._flank_angle))
-                                - move_dir.y * math.sin(math.radians(self._flank_angle)),
-                                move_dir.x * math.sin(math.radians(self._flank_angle))
-                                + move_dir.y * math.cos(math.radians(self._flank_angle)),
-                            )
-
-                # MINI_BOSS — fases de carga
-                elif self.kind == "mini_boss":
-                    self._charge_timer -= dt
-                    if self._charge_timer <= 0 and not self._charging:
-                        self._charge_timer    = random.uniform(3.5, 5.5)
-                        self._charging        = True
-                        self._charge_active_t = 0.8
-                    if self._charging:
-                        self._charge_active_t -= dt
-                        if self._charge_active_t <= 0:
-                            self._charging = False
-                        else:
-                            # Carga: velocidade triplicada em direção direta ao alvo
-                            move_speed *= 3.5
-                            # Dispara ataque visual na carga
-                            if not self._atk_active:
-                                self._trigger_atk_anim()
-
-                # SLIME FIRE — arrancada de fogo: periodicamente triplica velocidade
-                elif self.kind == "slime_fire":
-                    self._charge_timer -= dt
-                    if self._charge_timer <= 0 and not self._charging:
-                        self._charge_timer    = random.uniform(2.5, 4.5)
-                        self._charging        = True
-                        self._charge_active_t = random.uniform(0.35, 0.55)
-                    if self._charging:
-                        self._charge_active_t -= dt
-                        if self._charge_active_t <= 0:
-                            self._charging = False
-                        else:
-                            move_speed *= 2.8
-                            if not self._atk_active:
-                                self._trigger_atk_anim()
-
-                # SLIME YELLOW — arrancada rápida e breve
-                elif self.kind == "slime_yellow":
-                    self._charge_timer -= dt
-                    if self._charge_timer <= 0 and not self._charging:
-                        self._charge_timer    = random.uniform(1.8, 3.2)
-                        self._charging        = True
-                        self._charge_active_t = random.uniform(0.25, 0.40)
-                    if self._charging:
-                        self._charge_active_t -= dt
-                        if self._charge_active_t <= 0:
-                            self._charging = False
-                        else:
-                            move_speed *= 3.0
-                            if not self._atk_active:
-                                self._trigger_atk_anim()
-
-                # GHOST — flutuação senoidal lenta com arrancada fantasmal periódica
-                elif self.kind == "ghost":
-                    self._bat_phase += dt * 2.2
-                    perp = pygame.Vector2(-move_dir.y, move_dir.x)
-                    amplitude = 0.50 if dist > 160 else 0.20
-                    move_dir  = move_dir + perp * math.sin(self._bat_phase) * amplitude
-                    if move_dir.length_squared() > 0:
-                        move_dir = move_dir.normalize()
-                    self._charge_timer -= dt
-                    if self._charge_timer <= 0 and not self._charging:
-                        self._charge_timer    = random.uniform(3.0, 5.0)
-                        self._charging        = True
-                        self._charge_active_t = random.uniform(0.30, 0.50)
-                    if self._charging:
-                        self._charge_active_t -= dt
-                        if self._charge_active_t <= 0:
-                            self._charging = False
-                        else:
-                            move_speed *= 2.5
-                            if not self._atk_active:
-                                self._trigger_atk_anim()
-
-                # AGIS — avanço lento com arrancada ocasional
-                elif self.kind == "agis":
-                    self._charge_timer -= dt
-                    if self._charge_timer <= 0 and not self._charging:
-                        self._charge_timer    = random.uniform(5.0, 8.0)
-                        self._charging        = True
-                        self._charge_active_t = 0.6
-                    if self._charging:
-                        self._charge_active_t -= dt
-                        if self._charge_active_t <= 0:
-                            self._charging = False
-                        else:
-                            move_speed *= 2.5
-                            if not self._atk_active:
-                                self._trigger_atk_anim()
-
-                # Pathfinding para inimigos menores
-                can_pathfind = (
-                    obstacle_grid_index is not None
-                    and self.kind not in ["boss", "mini_boss", "shooter"]
-                )
-                if can_pathfind:
-                    cs   = obstacle_grid_index.cell_size
-                    sc   = (int(self.pos.x) // cs, int(self.pos.y) // cs)
-                    gc   = (int(p_pos.x)    // cs, int(p_pos.y)    // cs)
-                    ok   = (
-                        self.cached_path_dir is not None
-                        and self.cached_path_start_cell == sc
-                        and self.cached_path_goal_cell  == gc
-                    )
-                    if ok and self.path_recalc_timer > 0:
-                        move_dir = pygame.Vector2(self.cached_path_dir[0], self.cached_path_dir[1])
-                    elif self.path_recalc_timer <= 0:
-                        pd = obstacle_grid_index.next_direction(self.pos, p_pos)
-                        self.cached_path_start_cell = sc
-                        self.cached_path_goal_cell  = gc
-                        self.cached_path_dir        = pd
-                        self.path_recalc_timer      = 0.28
-                        if pd is not None:
-                            move_dir = pygame.Vector2(pd[0], pd[1])
-
-                _msc = move_speed * dt
-                move_dir.x *= _msc
-                move_dir.y *= _msc
-                move = move_dir
-
-            if move.x != 0 or move.y != 0:
-                self.pos += move
-                if self.kind not in ["boss", "mini_boss"]:
-                    if obstacle_grid_index is not None:
-                        if obstacle_grid_index.point_collides(self.pos):
-                            self.pos -= move
-                    else:
-                        for obs in obstacles:
-                            if obs.hitbox.collidepoint(self.pos):
-                                self.pos -= move
-
-            anim_spd = 0.15 if self.kind in ["boss", "mini_boss", "agis"] else 0.10
-            self.anim_timer += dt
-            if self.anim_timer > anim_spd:
-                self.anim_timer = 0
-                walk_len = len(
-                    self._dir_walk_frames.get(self.facing_dir, self.anim_frames)
-                    if self.use_directional else self.anim_frames
-                )
-                self.frame_idx = (self.frame_idx + 1) % walk_len
-
-        # ================================================================
-        # Disparo para shooter / boss   (mini_boss e minotauro são MELEE)
-        # ================================================================
-        if self.kind in ["shooter", "boss"]:
-            self.shot_timer += dt
-            cd = self.shot_cooldown
-            if self.kind == "boss":
-                if   self.hp < self.max_hp * 0.25: cd *= 0.4
-                elif self.hp < self.max_hp * 0.50: cd *= 0.7
-
-            if self.shot_timer >= cd:
-                self.shot_timer = 0.0
-                if self.kind == "boss":
-                    num = 8
-                    if   self.hp < self.max_hp * 0.25: num = 16
-                    elif self.hp < self.max_hp * 0.50: num = 12
-                    for i in range(num):
-                        angle = (360 / num) * i
-                        vel   = pygame.Vector2(1, 0).rotate(angle) * 350.0
-                        enemy_projectiles.add(
-                            enemy_projectile_cls(self.pos, vel, self.proj_dmg, loader, shooter_proj_image))
-                else:
-                    rl  = 500 if self.kind == "shooter" else 450
-                    sp  = 300.0 if self.kind == "shooter" else 150.0
-                    if 0 < dist < rl:
-                        vel = (direction / dist) * sp
-                        enemy_projectiles.add(
-                            enemy_projectile_cls(self.pos, vel, self.proj_dmg, loader, shooter_proj_image))
-
-        # ================================================================
-        # Melee do mini_boss
-        # ================================================================
-        if self.kind == "mini_boss":
-            self.melee_timer += dt
-            melee_cd = 1.0 if self.hp >= self.max_hp * 0.5 else 0.65
-            if self.melee_timer >= melee_cd:
-                if dist <= self.melee_range:
-                    self.melee_timer       = 0.0
-                    self.pending_melee_hit = True
-                    if not self._atk_active:
-                        self._trigger_atk_anim()
-
-        # ================================================================
-        # Agis — disparo de projétil a longa distância
-        # ================================================================
-        if self.kind == "agis":
-            # Ataque básico — projétil direto ao jogador
-            self.agis_shot_timer += dt
-            shot_cd = 2.2 if self.hp >= self.max_hp * 0.5 else 1.4
-            if self.agis_shot_timer >= shot_cd and 0 < dist <= 600:
-                self.agis_shot_timer   = 0.0
-                self.agis_shot_dir     = direction / dist
-                self.pending_agis_shot = True
-
-            # Magia em área — orbes em todas as direções a cada 5 s
-            self.agis_area_timer += dt
-            if self.agis_area_timer >= 5.0:
-                self.agis_area_timer   = 0.0
-                self.pending_agis_area = True
-
-        # BAT / GOBLIN / BEHOLDER / RAT / SLIME_FIRE / SLIME_RED / SLIME_YELLOW — dispara animação de ataque por proximidade
-        if self.kind in ("bat", "goblin", "beholder", "rat", "slime_fire", "slime_red", "slime_yellow") and self._atk_range > 0 and not self._atk_active:
-            if dist < self._atk_range:
-                self._trigger_atk_anim()
-
-        # Slime — deixa poças
-        if self.kind == "slime":
-            self.puddle_timer += dt
-            if self.puddle_timer >= 2.5:
-                self.puddle_timer = 0.0
-                puddles.add(puddle_cls(self.pos, loader))
-
-        # --- Avança animação de ataque ---
-        self._advance_atk_anim(dt)
-
-        # --- Seleciona frame final ---
-        if self._atk_active and self._atk_overlay:
-            # Modo overlay: personagem sempre visível; efeito de ataque desenhado por cima
-            walk_frame = (self._get_white_frame() if self.flash_timer > 0
-                          else self._get_walk_frame())
-            af = self._get_atk_frame()
-            if af:
-                w_size = walk_frame.get_size()
-                composite = pygame.Surface(w_size, pygame.SRCALPHA)
-                composite.blit(walk_frame, (0, 0))
-                # Centraliza o efeito de ataque sobre o personagem
-                ox = (w_size[0] - af.get_width())  // 2
-                oy = (w_size[1] - af.get_height()) // 2
-                composite.blit(af, (ox, oy))
-                self.image = composite
-            else:
-                self.image = walk_frame
-        elif self._atk_active:
-            af = self._get_atk_frame()
-            self.image = af if af else self._get_walk_frame()
-        elif self.flash_timer > 0:
-            self.image = self._get_white_frame()
-        else:
-            self.image = self._get_walk_frame()
-
-        # Aura de elite — Surface cacheada por tamanho para não alocar a cada frame
-        if self.is_elite:
-            sz = self.image.get_size()
-            if getattr(self, "_elite_aura_size", None) != sz:
-                self._elite_aura_size = sz
-                self._elite_aura = pygame.Surface(sz, pygame.SRCALPHA)
-                pygame.draw.ellipse(self._elite_aura, (255, 215, 0, 100), self._elite_aura.get_rect(), 3)
-            self.image = self.image.copy()
-            self.image.blit(self._elite_aura, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-
-        self.rect.center = self.pos + cam
+    def kill(self):
+        if Enemy._ecs_world is not None and self._ecs_id >= 0:
+            Enemy._ecs_world.delete_entity(self._ecs_id)
+        super().kill()
