@@ -1,15 +1,15 @@
 {
     "video": {
-        "resolution": "1920x1080",
+        "resolution": "1280x720",
         "fullscreen": "On",
-        "vsync": "On",
+        "vsync": "Off",
         "fps_limit": 120,
-        "show_fps": "Off"
+        "show_fps": "On"
     },
     "audio": {
         "music": 70,
         "sfx": 80,
-        "mute": "Off"
+        "mute": "On"
     },
     "controls": {
         "up": "w",
