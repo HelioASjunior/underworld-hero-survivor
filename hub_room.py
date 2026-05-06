@@ -630,10 +630,15 @@ INTERIOR_2_TABLE_RECTS: list[pygame.Rect] = [
 INTERIOR_1_CHEST_POS    = pygame.Vector2(1024, 896)  # ponto de interação do baú em px
 CHEST_INTERACT_RADIUS   = 150                         # raio de interação em px
 
-# Ferreiro NPC no Mercado — Trader_magic (stall3), tiles (8-10,-2→0), origin=(-16,-16)
-# Centro do sprite 3×3: world x=(8+10+1)*64/2=608, y=(14+16+1)*64/2=992
-FERREIRO_NPC_POS         = pygame.Vector2(608, 992)
+# Ferreiro NPC no Mercado — Trader_weapon (stall direito), tiles (20-21,14-15), origin=(-16,-16)
+# Centro do sprite 2×2: world x=(20+1)*64=1344, y=(14+1)*64=960
+FERREIRO_NPC_POS         = pygame.Vector2(1344, 960)
 FERREIRO_INTERACT_RADIUS = 200
+
+# Loja de Itens NPC no Mercado — Trader_magic (stall3 esquerdo), origin=(-16,-16)
+# Centro do sprite 3×3: world x=608, y=992
+LOJA_NPC_POS         = pygame.Vector2(608, 992)
+LOJA_INTERACT_RADIUS = 200
 
 
 _ZONES: dict[str, list[dict]] = {
@@ -941,6 +946,19 @@ class MarketScene:
         return pygame.Vector2(
             FERREIRO_NPC_POS.x + self._cam.x,
             FERREIRO_NPC_POS.y + self._cam.y,
+        )
+
+    @property
+    def player_near_loja(self) -> bool:
+        if self._player is None:
+            return False
+        return self._player.pos.distance_to(LOJA_NPC_POS) <= LOJA_INTERACT_RADIUS
+
+    @property
+    def loja_screen_pos(self) -> pygame.Vector2:
+        return pygame.Vector2(
+            LOJA_NPC_POS.x + self._cam.x,
+            LOJA_NPC_POS.y + self._cam.y,
         )
 
     def update(self, dt: float, keys, screen_w: int, screen_h: int):
