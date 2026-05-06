@@ -8014,33 +8014,6 @@ def main():
                 offset_y = int(80 * slide_ratio - 110 * exit_progress)
                 b.draw(screen, offset_y=offset_y)
 
-            selected_btn = hovered_menu_btn or menu_btns[0]
-            pv_title, pv_desc = menu_preview_map.get(selected_btn.text, ("Modo", "Selecione uma opcao."))
-            preview_rect = pygame.Rect(int(SCREEN_W * 0.55), int(SCREEN_H * 0.56), int(SCREEN_W * 0.38), 210)
-            draw_dark_panel(screen, preview_rect, alpha=170, border_color=UI_THEME["faded_gold"])
-            screen.blit(font_m.render(pv_title, True, UI_THEME["old_gold"]), (preview_rect.x + 20, preview_rect.y + 18))
-
-            words = pv_desc.split(" ")
-            lines = []
-            current = []
-            max_w = preview_rect.width - 40
-            for w in words:
-                candidate = " ".join(current + [w]).strip()
-                if font_s.render(candidate, True, UI_THEME["mist"]).get_width() <= max_w:
-                    current.append(w)
-                else:
-                    if current:
-                        lines.append(" ".join(current))
-                    current = [w]
-            if current:
-                lines.append(" ".join(current))
-
-            for i, line in enumerate(lines[:3]):
-                screen.blit(font_s.render(line, True, UI_THEME["mist"]), (preview_rect.x + 20, preview_rect.y + 66 + i * 28))
-
-            hint = load_body_font(16, bold=True).render("Dica: ENTER inicia quando estiver na selecao.", True, UI_THEME["faded_gold"])
-            screen.blit(hint, (preview_rect.x + 20, preview_rect.bottom - 34))
-
             _menu_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos)
 
             # ── Botões de links externos (Site Oficial / Steam) ─────────────
