@@ -3866,6 +3866,101 @@ def load_menu_icon_surface(loader, kind, size=(20, 20)):
 
 
 # =========================================================
+# SPLASH SCREEN (aviso1.png → intro.mp4)
+# =========================================================
+
+def show_splash_screen(screen):
+    """Exibe aviso1.png por alguns segundos (com fade), depois reproduz intro.mp4."""
+    sw, sh = screen.get_size()
+    clock  = pygame.time.Clock()
+    splash_dir = os.path.join(BASE_DIR, "assets", "ui", "splashscreen")
+
+    def _fade_to_black(duration=0.6):
+        fade = pygame.Surface((sw, sh))
+        fade.fill((0, 0, 0))
+        t = 0.0
+        while t < duration:
+            dt = clock.tick(60) / 1000.0
+            t += dt
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    pygame.quit(); raise SystemExit
+            fade.set_alpha(int(255 * min(1.0, t / duration)))
+            screen.blit(fade, (0, 0))
+            pygame.display.flip()
+
+    # ── Fase 1: aviso1.png ────────────────────────────────────────────────
+    aviso_path = os.path.join(splash_dir, "aviso1.png")
+    if os.path.exists(aviso_path):
+        try:
+            raw_aviso = pygame.image.load(aviso_path).convert()
+            aviso_surf = pygame.transform.smoothscale(raw_aviso, (sw, sh))
+        except Exception:
+            aviso_surf = None
+
+        if aviso_surf:
+            HOLD   = 3.0   # segundos visível
+            FADE_I = 0.6   # fade in
+            FADE_O = 0.8   # fade out
+            timer  = 0.0
+            total  = FADE_I + HOLD + FADE_O
+            skip   = False
+
+            fade_surf = pygame.Surface((sw, sh))
+            fade_surf.fill((0, 0, 0))
+
+            while timer < total and not skip:
+                dt = clock.tick(60) / 1000.0
+                timer += dt
+                for ev in pygame.event.get():
+                    if ev.type == pygame.QUIT:
+                        pygame.quit(); raise SystemExit
+                    if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+                        skip = True
+
+                screen.blit(aviso_surf, (0, 0))
+
+                # fade in
+                if timer < FADE_I:
+                    alpha = int(255 * (1.0 - timer / FADE_I))
+                    fade_surf.set_alpha(alpha)
+                    screen.blit(fade_surf, (0, 0))
+                # hold: nada
+                # fade out
+                elif timer > FADE_I + HOLD:
+                    alpha = int(255 * min(1.0, (timer - FADE_I - HOLD) / FADE_O))
+                    fade_surf.set_alpha(alpha)
+                    screen.blit(fade_surf, (0, 0))
+
+                pygame.display.flip()
+
+    # ── Fase 2: intro.mp4 ─────────────────────────────────────────────────
+    video_path = os.path.join(splash_dir, "intro.mp4")
+    if os.path.exists(video_path):
+        try:
+            from pyvidplayer2 import Video
+            vid = Video(video_path, no_audio=False)
+            vid.resize((sw, sh))
+            screen.fill((0, 0, 0))
+            skip = False
+            while vid.active and not skip:
+                for ev in pygame.event.get():
+                    if ev.type == pygame.QUIT:
+                        vid.close(); pygame.quit(); raise SystemExit
+                    if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+                        skip = True
+                vid.draw(screen, (0, 0), force_draw=True)
+                pygame.display.flip()
+                clock.tick(60)
+            vid.close()
+        except Exception:
+            pass  # falha silenciosa: segue para o loading
+
+    # Fade final para preto antes do loading
+    _fade_to_black(0.5)
+
+
+# =========================================================
 # TELA DE CARREGAMENTO
 # =========================================================
 
@@ -5011,6 +5106,7 @@ def main():
         load_all_assets()
         init_menu_particles()
 
+    show_splash_screen(screen)
     show_loading_screen(screen, _load_everything)
 
     # Criar todos os botões da interface
