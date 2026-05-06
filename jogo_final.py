@@ -3887,15 +3887,16 @@ def show_loading_screen(screen, load_fn):
 
     # --- Fontes ---
     font_title = dark_hud.load_title_font(52, bold=True, asset_dir=ASSET_DIR)
+    font_bar   = dark_hud.load_number_font(22, bold=True, asset_dir=ASSET_DIR)  # texto dentro da barra
     font_label = dark_hud.load_number_font(28, bold=True, asset_dir=ASSET_DIR)
     font_tip   = dark_hud.load_body_font(20, asset_dir=ASSET_DIR)
 
     # --- Dimensões da barra ---
     bar_w  = int(sw * 0.50)
-    bar_h  = 26
+    bar_h  = 36                # altura aumentada para caber o texto "Carregando"
     bar_x  = (sw - bar_w) // 2
-    bar_y  = int(sh * 0.80)
-    corner = 3
+    bar_y  = int(sh * 0.84)   # abaixo da palavra HERO no loading.png
+    corner = 4
 
     # --- Thread ---
     _done  = [False]
@@ -3942,8 +3943,8 @@ def show_loading_screen(screen, load_fn):
     _puddles = []   # (cx, cy, rx, ry) para ellipses de poça
 
     # --- Textos ---
-    title_surf = font_title.render("Carregando", True, (190, 12, 12))
-    title_rect = title_surf.get_rect(center=(sw // 2, int(sh * 0.70)))
+    title_surf = font_bar.render("Carregando", True, (255, 210, 0))
+    title_rect = title_surf.get_rect(center=(sw // 2, bar_y + bar_h // 2))
 
     tip_texts = [
         "Explore o mundo e enfrente hordas de inimigos.",
@@ -4068,16 +4069,11 @@ def show_loading_screen(screen, load_fn):
         title_surf.set_alpha(int(255 * _hbeat))
         screen.blit(title_surf, title_rect)
 
-        # Pontos animados em vermelho
-        _dots_surf = font_title.render("." * dot_count, True, (175, 10, 10))
-        _dots_rect = _dots_surf.get_rect(midleft=(title_rect.right + 4, title_rect.centery))
+        # Pontos animados — dentro da barra, à direita de "Carregando"
+        _dots_surf = font_bar.render("." * dot_count, True, (220, 180, 0))
+        _dots_rect = _dots_surf.get_rect(midleft=(title_rect.right + 2, title_rect.centery))
         _dots_surf.set_alpha(int(255 * _hbeat))
         screen.blit(_dots_surf, _dots_rect)
-
-        # Percentual
-        _pct_surf = font_label.render(f"{int(fake_prog * 100)}%", True, (175, 12, 12))
-        _pct_rect = _pct_surf.get_rect(center=(sw // 2, bar_y - 32))
-        screen.blit(_pct_surf, _pct_rect)
 
         # Dica
         screen.blit(tip_surf, tip_rect)
