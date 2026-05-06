@@ -23,17 +23,19 @@ class BalanceConfig:
     XP_EXP_A: float = 9.0 # coeficiente da componente exponencial
     XP_EXP_E: float = 1.18 # expoente (use _pow_f() internamente)
 
-    GEM_XP_BASE: int = 10  # XP por gema coletada (base, sem modificadores)
+    GEM_XP_BASE: int = 20  # XP por gema coletada — dobrado (menos gemas, mais XP cada)
 
     # ── Escala de inimigos por tempo ─────────────────────────────────────────
-    SCALE_PER_MIN: float = 0.26  # +26 % de HP/DMG por minuto de jogo
+    # Run agora é 5 min: +30% HP/DMG por minuto → scale(300s) ≈ 2.5
+    SCALE_PER_MIN: float = 0.30  # +30% de HP/DMG por minuto de jogo
     SCALE_MIN: float     = 1.0   # mínimo (nunca enfraquece)
-    SCALE_MAX: float     = 9.0   # teto para não tornar o fim impraticável
+    SCALE_MAX: float     = 5.0   # teto ajustado para 5 min
 
     # ── Spawn ────────────────────────────────────────────────────────────────
-    SPAWN_BASE:  float = 0.20    # intervalo inicial entre spawns (s)
-    SPAWN_MIN:   float = 0.10    # intervalo mínimo (pico do caos)
-    SPAWN_DECAY: float = 500.0   # divisor: spawn_t = BASE - game_time/DECAY
+    # Menos monstros na tela: intervalo maior (metade do ritmo antigo)
+    SPAWN_BASE:  float = 0.45    # intervalo inicial entre spawns (s)
+    SPAWN_MIN:   float = 0.22    # intervalo mínimo (pico do caos)
+    SPAWN_DECAY: float = 300.0   # atinge mínimo em ~69 s de jogo
 
     # ── Upgrades permanentes (loja do Hub) ───────────────────────────────────
     UPGRADE_COST_BASE:  int   = 300   # custo do nível 1

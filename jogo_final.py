@@ -741,10 +741,10 @@ TALENT_TREE = {
 }
 
 DIFFICULTIES = {
-    "FÁCIL":    {"hp_mult": 0.9, "spd_mult": 0.85, "dmg_mult": 0.7,  "gold_mult": 0.8, "color": (100, 255, 100), "desc": "Para relaxar. Inimigos fracos.", "id": "DIFF_FÁCIL"},
-    "MÉDIO":    {"hp_mult": 1.4, "spd_mult": 1.05, "dmg_mult": 1.3,  "gold_mult": 1.0, "color": (255, 255, 100), "desc": "A experiência padrão.", "id": "DIFF_MÉDIO"},
-    "DIFÍCIL":  {"hp_mult": 2.2, "spd_mult": 1.2,  "dmg_mult": 1.8,  "gold_mult": 1.4, "color": (255, 150, 50), "desc": "Novos Monstros! +40% Ouro.", "id": "DIFF_DIFÍCIL"},
-    "HARDCORE": {"hp_mult": 5.5, "spd_mult": 1.65, "dmg_mult": 4.0,  "gold_mult": 2.0, "color": (255, 50, 50),   "desc": "Pesadelo. +100% Ouro.", "id": "DIFF_HARDCORE"}
+    "FÁCIL":    {"hp_mult": 1.3,  "spd_mult": 0.88, "dmg_mult": 1.0,  "gold_mult": 0.8, "color": (100, 255, 100), "desc": "Para relaxar. Inimigos fracos.", "id": "DIFF_FÁCIL"},
+    "MÉDIO":    {"hp_mult": 2.0,  "spd_mult": 1.08, "dmg_mult": 1.6,  "gold_mult": 1.0, "color": (255, 255, 100), "desc": "A experiência padrão.", "id": "DIFF_MÉDIO"},
+    "DIFÍCIL":  {"hp_mult": 3.2,  "spd_mult": 1.25, "dmg_mult": 2.4,  "gold_mult": 1.4, "color": (255, 150, 50), "desc": "Novos Monstros! +40% Ouro.", "id": "DIFF_DIFÍCIL"},
+    "HARDCORE": {"hp_mult": 7.5,  "spd_mult": 1.70, "dmg_mult": 5.5,  "gold_mult": 2.0, "color": (255, 50, 50),   "desc": "Pesadelo. +100% Ouro.", "id": "DIFF_HARDCORE"}
 }
 
 # Atributos Modificáveis (Base)
@@ -778,10 +778,10 @@ ULTIMATE_MAX_CHARGE = 25
 
 # Configuração de Drops e Boss
 DROP_CHANCE = 0.025
-BOSS_SPAWN_TIME = 150.0  # 2.5 Minutos para cada boss (partida de 8 min)
-BOSS_MAX_HP = 6250
-MINI_BOSS_SPAWN_TIME = 10.0  # TESTE: mini boss aparece logo no início
-AGIS_SPAWN_TIME = 480.0       # Agis nasce no minuto 8
+BOSS_SPAWN_TIME = 90.0   # 1.5 Minutos por boss (partida de 5 min — 2 bosses em 90s e 180s)
+BOSS_MAX_HP = 7500       # Bosses mais fortes para compensar a run mais curta
+MINI_BOSS_SPAWN_TIME = 10.0  # Mini boss aparece logo no início
+AGIS_SPAWN_TIME = 300.0  # Agis nasce no minuto 5
 SHOOTER_PROJ_IMAGE = "enemy_arrow" 
 
 # Dados dos Personagens - MENU DE ANIME FRAMES - QUANTIDADE DE IMAGENS
@@ -1088,7 +1088,7 @@ CHAR_DATA = {
 WORLD_GRID = 64
 BG_COLOR = (14, 14, 18)
 PLAYER_IFRAMES = 1.0
-GEM_XP = 10
+GEM_XP = 20  # dobrado: menos gemas caem, cada uma vale mais
 XP_TO_LEVEL_BASE = 100   
 SHOT_RANGE = 600.0
 SPAWN_EVERY_BASE = 0.2
@@ -2246,9 +2246,15 @@ class Particle(pygame.sprite.Sprite):
 class DamageText(pygame.sprite.Sprite):
     def __init__(self, pos, amount, is_crit=False, color=(255, 255, 255)):
         super().__init__()
-        size = 36 if is_crit else 22
+        size = 26 if is_crit else 16
         final_color = (255, 215, 0) if is_crit else color
-        text_content = f"{amount}!" if is_crit else str(amount)
+        if isinstance(amount, float):
+            _fmt = f"{amount:.2f}".rstrip('0').rstrip('.')
+        elif isinstance(amount, int):
+            _fmt = str(amount)
+        else:
+            _fmt = str(amount)
+        text_content = f"{_fmt}!" if is_crit else _fmt
 
         font = load_number_font(size, bold=True)
         self.image = font.render(text_content, True, final_color)
@@ -5194,7 +5200,7 @@ def main():
     ]
     for i, btn in enumerate(pause_save_btns):
         btn.sprite_idx = i + 1
-    game_over_btn = Button(0.5, 0.78, BTN_W, BTN_H, "VOLTAR AO MENU PRINCIPAL", font_m, color=(80, 30, 30))
+    game_over_btn = Button(0.5, 0.78, BTN_W, BTN_H, "SAIR", font_m, color=(80, 30, 30))
     game_over_btn.sprite_idx = 6
 
     # ── Sistema de Perfis ─────────────────────────────────────────────────
@@ -6702,9 +6708,30 @@ def main():
                     elif state == "GAME_OVER":
                         if game_over_btn.rect.collidepoint(click_pos):
                             if snd_click: snd_click.play()
-                            clear_current_run_state()
+                            save_data["gold"] = save_data.get("gold", 0) + int(run_gold_collected)
                             run_gold_collected = 0.0
-                            state = "MENU"
+                            if profile_mgr and profile_mgr.has_active_profile():
+                                _xp_rate = PROFILE_XP_RATES.get(selected_difficulty, 10)
+                                _xp_earned = int(game_time / 60 * _xp_rate)
+                                if _xp_earned > 0:
+                                    _ap = profile_mgr.get_active_profile()
+                                    profile_mgr.update_xp(_ap["id"], _xp_earned)
+                            _saved_cid = player.char_id if player else hub_last_char_id
+                            clear_current_run_state()
+                            hub_last_char_id = _saved_cid
+                            reset_game(_saved_cid)
+                            if player is not None and hub_scene is not None:
+                                _cdata_go = CHAR_DATA.get(_saved_cid, {})
+                                hub_scene.apply_char_frames(
+                                    dir_walk      = dict(player._dir_walk_frames),
+                                    dir_idle      = dict(player._dir_idle_frames),
+                                    walk_fallback = list(player.anim_frames),
+                                    idle_fallback = list(player.idle_frames),
+                                    anim_spd      = _cdata_go.get("anim_speed", 0.10),
+                                    idle_anim_spd = _cdata_go.get("idle_anim_speed", 0.13),
+                                )
+                            save_game()
+                            state = "HUB"
 
                     elif state == "UPGRADE":
                         for i, rect in enumerate(up_options):
@@ -7351,7 +7378,20 @@ def main():
                         e.hp -= tick_dmg
                         if e.hp <= 0:
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
-                            gems.add(Gem(e.pos, loader)); e.kill(); kills += 1
+                            if random.random() < 0.50: gems.add(Gem(e.pos, loader))
+                            if e.kind == "agis":
+                                if selected_difficulty == "HARDCORE":
+                                    show_stage_victory = True
+                                else:
+                                    show_reward_dialog = True
+                                session_boss_kills += 1
+                                save_data["stats"]["boss_kills"] += 1
+                                update_mission_progress("boss", 1)
+                            elif e.kind in ("boss", "mini_boss"):
+                                session_boss_kills += 1
+                                save_data["stats"]["boss_kills"] += 1
+                                update_mission_progress("boss", 1)
+                            e.kill(); kills += 1
 
             spawn_t += dt
 
@@ -7538,7 +7578,7 @@ def main():
                                     spawn_weights[_gi] += 6
 
                     chosen_enemy = random.choices(spawn_list, weights=spawn_weights, k=1)[0]
-                    elite_chance = min(0.15, 0.03 + (game_time / 480.0) * 0.05)
+                    elite_chance = min(0.15, 0.03 + (game_time / AGIS_SPAWN_TIME) * 0.12)
                     is_elite     = random.random() < elite_chance
 
                     enemies.add(create_enemy(chosen_enemy, sp, _spawn_diff, time_scale=time_scale, is_elite=is_elite))
@@ -7689,7 +7729,7 @@ def main():
                         
                         hit.hp -= dmg_dealt
                         if LIFESTEAL_PCT > 0 and player:
-                            player.hp = min(PLAYER_MAX_HP, player.hp + dmg_dealt * LIFESTEAL_PCT)
+                            player.hp = min(PLAYER_MAX_HP, player.hp + dmg_dealt * LIFESTEAL_PCT * 0.50)
                         p.hit_enemies.add(hit)
                         play_sfx("hit") 
 
@@ -7778,7 +7818,8 @@ def main():
                             _morte_frames = hit.get_morte_frames() if hasattr(hit, "get_morte_frames") else None
                             if _morte_frames:
                                 death_anims.add(EnemyDeathAnim(hit.pos, _morte_frames))
-                            gems.add(Gem(hit.pos, loader)); hit.kill(); kills += 1
+                            if random.random() < 0.50: gems.add(Gem(hit.pos, loader))
+                            hit.kill(); kills += 1
                             save_data["stats"]["total_kills"] += 1
                             update_mission_progress("kills", 1)
                             # Verifica conquistas forte a cada 100 abates
@@ -9524,36 +9565,41 @@ def main():
                                     _craft_img_cache[_cf_bkey] = None
                             _cf_bimg = _craft_img_cache.get(_cf_bkey)
 
-                        _cf_ico_r = pygame.Rect(_cf_rx, _cf_ry2, _cf_BIG + 4, _cf_BIG + 4)
+                        # Ícone centrado no topo da coluna direita
+                        _cf_ico_cx = _cf_rx + _cf_rw // 2
+                        _cf_ico_r  = pygame.Rect(0, 0, _cf_BIG + 4, _cf_BIG + 4)
+                        _cf_ico_r.centerx = _cf_ico_cx; _cf_ico_r.top = _cf_ry2
                         pygame.draw.rect(screen, (40, 32, 12), _cf_ico_r, border_radius=6)
                         pygame.draw.rect(screen, (200, 160, 50), _cf_ico_r, 1, border_radius=6)
                         if _cf_bimg:
                             screen.blit(_cf_bimg, _cf_bimg.get_rect(center=_cf_ico_r.center))
+                        _cf_ry2 = _cf_ico_r.bottom + 5
 
-                        _cf_tx  = min(_cf_rx + _cf_BIG + 10, _cf_PX + _cf_PW - 4)
-                        _cf_ty  = _cf_ry2
-                        _cf_tw  = max(0, _cf_PX + _cf_PW - 6 - _cf_tx)
-                        _cf_nm_s = font_s.render(_cf_nm2[:20], True, (255, 220, 80))
-                        screen.blit(_cf_nm_s, (_cf_tx, _cf_ty)); _cf_ty += _cf_nm_s.get_height() + 3
-                        if _cf_ak2:
-                            _cf_a_s = font_s.render(f"ATQ +{_cf_ak2}", True, (255, 160, 60))
-                            screen.blit(_cf_a_s, (_cf_tx, _cf_ty)); _cf_ty += 17
-                        if _cf_df2:
-                            _cf_d_s = font_s.render(f"DEF +{_cf_df2}", True, (80, 180, 240))
-                            screen.blit(_cf_d_s, (_cf_tx, _cf_ty)); _cf_ty += 17
-                        _cf_lv_s2 = font_s.render(f"Nv. {_cf_lv2}", True, (160, 130, 80))
-                        screen.blit(_cf_lv_s2, (_cf_tx, _cf_ty)); _cf_ty += 17
-                        _cf_sb_s2 = font_s.render("Vinculada", True, (200, 80, 200))
-                        screen.blit(_cf_sb_s2, (_cf_tx, _cf_ty))
+                        # Nome — centralizado, truncado para caber na largura
+                        _cf_max_chars = max(8, (_cf_rw - 8) // max(1, font_s.size("A")[0]))
+                        _cf_nm_s = font_s.render(_cf_nm2[:_cf_max_chars], True, (255, 220, 80))
+                        screen.blit(_cf_nm_s, _cf_nm_s.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
+                        _cf_ry2 += _cf_nm_s.get_height() + 3
 
-                        _cf_ry2 += _cf_BIG + 12
+                        # Stats em linhas independentes, centralizados
+                        for _cf_stat_txt, _cf_stat_col in [
+                            (f"ATQ +{_cf_ak2}", (255, 160, 60)) if _cf_ak2 else None,
+                            (f"DEF +{_cf_df2}", (80, 180, 240)) if _cf_df2 else None,
+                            (f"Nv. {_cf_lv2}",  (160, 130, 80)),
+                            ("Vinculada",        (200, 80, 200)),
+                        ]:
+                            if _cf_stat_txt is None: continue
+                            _cf_ss = font_s.render(_cf_stat_txt, True, _cf_stat_col)
+                            screen.blit(_cf_ss, _cf_ss.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
+                            _cf_ry2 += _cf_ss.get_height() + 2
+
                         pygame.draw.line(screen, (100, 70, 25),
                                          (_cf_rx, _cf_ry2), (_cf_PX + _cf_PW - 8, _cf_ry2), 1)
                         _cf_ry2 += 8
 
                         # Label ingredientes
                         _cf_ing_l = font_s.render("Ingredientes:", True, (160, 140, 80))
-                        screen.blit(_cf_ing_l, (_cf_rx, _cf_ry2))
+                        screen.blit(_cf_ing_l, _cf_ing_l.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
                         _cf_ry2 += _cf_ing_l.get_height() + 5
 
                         # 3 slots de ingredientes
