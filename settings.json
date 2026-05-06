@@ -7,8 +7,8 @@
         "show_fps": "On"
     },
     "audio": {
-        "music": 70,
-        "sfx": 80,
+        "music": 14,
+        "sfx": 15,
         "mute": "On"
     },
     "controls": {

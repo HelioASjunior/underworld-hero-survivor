@@ -8874,11 +8874,11 @@ def main():
             elif state == "MARKET":
                 market_scene.draw(screen)
 
-                # ── Label "Ferreiro" acima do NPC + hint [F] quando perto ──
+                # ── Label "LOJA DE ITENS" acima do NPC + hint [F] quando perto ──
                 _ferr_sp  = market_scene.ferreiro_screen_pos
                 _ferr_now = pygame.time.get_ticks()
                 _ferr_bob = math.sin(_ferr_now / 400.0) * 4
-                _fn_surf  = font_s.render("Ferreiro", True, (255, 220, 50))
+                _fn_surf  = font_s.render("LOJA DE ITENS", True, (255, 220, 50))
                 _fn_bg    = pygame.Surface((_fn_surf.get_width() + 12, _fn_surf.get_height() + 6), pygame.SRCALPHA)
                 _fn_bg.fill((10, 8, 6, 160))
                 _fn_rect  = _fn_bg.get_rect(centerx=int(_ferr_sp.x), bottom=int(_ferr_sp.y - 72 + _ferr_bob))

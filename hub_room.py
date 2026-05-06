@@ -630,9 +630,9 @@ INTERIOR_2_TABLE_RECTS: list[pygame.Rect] = [
 INTERIOR_1_CHEST_POS    = pygame.Vector2(1024, 896)  # ponto de interação do baú em px
 CHEST_INTERACT_RADIUS   = 150                         # raio de interação em px
 
-# Ferreiro NPC no Mercado — Trader_weapon, tiles (4,-2)→(5,-1), origin=(-16,-16)
-# Centro do sprite 2×2: world x=(4+1-(-16))*64=1344, y=(-2+1-(-16))*64=960
-FERREIRO_NPC_POS         = pygame.Vector2(1344, 960)
+# Ferreiro NPC no Mercado — Trader_magic (stall3), tiles (8-10,-2→0), origin=(-16,-16)
+# Centro do sprite 3×3: world x=(8+10+1)*64/2=608, y=(14+16+1)*64/2=992
+FERREIRO_NPC_POS         = pygame.Vector2(608, 992)
 FERREIRO_INTERACT_RADIUS = 200
 
 
