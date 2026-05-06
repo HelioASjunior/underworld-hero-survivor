@@ -3870,7 +3870,7 @@ def load_menu_icon_surface(loader, kind, size=(20, 20)):
 # =========================================================
 
 def show_splash_screen(screen):
-    """Exibe aviso1.png por alguns segundos (com fade), depois reproduz intro.mp4."""
+    """Exibe aviso1.png, save.png (com fade), depois reproduz intro.mp4."""
     sw, sh = screen.get_size()
     clock  = pygame.time.Clock()
     splash_dir = os.path.join(BASE_DIR, "assets", "ui", "splashscreen")
@@ -3934,7 +3934,49 @@ def show_splash_screen(screen):
 
                 pygame.display.flip()
 
-    # ── Fase 2: intro.mp4 ─────────────────────────────────────────────────
+    # ── Fase 2: save.png ──────────────────────────────────────────────────
+    save_path = os.path.join(splash_dir, "save.png")
+    if os.path.exists(save_path):
+        try:
+            raw_save = pygame.image.load(save_path).convert()
+            save_surf = pygame.transform.smoothscale(raw_save, (sw, sh))
+        except Exception:
+            save_surf = None
+
+        if save_surf:
+            HOLD   = 3.0
+            FADE_I = 0.6
+            FADE_O = 0.8
+            timer  = 0.0
+            total  = FADE_I + HOLD + FADE_O
+            skip   = False
+
+            fade_surf2 = pygame.Surface((sw, sh))
+            fade_surf2.fill((0, 0, 0))
+
+            while timer < total and not skip:
+                dt = clock.tick(60) / 1000.0
+                timer += dt
+                for ev in pygame.event.get():
+                    if ev.type == pygame.QUIT:
+                        pygame.quit(); raise SystemExit
+                    if ev.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+                        skip = True
+
+                screen.blit(save_surf, (0, 0))
+
+                if timer < FADE_I:
+                    alpha = int(255 * (1.0 - timer / FADE_I))
+                    fade_surf2.set_alpha(alpha)
+                    screen.blit(fade_surf2, (0, 0))
+                elif timer > FADE_I + HOLD:
+                    alpha = int(255 * min(1.0, (timer - FADE_I - HOLD) / FADE_O))
+                    fade_surf2.set_alpha(alpha)
+                    screen.blit(fade_surf2, (0, 0))
+
+                pygame.display.flip()
+
+    # ── Fase 3: intro.mp4 ─────────────────────────────────────────────────
     video_path = os.path.join(splash_dir, "intro.mp4")
     if os.path.exists(video_path):
         try:
@@ -5322,6 +5364,7 @@ def main():
     up_options = []
     run_gold_collected = 0.0
     autosave_timer = 0.0
+    autosave_feedback_timer = 0.0
     pause_save_feedback_timer = 0.0
     current_xp_to_level = XP_TO_LEVEL_BASE
     
@@ -5422,6 +5465,8 @@ def main():
 
         if pause_save_feedback_timer > 0:
             pause_save_feedback_timer = max(0.0, pause_save_feedback_timer - dt_raw)
+        if autosave_feedback_timer > 0:
+            autosave_feedback_timer = max(0.0, autosave_feedback_timer - dt_raw)
         
         # Atualiza posição do mouse
         m_pos = pygame.mouse.get_pos()
@@ -5912,6 +5957,7 @@ def main():
                                                           selected_difficulty, current_hardcore_stage)
                             _mining_system.spawn_ores()
                             save_game()
+                            autosave_feedback_timer = 2.5
                             state = "REWARD_ROOM"
                             if snd_click: snd_click.play()
                         elif _rrd_nao.collidepoint(click_pos):
@@ -7390,6 +7436,7 @@ def main():
             if autosave_timer >= 15.0:
                 save_run_slot(0)
                 autosave_timer = 0.0
+                autosave_feedback_timer = 2.5
                 # Atualiza tempo de jogo no perfil ativo a cada 15s
                 if profile_mgr and profile_mgr.has_active_profile():
                     profile_mgr.update_playtime(15.0)
@@ -10917,6 +10964,15 @@ def main():
             _hub_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos, align_right=False)
         else:
             _hub_profile_widget_rect = None
+
+        # ── Indicador de autosave ─────────────────────────────────────────
+        if autosave_feedback_timer > 0 and state in ("PLAYING", "PAUSED", "UPGRADE", "CHEST_UI", "REWARD_ROOM"):
+            _as_alpha = min(255, int(255 * min(1.0, autosave_feedback_timer / 0.5)))
+            _as_txt = font_s.render("JOGO SALVO", True, (120, 255, 120))
+            _as_txt.set_alpha(_as_alpha)
+            _as_x = SCREEN_W - _as_txt.get_width() - 14
+            _as_y = SCREEN_H - _as_txt.get_height() - 14
+            screen.blit(_as_txt, (_as_x, _as_y))
 
         # ── Toast de conquista desbloqueada ───────────────────────────────
         if _achievement_notifs:
