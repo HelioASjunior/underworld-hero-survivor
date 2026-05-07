@@ -5,6 +5,7 @@ import os
 import json
 import threading
 import webbrowser
+import collections
 from datetime import datetime, timedelta
 from pool import ParticlePool
 import balance as _bal
@@ -776,6 +777,26 @@ DASH_DURATION = 0.2
 DASH_COOLDOWN = 2.5
 ULTIMATE_MAX_CHARGE = 25 
 
+# ── Modificadores de Run (V4) ─────────────────────────────────────────────────
+RUN_MODIFIERS_POOL = [
+    {"id": "fury",      "name": "Fúria Crescente",   "desc": "Inimigos +3% vel. a cada 30s",          "color": (255, 90, 60)},
+    {"id": "gold_rush", "name": "Corrida do Ouro",    "desc": "Ouro x2, inimigos +20% HP",             "color": (255, 210, 40)},
+    {"id": "blessed",   "name": "Aura Sagrada",       "desc": "+25% XP, inimigos +15% dano",           "color": (80, 220, 120)},
+    {"id": "fog",       "name": "Névoa Espessa",      "desc": "Visibilidade reduzida",                  "color": (120, 130, 210)},
+    {"id": "lunar",     "name": "Ciclo Lunar",        "desc": "Boss surge a cada 60s (em vez de 90s)", "color": (100, 180, 255)},
+    {"id": "proj_rain", "name": "Chuva de Projéteis", "desc": "Todos inimigos disparam projéteis",     "color": (200, 80, 255)},
+]
+
+# ── V4 Pool de Modificadores de Run ──────────────────────────────────────────
+RUN_MODIFIERS_POOL = [
+    {"id": "lunar",     "name": "Ciclo Lunar",       "desc": "Boss aparece a cada 60s em vez de 90s",     "color": (180, 100, 255)},
+    {"id": "gold_rush", "name": "Chuva de Ouro",     "desc": "Todo ouro coletado vale o dobro",           "color": (255, 215, 0)},
+    {"id": "blessed",   "name": "Bênção dos Deuses", "desc": "+25% XP ganho em inimigos",                 "color": (80, 200, 255)},
+    {"id": "fog",       "name": "Névoa Espessa",     "desc": "Visibilidade reduzida a 420px",             "color": (160, 160, 200)},
+    {"id": "proj_rain", "name": "Chuva de Projéteis","desc": "Todos os inimigos ganham disparos extras",  "color": (255, 80, 80)},
+    {"id": "fury",      "name": "Fúria Crescente",   "desc": "Inimigos +5% de velocidade a cada 30s",    "color": (255, 130, 30)},
+]
+
 # Configuração de Drops e Boss
 DROP_CHANCE = 0.025
 BOSS_SPAWN_TIME = 90.0   # 1.5 Minutos por boss (partida de 5 min — 2 bosses em 90s e 180s)
@@ -788,7 +809,7 @@ SHOOTER_PROJ_IMAGE = "enemy_arrow"
 CHAR_DATA = {
     0: {
         "name": "GUERREIRO", "hp": 100, "speed": 280, "damage": 25, "mana": 50,
-        "desc": "Ult: Fúria do Guerreiro", "size": (200, 200), "menu_size": (250, 250),
+        "desc": "Ult: Fúria do Guerreiro", "size": (192, 192), "menu_size": (250, 250),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.26, "dash_cooldown": 2.8,
         "id": "CHAR_0",
@@ -827,7 +848,7 @@ CHAR_DATA = {
     },
     1: {
         "name": "CAÇADOR", "hp": 63, "speed": 340, "damage": 38, "mana": 75,
-        "desc": "Ult: Chuva de Flechas", "size": (150, 150), "menu_size": (200, 200),
+        "desc": "Ult: Chuva de Flechas", "size": (192, 192), "menu_size": (200, 200),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.18, "dash_cooldown": 2.2,
         "id": "CHAR_1",
@@ -866,7 +887,7 @@ CHAR_DATA = {
     },
     2: {
         "name": "MAGO", "hp": 75, "speed": 260, "damage": 25, "mana": 200,
-        "desc": "Ult: Congelamento Temporal", "size": (150, 150), "menu_size": (220, 220),
+        "desc": "Ult: Congelamento Temporal", "size": (192, 192), "menu_size": (220, 220),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.20, "dash_cooldown": 2.5,
         "id": "CHAR_2",
@@ -902,7 +923,7 @@ CHAR_DATA = {
     },
     3: {
         "name": "VAMPIRE", "hp": 88, "speed": 300, "damage": 38, "mana": 100,
-        "desc": "Ult: Tempestade Sombria", "size": (150, 150), "menu_size": (200, 200),
+        "desc": "Ult: Tempestade Sombria", "size": (192, 192), "menu_size": (200, 200),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.22, "dash_cooldown": 2.5,
         "id": "CHAR_3",
@@ -938,7 +959,7 @@ CHAR_DATA = {
     },
     4: {
         "name": "DEMÔNIO", "hp": 75, "speed": 290, "damage": 38, "mana": 100,
-        "desc": "Ult: Chama Infernal", "size": (250, 250), "menu_size": (350, 350),
+        "desc": "Ult: Chama Infernal", "size": (192, 192), "menu_size": (350, 350),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.20, "dash_cooldown": 2.3,
         "id": "CHAR_4",
@@ -981,7 +1002,7 @@ CHAR_DATA = {
     },
     5: {
         "name": "GOLEM", "hp": 113, "speed": 240, "damage": 50, "mana": 50,
-        "desc": "Ult: Golpe da Terra", "size": (220, 220), "menu_size": (320, 320),
+        "desc": "Ult: Golpe da Terra", "size": (192, 192), "menu_size": (320, 320),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.18, "dash_cooldown": 2.5,
         "id": "CHAR_5",
@@ -1010,7 +1031,7 @@ CHAR_DATA = {
     },
     6: {
         "name": "ESQUELETO", "hp": 95, "speed": 265, "damage": 44, "mana": 75,
-        "desc": "Ult: Frenesi Sanguinário", "size": (200, 200), "menu_size": (280, 280),
+        "desc": "Ult: Frenesi Sanguinário", "size": (192, 192), "menu_size": (280, 280),
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.20, "dash_cooldown": 2.3,
         "id": "CHAR_6",
@@ -1045,7 +1066,7 @@ CHAR_DATA = {
     },
     7: {
         "name": "FURACÃO", "hp": 80, "speed": 285, "damage": 40, "mana": 85,
-        "desc": "Ult: Vórtice da Tempestade", "size": (160, 160), "menu_size": (230, 230),
+        "desc": "Ult: Vórtice da Tempestade", "size": (192, 192), "menu_size": (230, 230),
         "anim_frames": 6, "menu_anim_frames": 6,
         "dash_duration": 0.18, "dash_cooldown": 2.2,
         "id": "CHAR_7",
@@ -2758,6 +2779,7 @@ _tornado_rot_cache: list = []          # preenchido em _build_tornado_cache()
 
 # ── Vetores pré-alocados para posições dos orbs (max 8 orbs) ─────────────────
 _orb_vecs = [pygame.Vector2(0, 0) for _ in range(8)]
+_orb_hit_cd: dict = {}  # id(enemy) → cooldown restante (s) para evitar hit contínuo
 
 # ── Pool de partículas ────────────────────────────────────────────────────────
 _particle_pool = ParticlePool(max_free=800)
@@ -3522,6 +3544,10 @@ def reset_game(char_id=0):
     global _spawn_diff, current_hardcore_stage, show_stage_victory, show_reward_dialog
     global death_anims
     global ecs_world
+    global shrines_spawned, run_shrines, shrine_force_timer
+    global streak_count, streak_timer, _boss_phase2_set, _trail_positions
+    global _fury_tick_timer, _fury_stacks
+    global _orb_hit_cd
 
     save_data["stats"]["games_played"] += 1
     
@@ -3670,6 +3696,18 @@ def reset_game(char_id=0):
         _spawn_diff["spd_mult"] = _spawn_diff["spd_mult"] * _stage_mult
     show_stage_victory = False
     show_reward_dialog = False
+
+    # Reset per-run V-feature variables
+    shrines_spawned = False
+    run_shrines = []
+    shrine_force_timer = 0.0
+    streak_count = 0
+    streak_timer = 0.0
+    _boss_phase2_set = set()
+    _trail_positions = None
+    _fury_tick_timer = 0.0
+    _fury_stacks = 0
+    _orb_hit_cd.clear()
 
     dark_hud.reset_feedback()
 
@@ -5173,11 +5211,10 @@ def main():
     menu_btns = [
         Button(0.15, 0.53, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
         Button(0.15, 0.59, BTN_W, BTN_H, "MISSÕES",        font_m),
-        Button(0.15, 0.65, BTN_W, BTN_H, "TALENTOS",       font_m),
-        Button(0.15, 0.71, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.77, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.65, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.71, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
-    menu_icons = ["play", "missions", "talents", "settings", "exit"]
+    menu_icons = ["play", "missions", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
         btn.icon = load_menu_icon_surface(loader, icon, size=(20, 20))
         btn.sprite_idx = idx % 7
@@ -5185,7 +5222,6 @@ def main():
     menu_preview_map = {
         "JOGAR": ("Iniciar Jornada", "Selecione heroi, dificuldade e pacto para começar uma nova run de sobrevivencia."),
         "MISSÕES": ("Rotina Diaria", "Acompanhe objetivos diarios, resgate recompensas e acelere sua progressao."),
-        "TALENTOS": ("Arvore de Talentos", "Invista ouro em melhorias permanentes e desbloqueie builds mais fortes."),
         "CONFIGURAÇÕES": ("Ajustes do Jogo", "Video, audio, controles e acessibilidade com aplicacao imediata."),
         "SAIR": ("Encerrar", "Salva progresso atual e fecha o jogo com seguranca."),
     }
@@ -5431,6 +5467,31 @@ def main():
     # Drag-and-drop: item sendo arrastado com o mouse
     _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip"|"craft_slot", "_idx":int, "_slot":str|None}
     _drag_active: bool = False       # True enquanto o botão do mouse está pressionado
+
+    # ── V18 Trail ──────────────────────────────────────────────────────────────
+    _player_trail: collections.deque = collections.deque(maxlen=5)
+
+    # ── V5 Kill Streak ─────────────────────────────────────────────────────────
+    streak_count: int   = 0
+    streak_timer: float = 0.0
+
+    # ── V18 Trail ──────────────────────────────────────────────────────────────
+    _trail_positions: object = None   # collections.deque inicializado ao entrar em PLAYING
+
+    # ── V10 Boss fases ─────────────────────────────────────────────────────────
+    _boss_phase2_set: set = set()   # id() de bosses que já entraram na fase 2
+
+    # ── V6 Santuários ──────────────────────────────────────────────────────────
+    run_shrines: list      = []     # [{"pos":Vector2, "type":str, "used":bool, "label":str}]
+    shrines_spawned: bool  = False
+    shrine_force_timer: float = 0.0  # segundos restantes do buff +ATQ do santuário
+
+    # ── V4 Modificadores de Run ────────────────────────────────────────────────
+    active_run_mods: set  = set()   # ids dos modificadores ativos, ex: {"fury"}
+    _mod_pool: list       = []      # 3 modificadores sorteados para o MOD_SELECT
+    _mod_chosen: list     = []      # modificador escolhido (1 item)
+    _fury_tick_timer: float = 0.0   # acumula 30s para aplicar bônus de Fúria
+    _fury_stacks: int     = 0       # número de aplicações de Fúria Crescente
     _drag_offset: tuple = (0, 0)     # offset do centro do item até o cursor no início do drag
     _discard_confirm: dict | None = None  # item aguardando confirmação de descarte
     # Cache da imagem do painel de inventário escalada
@@ -5704,6 +5765,30 @@ def main():
                         and reward_room_player_pos is not None):
                     _mining_system.try_start_mining(reward_room_player_pos)
 
+                if state == "PLAYING" and event.key == pygame.K_f and player is not None:
+                    for _shr in run_shrines:
+                        if not _shr["used"] and (_shr["pos"] - player.pos).length() <= 80:
+                            _shr["used"] = True
+                            if _shr["type"] == "health":
+                                _heal = int(PLAYER_MAX_HP * 0.30)
+                                player.hp = min(PLAYER_MAX_HP, player.hp + _heal)
+                                damage_texts.add(DamageText(player.pos, f"+{_heal} HP", True, (80, 255, 80)))
+                            elif _shr["type"] == "force":
+                                shrine_force_timer = 60.0
+                                damage_texts.add(DamageText(player.pos, "+ATQ 60s!", True, (255, 200, 50)))
+                            else:  # corrupt
+                                _corrupt_roll = random.random()
+                                if _corrupt_roll < 0.5:
+                                    _heal = int(PLAYER_MAX_HP * 0.20)
+                                    player.hp = min(PLAYER_MAX_HP, player.hp + _heal)
+                                    damage_texts.add(DamageText(player.pos, f"+{_heal} HP!", True, (180, 80, 255)))
+                                else:
+                                    _dmg = int(PLAYER_MAX_HP * 0.15)
+                                    player.hp = max(1, player.hp - _dmg)
+                                    damage_texts.add(DamageText(player.pos, f"-{_dmg} HP...", False, (180, 80, 255)))
+                            if snd_click: snd_click.play()
+                            break
+
                 if state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
                     _drag_item = None; _drag_active = False
@@ -5905,6 +5990,9 @@ def main():
                         state = "CHAR_SELECT"
                     elif state == "PACT_SELECT":
                         state = "DIFF_SELECT"
+                    elif state == "MOD_SELECT":
+                        active_run_mods = set()
+                        state = "PLAYING"
                 
                 if event.key == get_control_key_code("pause"):
                     if state == "PLAYING": state = "PAUSED"
@@ -5982,6 +6070,25 @@ def main():
                                 elif _svact == "hub":
                                     show_stage_victory = False
                                     state = "HUB"
+                                elif _svact == "reward":
+                                    show_stage_victory = False
+                                    _reward_room_bg = None
+                                    try:
+                                        _rr_path = os.path.join(ASSET_DIR, "Teste", "recompensa", "sala_recompença.png")
+                                        _raw_rr = pygame.image.load(_rr_path).convert_alpha()
+                                        _reward_room_bg = pygame.transform.smoothscale(_raw_rr, (SCREEN_W, SCREEN_H))
+                                    except Exception:
+                                        pass
+                                    reward_room_player_pos = pygame.Vector2(SCREEN_W // 2, int(SCREEN_H * 0.65))
+                                    reward_room_anim_t = 0.0; reward_room_anim_idx = 0
+                                    hub_equip_open = False; hub_status_open = False
+                                    _mining_system = MiningSystem(SCREEN_W, SCREEN_H,
+                                                                  selected_difficulty, current_hardcore_stage)
+                                    _mining_system.spawn_ores()
+                                    save_game()
+                                    autosave_feedback_timer = 2.5
+                                    state = "REWARD_ROOM"
+                                    if snd_click: snd_click.play()
                                 break
 
                     # Diálogo "Entrar na Sala de Recompensas?" (após morte do Agis)
@@ -6138,10 +6245,8 @@ def main():
                             elif menu_btns[1].rect.collidepoint(click_pos):
                                 menu_pending_action = "MISSIONS"
                             elif menu_btns[2].rect.collidepoint(click_pos):
-                                menu_pending_action = "SHOP"
-                            elif menu_btns[3].rect.collidepoint(click_pos):
                                 menu_pending_action = "SETTINGS"
-                            elif menu_btns[4].rect.collidepoint(click_pos):
+                            elif menu_btns[3].rect.collidepoint(click_pos):
                                 menu_pending_action = "QUIT"
                             elif menu_site_rect.collidepoint(click_pos):
                                 webbrowser.open(_menu_site_url)
@@ -6898,7 +7003,19 @@ def main():
                                     hub_countdown_timer  = 0.0
                                     state = "HUB"
                                 else:
+                                    _mod_pool = random.sample(RUN_MODIFIERS_POOL, k=3)
+                                    active_run_mods = set()
+                                    state = "MOD_SELECT"
+
+                    elif state == "MOD_SELECT":
+                        if hasattr(main, "_mod_card_rects"):
+                            for _mi, _mr in enumerate(main._mod_card_rects):
+                                if _mr.collidepoint(click_pos) and _mi < len(_mod_pool):
+                                    _chosen = _mod_pool[_mi]
+                                    active_run_mods = {_chosen["id"]}
+                                    if snd_click: snd_click.play()
                                     state = "PLAYING"
+                                    break
 
                     elif state == "BG_SELECT":
                         if bg_back_btn.rect.collidepoint(click_pos):
@@ -7473,7 +7590,10 @@ def main():
                                 anim_spd      = _cdata2.get("anim_speed", 0.10),
                                 idle_anim_spd = _cdata2.get("idle_anim_speed", 0.13),
                             )
-                    state = "PLAYING"
+                    # V4: vai para MOD_SELECT antes de PLAYING
+                    _mod_pool = random.sample(RUN_MODIFIERS_POOL, k=3)
+                    active_run_mods = set()
+                    state = "MOD_SELECT"
 
         # 3b. Lógica do Mercado
         if state == "MARKET" and market_scene is not None:
@@ -7568,6 +7688,50 @@ def main():
             
             game_time += dt
             autosave_timer += dt
+
+            # ── V5 Kill streak decay ───────────────────────────────────────────
+            if streak_timer > 0:
+                streak_timer -= dt
+                if streak_timer <= 0:
+                    streak_count = 0
+
+            # ── V6 Shrine force buff decay ────────────────────────────────────
+            if shrine_force_timer > 0:
+                shrine_force_timer -= dt
+
+            # ── V4 Fúria Crescente ────────────────────────────────────────────
+            if "fury" in active_run_mods:
+                _fury_tick_timer += dt
+                if _fury_tick_timer >= 30.0:
+                    _fury_tick_timer -= 30.0
+                    _fury_stacks = min(_fury_stacks + 1, 10)
+                    for _fe in enemies:
+                        if hasattr(_fe, "_vel_comp"):
+                            _fe._vel_comp.speed = int(_fe._vel_comp.speed * 1.05)
+
+            # ── V18 Trail — registra posições passadas do jogador ─────────────
+            if _trail_positions is None:
+                _trail_positions = collections.deque(maxlen=4)
+            if player is not None:
+                _trail_positions.append(pygame.Vector2(player.pos))
+
+            # ── V6 Spawn de Santuários (primeira vez que entra em PLAYING) ────
+            if not shrines_spawned and player is not None:
+                shrines_spawned = True
+                run_shrines.clear()
+                _sh_types = random.sample(["health", "force", "corrupt"], k=min(3, 3))
+                _sh_labels = {"health": "Saúde", "force": "Força", "corrupt": "Corrompido"}
+                _sh_base = pygame.Vector2(player.pos)
+                for _shi, _sht in enumerate(_sh_types):
+                    _sh_ang = random.uniform(0, 360)
+                    _sh_dist = random.randint(500, 900)
+                    _sh_off = pygame.Vector2(_sh_dist, 0).rotate(_sh_ang)
+                    run_shrines.append({
+                        "pos":   _sh_base + _sh_off,
+                        "type":  _sht,
+                        "used":  False,
+                        "label": _sh_labels[_sht],
+                    })
             if autosave_timer >= 15.0:
                 save_run_slot(0)
                 autosave_timer = 0.0
@@ -7587,7 +7751,7 @@ def main():
             current_spawn_rate = _bal.spawn_interval(game_time)
             
             biome_type = BG_DATA[selected_bg]["type"]
-            player.base_speed = PLAYER_SPEED
+            player.base_speed = PLAYER_SPEED * (1.10 if streak_count >= 3 else 1.0)
             player.update(
                 dt,
                 keys,
@@ -7641,15 +7805,26 @@ def main():
                 _px = player.pos.x
                 _py = player.pos.y
                 _orb_step = 360.0 / ORB_COUNT
+                # Decai cooldowns de hit dos orbs (evita dano contínuo por frame)
+                _dead_orb_keys = [k for k, v in _orb_hit_cd.items() if v <= dt]
+                for _dk in _dead_orb_keys: del _orb_hit_cd[_dk]
+                for _dk in list(_orb_hit_cd): _orb_hit_cd[_dk] -= dt
                 for i in range(ORB_COUNT):
                     _rad = math.radians(orb_rot_angle + i * _orb_step)
                     _ov = _orb_vecs[i]
                     _ov.x = _px + math.cos(_rad) * ORB_DISTANCE
                     _ov.y = _py + math.sin(_rad) * ORB_DISTANCE
                     for e in enemy_batch_index.enemies_in_radius(_ov, 50):
-                        tick_dmg = current_orb_dmg * dt * 10
-                        if random.random() < CRIT_CHANCE: tick_dmg *= 2
+                        _eid = id(e)
+                        if _orb_hit_cd.get(_eid, 0) > 0:
+                            continue
+                        _is_crit = random.random() < CRIT_CHANCE
+                        tick_dmg = int(current_orb_dmg * (CRIT_DMG_MULT if _is_crit else 1))
                         e.hp -= tick_dmg
+                        _orb_hit_cd[_eid] = 0.35
+                        damage_texts.add(DamageText(e.pos, f"{tick_dmg}!", _is_crit, (255, 200, 80) if not _is_crit else (255, 255, 60)))
+                        if LIFESTEAL_PCT > 0:
+                            player.hp = min(PLAYER_MAX_HP, player.hp + tick_dmg * LIFESTEAL_PCT)
                         if e.hp <= 0:
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
                             if random.random() < 0.50: gems.add(Gem(e.pos, loader))
@@ -7666,6 +7841,7 @@ def main():
                                 save_data["stats"]["boss_kills"] += 1
                                 update_mission_progress("boss", 1)
                             e.kill(); kills += 1
+                            streak_count += 1; streak_timer = 3.5
 
             spawn_t += dt
 
@@ -7723,7 +7899,8 @@ def main():
                     )
                     pending_horde_queue.append((horde_kind, hpos))
 
-            if game_time >= BOSS_SPAWN_TIME * (bosses_spawned + 1):
+            _eff_boss_spawn_time = 60.0 if "lunar" in active_run_mods else BOSS_SPAWN_TIME
+            if game_time >= _eff_boss_spawn_time * (bosses_spawned + 1):
                 bosses_spawned += 1
                 boss_pos = player.pos + pygame.Vector2(1200, 0)
                 enemies.add(create_enemy("boss", boss_pos, _spawn_diff, time_scale=time_scale, boss_tier=bosses_spawned))
@@ -7905,7 +8082,7 @@ def main():
                 # Magia em área — 8 orbes em todas as direções
                 if getattr(e, "pending_agis_area", False):
                     e.pending_agis_area = False
-                    num_orbs = 8
+                    num_orbs = 16 if "proj_rain" in active_run_mods else 8
                     for i in range(num_orbs):
                         angle_rad = math.radians(i * (360 / num_orbs))
                         area_dir  = pygame.Vector2(math.cos(angle_rad), math.sin(angle_rad))
@@ -7914,6 +8091,21 @@ def main():
                     damage_texts.add(DamageText(e.pos, "MAGIA!", True, (180, 0, 255)))
                     shake_timer    = 0.2
                     shake_strength = 8
+
+            # V4 proj_rain — bosses/mini_bosses disparam projétil extra a cada 3s
+            if "proj_rain" in active_run_mods:
+                for e in enemies:
+                    if e.kind not in ("boss", "mini_boss"):
+                        continue
+                    _pr_cd = getattr(e, "_proj_rain_cd", 0.0)
+                    _pr_cd -= dt
+                    if _pr_cd <= 0:
+                        e._proj_rain_cd = 3.0
+                        _pr_dir = (player.pos - e.pos)
+                        if _pr_dir.length() > 0:
+                            enemy_projectiles.add(AgisProjectile(e.pos, _pr_dir.normalize(), 1.0, loader))
+                    else:
+                        e._proj_rain_cd = _pr_cd
 
             projectiles.update(dt, cam)
             enemy_projectiles.update(dt, cam, SCREEN_W, SCREEN_H)
@@ -7933,6 +8125,7 @@ def main():
                         player.iframes = 0.6
                         shake_timer    = 0.25
                         shake_strength = 10
+                        streak_count = 0; streak_timer = 0.0
                         play_sfx("hurt")
                         damage_texts.add(DamageText(player.pos, raw_dmg, False, (255, 80, 80)))
                         if THORNS_PERCENT > 0:
@@ -7996,11 +8189,32 @@ def main():
                 for hit in hits:
                     if hit not in p.hit_enemies:
                         dmg_dealt = p.dmg
+                        # V6 Shrine force buff
+                        if shrine_force_timer > 0:
+                            dmg_dealt *= 1.20
                         is_crit = random.random() < CRIT_CHANCE
                         if is_crit:
                             dmg_dealt *= CRIT_DMG_MULT
                             hitstop_timer = 0.03
-                        
+
+                        # V10 Boss fase 2 — detecta antes de subtrair HP
+                        if hit.kind in ("boss", "mini_boss") and hit.hp > 0:
+                            if hit.hp - dmg_dealt <= hit.max_hp * 0.5 and id(hit) not in _boss_phase2_set:
+                                _boss_phase2_set.add(id(hit))
+                                hit._vel_comp.speed = int(hit._vel_comp.speed * 1.25)
+                                hit.shot_cooldown = max(0.5, getattr(hit, "shot_cooldown", 3.0) * 0.5)
+                                _p2c = (100, 0, 0)
+                                for _fi in range(len(hit.anim_frames)):
+                                    _f2 = hit.anim_frames[_fi].copy()
+                                    _f2.fill(_p2c, special_flags=pygame.BLEND_RGB_ADD)
+                                    hit.anim_frames[_fi] = _f2
+                                    if hasattr(hit, "flipped_frames") and _fi < len(hit.flipped_frames):
+                                        _ff2 = hit.flipped_frames[_fi].copy()
+                                        _ff2.fill(_p2c, special_flags=pygame.BLEND_RGB_ADD)
+                                        hit.flipped_frames[_fi] = _ff2
+                                damage_texts.add(DamageText(hit.pos, "FASE 2!", True, (255, 80, 0)))
+                                shake_timer = 0.8; shake_strength = 20
+
                         hit.hp -= dmg_dealt
                         if LIFESTEAL_PCT > 0 and player:
                             player.hp = min(PLAYER_MAX_HP, player.hp + dmg_dealt * LIFESTEAL_PCT * 0.50)
@@ -8015,20 +8229,26 @@ def main():
                         
                         if is_melee:
                             knock_dir = (hit.pos - player.pos).normalize()
-                            knock_force = 15.0 
+                            knock_force = 5.0
+                            if "LUVA EXPULSÃO" in player_upgrades:
+                                knock_force *= 2.5
                         else:
                             _vsq = p.vel.length_squared()
                             knock_dir = (p.vel * (1.0 / _vsq**0.5)) if _vsq > 0 else _VEC2_RIGHT
-                            knock_force = 3.0 
-                        
+                            knock_force = 2.0
+
                         if HAS_CHAOS_BOLT and random.random() < 0.15:
                             active_explosions.append(ExplosionAnimation(hit.pos, 150, explosion_frames_raw))
                             hit.hp -= PROJECTILE_DMG * 2
 
-                        if hit.kind == "boss": knock_force *= 0.1
-                        elif hit.kind == "agis": knock_force *= 0.15
-                        elif hit.kind == "mini_boss": knock_force *= 0.2
-                        hit.knockback += knock_dir * knock_force
+                        if hit.kind == "boss": knock_force *= 0.08
+                        elif hit.kind == "agis": knock_force *= 0.10
+                        elif hit.kind == "mini_boss": knock_force *= 0.15
+                        _kb_new = hit.knockback + knock_dir * knock_force
+                        _kb_max = 12.0
+                        if _kb_new.length() > _kb_max:
+                            _kb_new = _kb_new.normalize() * _kb_max
+                        hit.knockback = _kb_new
                         
                         d_color = (255, 200, 0) if is_melee else (255, 255, 255)
                         damage_texts.add(DamageText(hit.pos, dmg_dealt, is_crit, d_color))
@@ -8094,6 +8314,12 @@ def main():
                                 death_anims.add(EnemyDeathAnim(hit.pos, _morte_frames))
                             if random.random() < 0.50: gems.add(Gem(hit.pos, loader))
                             hit.kill(); kills += 1
+                            # V5 Kill streak
+                            streak_count += 1
+                            streak_timer = 3.5
+                            if streak_count == 15:
+                                player.hp = min(PLAYER_MAX_HP, player.hp + PLAYER_MAX_HP * 0.08)
+                                damage_texts.add(DamageText(player.pos, "+8% HP!", True, (80, 255, 80)))
                             save_data["stats"]["total_kills"] += 1
                             update_mission_progress("kills", 1)
                             # Verifica conquistas forte a cada 100 abates
@@ -8171,12 +8397,15 @@ def main():
 
             for g in list(gems):
                 if g.rect.colliderect(player.rect):
-                    xp += int(GEM_XP * (1.0 + XP_BONUS_PCT)); g.kill(); play_sfx("gem")
+                    _xp_mult = 1.25 if "blessed" in active_run_mods else 1.0
+                    xp += int(GEM_XP * (1.0 + XP_BONUS_PCT) * _xp_mult); g.kill(); play_sfx("gem")
 
             for d in list(drops):
                 if d.rect.colliderect(player.rect):
                     if d.kind == "coin":
                         coin_value = 50 * _spawn_diff.get("gold_mult", 1.0) * GOLD_RUN_MULT
+                        if "gold_rush" in active_run_mods:
+                            coin_value *= 2
                         run_gold_collected += coin_value
                         save_data["gold"] += coin_value
                         achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + coin_value
@@ -9380,45 +9609,9 @@ def main():
                     pygame.draw.rect(screen, (200, 130, 40), _bsfi_rect, 1, border_radius=4)
                     screen.blit(_bsfi_surf, _bsfi_surf.get_rect(center=_bsfi_rect.center))
 
-                # ── Painel lateral direito (Ferraria) — só aparece na borda ─
-                _bs_show_panel = (m_pos[0] >= SCREEN_W - 60
-                                  and not craft_open and not hub_equip_open
-                                  and not hub_status_open and not hub_profile_open)
-                if not _bs_show_panel:
-                    _tab_w = 14
-                    _tab_surf = pygame.Surface((_tab_w, SCREEN_H), pygame.SRCALPHA)
-                    _tab_surf.fill((10, 8, 6, 160))
-                    screen.blit(_tab_surf, (SCREEN_W - _tab_w, 0))
-                    pygame.draw.line(screen, (120, 100, 60), (SCREEN_W - _tab_w, 0), (SCREEN_W - _tab_w, SCREEN_H), 1)
-                if _bs_show_panel:
-                    _bs_hp_x = int(SCREEN_W * 0.84)
-                    _bs_hp_w = SCREEN_W - _bs_hp_x
-                    _bs_cx   = _bs_hp_x + _bs_hp_w // 2
-                    _bs_panel = pygame.Surface((_bs_hp_w, SCREEN_H), pygame.SRCALPHA)
-                    _bs_panel.fill((10, 8, 6, 215))
-                    screen.blit(_bs_panel, (_bs_hp_x, 0))
-                    pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_bs_hp_x, 0), (_bs_hp_x, SCREEN_H), 2)
-                    _bs_title_s = font_s.render("Ferraria", True, UI_THEME.get("old_gold", (220, 180, 80)))
-                    screen.blit(_bs_title_s, _bs_title_s.get_rect(centerx=_bs_cx, top=int(SCREEN_H * 0.03)))
-                    if player is not None:
-                        _bs_name_s = font_s.render(CHAR_DATA.get(player.char_id, {}).get("name", ""), True, (220, 210, 180))
-                        screen.blit(_bs_name_s, _bs_name_s.get_rect(centerx=_bs_cx, top=int(SCREEN_H * 0.13)))
-                        _bs_hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
-                        screen.blit(_bs_hp_s, _bs_hp_s.get_rect(centerx=_bs_cx, top=int(SCREEN_H * 0.19)))
-                    _bs_rb_rw = _bs_hp_w - int(_bs_hp_w * 0.20)
-                    _bs_rb_rx = _bs_hp_x + int(_bs_hp_w * 0.10)
-                    _bs_rb_h  = 50
-                    _bs_voltar_draw = pygame.Rect(_bs_rb_rx, int(SCREEN_H * 0.373) - _bs_rb_h//2, _bs_rb_rw, _bs_rb_h)
-                    _bs_vhov = _bs_voltar_draw.collidepoint(m_pos)
-                    _bs_vs   = font_m.render("VOLTAR", True, (200, 255, 200) if _bs_vhov else (140, 220, 140))
-                    screen.blit(_bs_vs, _bs_vs.get_rect(center=_bs_voltar_draw.center))
-                    _bs_hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
-                    _bs_hint_c = font_s.render("[C] Status",      True, (100, 160, 100))
-                    _bs_esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
-                    _bs_hint_top = _bs_voltar_draw.bottom + 10
-                    screen.blit(_bs_hint_i, _bs_hint_i.get_rect(centerx=_bs_cx, top=_bs_hint_top))
-                    screen.blit(_bs_hint_c, _bs_hint_c.get_rect(centerx=_bs_cx, top=_bs_hint_top + 22))
-                    screen.blit(_bs_esc_s,  _bs_esc_s.get_rect(centerx=_bs_cx, bottom=int(SCREEN_H * 0.97)))
+                # ── Dica de saída centralizada na parte inferior ──────────
+                _bs_esc_hint = font_s.render("Pressione ESC para sair", True, (120, 110, 90))
+                screen.blit(_bs_esc_hint, _bs_esc_hint.get_rect(centerx=SCREEN_W // 2, bottom=SCREEN_H - 12))
 
             elif state == "REWARD_ROOM":
                 # ── SALA DE RECOMPENSA ──────────────────────────────────────
@@ -10795,6 +10988,63 @@ def main():
             pact_back_btn.check_hover(m_pos, snd_hover)
             pact_back_btn.draw(screen)
 
+        elif state == "MOD_SELECT":
+            draw_menu_background(screen, m_pos, dt)
+            _ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA); _ov.fill((0,0,0,170)); screen.blit(_ov, (0,0))
+            draw_screen_title(screen, font_l, "MODIFICADOR DE RUN", SCREEN_W//2, int(SCREEN_H*0.10), text_color=(255, 200, 50))
+            _msub = font_s.render("Escolha 1 modificador — ESC para nenhum", True, (180, 160, 100))
+            screen.blit(_msub, _msub.get_rect(centerx=SCREEN_W//2, top=int(SCREEN_H*0.20)))
+            _MCARD_W = (SCREEN_W - 120) // 3   # divide os 3 cards na largura da tela com margens
+            _MCARD_H = 180
+            _mcard_gap = 30
+            _mtotal_w = 3 * _MCARD_W + 2 * _mcard_gap
+            _mstart_x = SCREEN_W // 2 - _mtotal_w // 2
+            _mcard_y  = int(SCREEN_H * 0.32)
+            if not hasattr(main, "_mod_card_rects"):
+                main._mod_card_rects = []
+            main._mod_card_rects = []
+            for _mi, _mod in enumerate(_mod_pool):
+                _mx = _mstart_x + _mi * (_MCARD_W + _mcard_gap)
+                _mr = pygame.Rect(_mx, _mcard_y, _MCARD_W, _MCARD_H)
+                main._mod_card_rects.append(_mr)
+                _mhov = _mr.collidepoint(m_pos)
+                _mbg = (50, 40, 20) if not _mhov else (70, 60, 30)
+                pygame.draw.rect(screen, _mbg, _mr, border_radius=12)
+                _mcol = _mod["color"]
+                _mborder_a = 220 if _mhov else 160
+                _mborder_s = pygame.Surface((_MCARD_W, _MCARD_H), pygame.SRCALPHA)
+                pygame.draw.rect(_mborder_s, (*_mcol, _mborder_a), _mborder_s.get_rect(), 3, border_radius=12)
+                screen.blit(_mborder_s, _mr.topleft)
+                # Nome centralizado no topo do card
+                _mname_s = font_m.render(_mod["name"], True, _mcol)
+                screen.blit(_mname_s, _mname_s.get_rect(centerx=_mr.centerx, top=_mr.top + 16))
+                # Separador fino abaixo do nome
+                _msep_y = _mr.top + 16 + _mname_s.get_height() + 8
+                pygame.draw.line(screen, (*_mcol, 100), (_mr.left + 16, _msep_y), (_mr.right - 16, _msep_y), 1)
+                # Descrição com word wrap — quebra quando ultrapassa largura do card
+                _desc_pad = 16
+                _desc_max_w = _MCARD_W - _desc_pad * 2
+                _desc_words = _mod["desc"].split()
+                _desc_lines = []
+                _cur = ""
+                for _w in _desc_words:
+                    _test = (_cur + " " + _w).strip()
+                    if font_s.size(_test)[0] <= _desc_max_w:
+                        _cur = _test
+                    else:
+                        if _cur:
+                            _desc_lines.append(_cur)
+                        _cur = _w
+                if _cur:
+                    _desc_lines.append(_cur)
+                _desc_y = _msep_y + 10
+                for _dl in _desc_lines:
+                    _dl_s = font_s.render(_dl, True, (210, 190, 140))
+                    screen.blit(_dl_s, _dl_s.get_rect(centerx=_mr.centerx, top=_desc_y))
+                    _desc_y += _dl_s.get_height() + 3
+            _mskip = font_s.render("ESC — Pular (sem modificador)", True, (120, 110, 80))
+            screen.blit(_mskip, _mskip.get_rect(centerx=SCREEN_W//2, top=_mcard_y + _MCARD_H + 24))
+
         elif state == "SETTINGS":
             draw_settings_menu(screen, settings, temp_settings, settings_category, m_pos, font_l, font_m, font_s, clock, dt)
             
@@ -10921,7 +11171,34 @@ def main():
                     pygame.draw.polygon(screen, (255, 215, 0), [p1, p2, p3])
 
             screen.blits([(p.image, p.rect) for p in particles if _scr_rect.colliderect(p.rect)])
+
+            # V6 Santuários — renderiza círculos e labels no mundo
+            _sh_colors = {"health": (80, 255, 120), "force": (255, 200, 50), "corrupt": (180, 80, 255)}
+            for _shr in run_shrines:
+                if _shr["used"]:
+                    continue
+                _sx = int(_shr["pos"].x + cam.x)
+                _sy = int(_shr["pos"].y + cam.y)
+                _scol = _sh_colors.get(_shr["type"], (255, 255, 255))
+                pygame.draw.circle(screen, _scol, (_sx, _sy), 22, 3)
+                pygame.draw.circle(screen, (*_scol, 60), (_sx, _sy), 14)
+                _slbl = font_s.render(_shr["label"], True, _scol)
+                screen.blit(_slbl, (_sx - _slbl.get_width()//2, _sy - 38))
+                if player is not None and (_shr["pos"] - player.pos).length() <= 120:
+                    _shint = font_s.render("[F] Usar", True, (255, 255, 255))
+                    screen.blit(_shint, (_sx - _shint.get_width()//2, _sy + 28))
+
             damage_texts.draw(screen)
+
+            # V4 fog modifier — névoa que limita visão a 420px
+            if "fog" in active_run_mods:
+                _fg_key = (SCREEN_W, SCREEN_H, "fog")
+                if not hasattr(main, "_fog_surf_cache") or main._fog_surf_cache[0] != _fg_key:
+                    _fgs = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                    _fgs.fill((10, 10, 20, 210))
+                    pygame.draw.circle(_fgs, (0, 0, 0, 0), (SCREEN_W//2, SCREEN_H//2), 420)
+                    main._fog_surf_cache = (_fg_key, _fgs)
+                screen.blit(main._fog_surf_cache[1], (0, 0))
 
             if 'darkness_timer' in locals() and darkness_timer > 0:
                 _ds_key = (SCREEN_W, SCREEN_H)
@@ -10957,6 +11234,16 @@ def main():
 
             for exp in active_explosions:
                 exp.draw(screen, cam)
+
+            # V18 Trail — cópias translúcidas atrás do jogador
+            if _trail_positions and len(_trail_positions) > 1:
+                _trail_list = list(_trail_positions)
+                _trail_img = player.image.copy()
+                for _ti, _tp in enumerate(_trail_list[:-1]):
+                    _t_alpha = int(55 * (_ti + 1) / len(_trail_list))
+                    _trail_img.set_alpha(_t_alpha)
+                    _tr_rect = _trail_img.get_rect(center=(int(_tp.x + cam.x), int(_tp.y + cam.y)))
+                    screen.blit(_trail_img, _tr_rect)
 
             screen.blit(player.image, player.rect)
 
@@ -11093,7 +11380,7 @@ def main():
                 if not hasattr(main, "_svo"): main._svo = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
                 main._svo.fill((0, 0, 0, 200))
                 screen.blit(main._svo, (0, 0))
-                _sv_bw, _sv_bh = 420, 320
+                _sv_bw, _sv_bh = 560, 380
                 _sv_bx = SCREEN_W // 2 - _sv_bw // 2
                 _sv_by = SCREEN_H // 2 - _sv_bh // 2
                 pygame.draw.rect(screen, (30, 20, 10), (_sv_bx, _sv_by, _sv_bw, _sv_bh), border_radius=14)
@@ -11102,12 +11389,13 @@ def main():
                 screen.blit(_sv_title, _sv_title.get_rect(centerx=SCREEN_W // 2, top=_sv_by + 18))
                 _sv_sub = font_s.render(f"Fase {current_hardcore_stage} / 10 — Modo Hardcore", True, (200, 160, 100))
                 screen.blit(_sv_sub, _sv_sub.get_rect(centerx=SCREEN_W // 2, top=_sv_by + 60))
-                _sv_btn_w, _sv_btn_h = 340, 48
+                _sv_btn_w, _sv_btn_h = 500, 48
                 _sv_btn_x = SCREEN_W // 2 - _sv_btn_w // 2
                 _sv_btns = [
-                    (_sv_btn_x, _sv_by + 120, _sv_btn_w, _sv_btn_h, "Continuar na fase atual", (60, 180, 60), "continue"),
-                    (_sv_btn_x, _sv_by + 182, _sv_btn_w, _sv_btn_h, "Proximo Nivel", (60, 120, 200), "next"),
-                    (_sv_btn_x, _sv_by + 244, _sv_btn_w, _sv_btn_h, "Ir para ROOM", (160, 80, 60), "hub"),
+                    (_sv_btn_x, _sv_by + 110, _sv_btn_w, _sv_btn_h, "Continuar na fase atual", (60, 180, 60), "continue"),
+                    (_sv_btn_x, _sv_by + 172, _sv_btn_w, _sv_btn_h, "Próximo Nível", (60, 120, 200), "next"),
+                    (_sv_btn_x, _sv_by + 234, _sv_btn_w, _sv_btn_h, "Reivindicar Recompensa", (160, 120, 20), "reward"),
+                    (_sv_btn_x, _sv_by + 296, _sv_btn_w, _sv_btn_h, "Ir para o Hub", (160, 80, 60), "hub"),
                 ]
                 if not hasattr(main, "_sv_btns_rects"): main._sv_btns_rects = []
                 main._sv_btns_rects = []
@@ -11121,8 +11409,8 @@ def main():
                     _bsurf = font_s.render(_blbl, True, (240, 230, 200))
                     screen.blit(_bsurf, _bsurf.get_rect(center=_br.center))
                 if current_hardcore_stage >= 10:
-                    _sv_max = font_s.render("Parabens! Todas as fases concluidas!", True, (255, 215, 0))
-                    screen.blit(_sv_max, _sv_max.get_rect(centerx=SCREEN_W // 2, bottom=_sv_by + _sv_bh - 12))
+                    _sv_max = font_s.render("Parabéns! Todas as fases concluídas!", True, (255, 215, 0))
+                    screen.blit(_sv_max, _sv_max.get_rect(centerx=SCREEN_W // 2, bottom=_sv_by + _sv_bh - 8))
 
             if state == "PAUSED":
                 overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
@@ -11318,6 +11606,23 @@ def main():
             _hub_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos, align_right=False)
         else:
             _hub_profile_widget_rect = None
+
+        # ── V5 Kill Streak HUD — acima do Grimório de Batalha (canto inf. esq.) ─
+        if state in ("PLAYING", "UPGRADE", "CHEST_UI") and streak_count > 0 and streak_timer > 0:
+            _sk_col = (255, 220, 50) if streak_count >= 7 else (255, 160, 30)
+            _sk_txt = font_m.render(f"STREAK x{streak_count}", True, _sk_col)
+            _sk_bar_w = max(_sk_txt.get_width(), 160)
+            _sk_bar_h = 6
+            _sk_box_h = _sk_txt.get_height() + _sk_bar_h + 10
+            # Posiciona logo acima do Grimório se disponível, senão usa margem fixa
+            _grim_top = getattr(dark_hud.draw_skill_feed_panel, "last_panel_top", SCREEN_H - 320)
+            _sk_bottom = _grim_top - 8
+            _sk_x = 20
+            screen.blit(_sk_txt, (_sk_x, _sk_bottom - _sk_box_h))
+            _sk_bar_y = _sk_bottom - _sk_bar_h
+            pygame.draw.rect(screen, (60, 50, 20), (_sk_x, _sk_bar_y, _sk_bar_w, _sk_bar_h), border_radius=3)
+            _sk_frac = max(0.0, streak_timer / 3.5)
+            pygame.draw.rect(screen, _sk_col, (_sk_x, _sk_bar_y, int(_sk_bar_w * _sk_frac), _sk_bar_h), border_radius=3)
 
         # ── Indicador de autosave ─────────────────────────────────────────
         if autosave_feedback_timer > 0 and state in ("PLAYING", "PAUSED", "UPGRADE", "CHEST_UI", "REWARD_ROOM"):

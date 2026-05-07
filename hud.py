@@ -514,6 +514,9 @@ def draw_skill_feed_panel(screen, player, font_s, hud_scale, high_contrast, scre
     panel_x = 20
     panel_y = screen_h - panel_h - 20
     panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+    # Expõe o topo do painel para outros elementos se posicionarem acima dele
+    draw_skill_feed_panel.last_panel_top = panel_y
+    draw_skill_feed_panel.last_panel_w   = panel_w
     border_color = UI_THEME["old_gold"] if not high_contrast else (255, 255, 255)
     title_color = UI_THEME["old_gold"] if not high_contrast else (255, 255, 0)
     text_color = UI_THEME["mist"] if not high_contrast else (255, 255, 255)
@@ -651,7 +654,7 @@ def draw_ui(screen, player, state, font_s, font_m, font_l, hud_scale, high_contr
         screen.blit(time_text, time_text.get_rect(center=top_panel.center))
 
         # Aviso do Boss Agis abaixo do painel de kills
-        _agis_spawn_min = 8
+        _agis_spawn_min = 5
         if time_m < _agis_spawn_min:
             _warn_text = f"O BOSS AGIS IRÁ NASCER NO MINUTO {_agis_spawn_min}, SOBREVIVA ATÉ LÁ"
             _warn_pulse = abs(math.sin(game_time * 1.5))

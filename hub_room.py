@@ -997,6 +997,7 @@ class MarketScene:
     def draw(self, screen: pygame.Surface):
         if self._market_map is None or self._player is None:
             return
+        self._player.draw_scale = 1.5
         self._market_map.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         self._market_map.draw_top(screen, self._cam)
