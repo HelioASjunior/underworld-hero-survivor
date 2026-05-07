@@ -640,6 +640,11 @@ FERREIRO_INTERACT_RADIUS = 200
 LOJA_NPC_POS         = pygame.Vector2(608, 992)
 LOJA_INTERACT_RADIUS = 200
 
+# Talentos NPC no Mercado — Trader_drinks (stall5), origin=(-16,-16)
+# Centro do sprite 2×2: world x=(16+3+1)*64=1280, y=(16+2+1)*64=1216
+TALENTOS_NPC_POS         = pygame.Vector2(1280, 1216)
+TALENTOS_INTERACT_RADIUS = 200
+
 
 _ZONES: dict[str, list[dict]] = {
     # Zona no exterior: entrar no prédio (frente da casa)
@@ -961,6 +966,19 @@ class MarketScene:
             LOJA_NPC_POS.y + self._cam.y,
         )
 
+    @property
+    def player_near_talentos(self) -> bool:
+        if self._player is None:
+            return False
+        return self._player.pos.distance_to(TALENTOS_NPC_POS) <= TALENTOS_INTERACT_RADIUS
+
+    @property
+    def talentos_screen_pos(self) -> pygame.Vector2:
+        return pygame.Vector2(
+            TALENTOS_NPC_POS.x + self._cam.x,
+            TALENTOS_NPC_POS.y + self._cam.y,
+        )
+
     def update(self, dt: float, keys, screen_w: int, screen_h: int):
         if self._market_map is None or self._player is None:
             return
@@ -982,3 +1000,111 @@ class MarketScene:
         self._market_map.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         self._market_map.draw_top(screen, self._cam)
+
+
+# ---------------------------------------------------------------------------
+# BlacksmithScene — interior da ferraria (Blacksmith_house_interior.tmx)
+# ---------------------------------------------------------------------------
+
+# Posição do NPC Ferreiro (Smith_anvil layer, centro do sprite 3×4 tiles)
+# origin=(-16,-16): tile (1,-4) → norm_tile (17,12) → pixel (1088,768)
+# Centro do sprite 3×4 → (1088 + 64, 768 + 128) = (1088, 896)
+BLACKSMITH_FERREIRO_POS    = pygame.Vector2(1088, 896)
+BLACKSMITH_FERREIRO_RADIUS = 220
+
+
+class BlacksmithScene:
+    """
+    Cena do interior da ferraria.
+    Câmera segue o jogador (compute_camera), colisão via camada 'Walls'.
+    """
+
+    def __init__(self, blacksmith_dir: str):
+        self._dir    = blacksmith_dir
+        self._map:    HubMap | None    = None
+        self._player: HubPlayer | None = None
+        self._cam     = pygame.Vector2(0, 0)
+
+    def load_all(self):
+        path = os.path.join(self._dir, "Blacksmith_house_interior.tmx")
+        if os.path.exists(path):
+            self._map = HubMap(path)
+            self._map.load()
+        else:
+            print(f"[BlacksmithScene] Arquivo não encontrado: {path}")
+
+    def load_surfaces_and_bake(self):
+        if self._map is not None:
+            self._map.load_surfaces()
+            self._map.bake()
+
+    def setup_player(self):
+        if self._map is None:
+            return
+        self._player = HubPlayer(self._map)
+        # Spawn perto da entrada (parte inferior do mapa)
+        self._player.pos = pygame.Vector2(1088, 1200)
+
+    def reset_spawn(self):
+        """Reposiciona o jogador na entrada sem recriar instância."""
+        if self._player is None or self._map is None:
+            return
+        self._player.pos = pygame.Vector2(1088, 1200)
+
+    def apply_char_frames(
+        self,
+        dir_walk:      dict,
+        dir_idle:      dict,
+        walk_fallback: list | None = None,
+        idle_fallback: list | None = None,
+        anim_spd:      float = 0.10,
+        idle_anim_spd: float = 0.13,
+    ):
+        if self._player:
+            self._player.set_char_frames(
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+            )
+
+    @property
+    def player(self) -> "HubPlayer | None":
+        return self._player
+
+    @property
+    def cam(self) -> pygame.Vector2:
+        return self._cam
+
+    @property
+    def player_near_ferreiro(self) -> bool:
+        if self._player is None:
+            return False
+        return self._player.pos.distance_to(BLACKSMITH_FERREIRO_POS) <= BLACKSMITH_FERREIRO_RADIUS
+
+    @property
+    def ferreiro_screen_pos(self) -> pygame.Vector2:
+        return pygame.Vector2(
+            BLACKSMITH_FERREIRO_POS.x + self._cam.x,
+            BLACKSMITH_FERREIRO_POS.y + self._cam.y,
+        )
+
+    def update(self, dt: float, keys, screen_w: int, screen_h: int):
+        if self._map is None or self._player is None:
+            return
+        self._player.update(dt, keys)
+        self._map.update(dt)
+        if self._map.content_center:
+            self._cam = compute_camera_fixed(self._map.content_center, screen_w, screen_h)
+        else:
+            self._cam = compute_camera(
+                self._player.pos,
+                self._map.pixel_width,
+                self._map.pixel_height,
+                screen_w, screen_h,
+            )
+
+    def draw(self, screen: pygame.Surface):
+        if self._map is None or self._player is None:
+            return
+        self._player.draw_scale = 1.5
+        self._map.draw_base(screen, self._cam)
+        self._player.draw(screen, self._cam)
+        self._map.draw_top(screen, self._cam)

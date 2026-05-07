@@ -17,7 +17,7 @@ from forest_biome import build_forest_ground, ForestDecoManager
 from dungeon_biome import DungeonDecoManager
 from volcano_biome import build_volcano_ground, VolcanoDecoManager
 from moon_biome import build_moon_ground, MoonDecoManager
-from hub_room import HubScene, MarketScene
+from hub_room import HubScene, MarketScene, BlacksmithScene
 from drops import Drop as ModularDrop
 from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile, EnemyDeathAnim
 from ecs_world import World as ECSWorld
@@ -1816,6 +1816,11 @@ def _item_img_path(category: str, idx: int):
             fname = MINING_ORE_DEFS[idx]["file"]
             return os.path.join(ASSET_DIR, "Teste", "recompensa", "minérios", fname), f"ore_{idx}"
         return None, None
+    if category == "Lingotes":
+        if 0 <= idx < len(LINGOT_DEFS):
+            fname = LINGOT_DEFS[idx]["file"]
+            return os.path.join(ASSET_DIR, "Teste", "recompensa", "barras de minérios", fname), f"ling_{idx}"
+        return None, None
     if category in ARMOR_SHOP_CATEGORIES:
         _acd  = ARMOR_SHOP_CATEGORIES[category]
         _fls  = _acd["files"]
@@ -1834,6 +1839,18 @@ def _item_img_path(category: str, idx: int):
     _cdat = ITEM_SHOP_CATEGORIES.get(category, {})
     _fn   = "%s (%d).png" % (_cdat.get("prefix", category), idx + 1)
     return os.path.join("assets", "ui", "itens", _fn), _fn
+
+# ── Lingotes (craftados na aba Minérios do Ferreiro) ─────────────────────────
+# ore_idx alinha com MINING_ORE_DEFS: 0=Negro,1=Azul,2=Verm.Escuro,3=Verde,4=Verm.,5=Branco,6=Amarelo
+LINGOT_DEFS = [
+    {"name": "Lingote de Obsidiana",    "file": "blackbar.png",   "ore_idx": 0, "qty": 5},
+    {"name": "Lingote de Cristal Puro", "file": "whitebar.png",   "ore_idx": 5, "qty": 5},
+    {"name": "Lingote de Esmeralda",    "file": "greenbar.png",   "ore_idx": 3, "qty": 5},
+    {"name": "Lingote de Sangue",       "file": "darkredbar.png", "ore_idx": 2, "qty": 6},
+    {"name": "Lingote de Rubi",         "file": "redbar.png",     "ore_idx": 4, "qty": 5},
+    {"name": "Lingote de Âmbar",        "file": "yellowbar.png",  "ore_idx": 6, "qty": 5},
+    {"name": "Lingote de Safira",       "file": "bluebar.png",    "ore_idx": 1, "qty": 5},
+]
 
 # Multiplicadores permanentes (serão sobrescritos em reset_game)
 CRIT_DMG_MULT = 2.0
@@ -5397,7 +5414,8 @@ def main():
     hub_equip_open     = False   # Janela de Equipamento (I key — layout Diablo)
     hub_status_open    = False   # Janela de Status (C key)
     hub_profile_open   = False   # Janela de Perfil/Conquistas (L key)
-    market_scene: MarketScene | None = None   # Cena do Mercado (carregada na primeira visita)
+    market_scene:     MarketScene     | None = None   # Cena do Mercado (carregada na primeira visita)
+    blacksmith_scene: BlacksmithScene | None = None   # Interior da ferraria (carregada na primeira visita)
     menu_profile_open  = False   # Overlay de Perfil/Conquistas no MENU
     # Mensagem de erro de equipamento (nível insuficiente)
     _equip_err_msg       = ""
@@ -5408,6 +5426,8 @@ def main():
     _craft_selected: tuple = ("Espadas Lendárias", 0)  # (categoria, idx) da receita selecionada
     _craft_img_cache: dict = {}
     _craft_scroll_y: int = 0          # scroll da lista de receitas
+    _craft_tab: str   = "armas"       # aba ativa do painel de crafting: "armas" | "minerios"
+    _lingot_selected: int = 0         # índice em LINGOT_DEFS selecionado na aba Minérios
     # Drag-and-drop: item sendo arrastado com o mouse
     _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip"|"craft_slot", "_idx":int, "_slot":str|None}
     _drag_active: bool = False       # True enquanto o botão do mouse está pressionado
@@ -5645,19 +5665,7 @@ def main():
                         if snd_click: snd_click.play()
 
                 if state == "MARKET" and event.key == pygame.K_f:
-                    if (market_scene is not None and market_scene.player_near_ferreiro
-                            and not hub_status_open and not hub_profile_open):
-                        craft_open = not craft_open
-                        if craft_open:
-                            hub_equip_open = True
-                            _craft_slots   = [None, None, None]
-                            _craft_scroll_y = 0
-                        else:
-                            hub_equip_open = False
-                            _craft_slots   = [None, None, None]
-                        _drag_item = None; _drag_active = False
-                        if snd_click: snd_click.play()
-                    elif (market_scene is not None and market_scene.player_near_loja
+                    if (market_scene is not None and market_scene.player_near_loja
                             and not hub_status_open and not hub_profile_open
                             and not craft_open):
                         state = "ITEM_SHOP"
@@ -5665,6 +5673,30 @@ def main():
                         hub_equip_open = False
                         _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
+                    elif (market_scene is not None and market_scene.player_near_talentos
+                            and not hub_status_open and not hub_profile_open
+                            and not craft_open):
+                        market_shop_open = not market_shop_open
+                        if market_shop_open:
+                            update_shop_talent_button_layout()
+                        if snd_click: snd_click.play()
+
+                if (state == "BLACKSMITH" and event.key == pygame.K_f
+                        and blacksmith_scene is not None
+                        and blacksmith_scene.player_near_ferreiro
+                        and not hub_status_open and not hub_profile_open):
+                    craft_open = not craft_open
+                    if craft_open:
+                        hub_equip_open  = True
+                        _craft_slots    = [None, None, None]
+                        _craft_scroll_y = 0
+                        _craft_tab      = "armas"
+                        _lingot_selected = 0
+                    else:
+                        hub_equip_open = False
+                        _craft_slots   = [None, None, None]
+                    _drag_item = None; _drag_active = False
+                    if snd_click: snd_click.play()
 
                 if (state == "REWARD_ROOM" and event.key == pygame.K_f
                         and _mining_system is not None
@@ -5672,20 +5704,20 @@ def main():
                         and reward_room_player_pos is not None):
                     _mining_system.try_start_mining(reward_room_player_pos)
 
-                if state in ("HUB", "MARKET", "REWARD_ROOM") and event.key == pygame.K_i:
+                if state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
                     _drag_item = None; _drag_active = False
                     if state == "REWARD_ROOM" and _mining_system is not None:
                         _mining_system.cancel_mining()
                     if snd_click: snd_click.play()
 
-                if state in ("HUB", "MARKET", "REWARD_ROOM") and event.key == pygame.K_c:
+                if state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and event.key == pygame.K_c:
                     hub_status_open = not hub_status_open
                     if state == "REWARD_ROOM" and _mining_system is not None:
                         _mining_system.cancel_mining()
                     if snd_click: snd_click.play()
 
-                if state in ("HUB", "MARKET") and event.key == pygame.K_l:
+                if state in ("HUB", "MARKET", "BLACKSMITH") and event.key == pygame.K_l:
                     hub_profile_open = not hub_profile_open
                     if snd_click: snd_click.play()
 
@@ -5815,6 +5847,23 @@ def main():
                             hub_countdown_active = False
                             hub_countdown_timer  = 0.0
                             state = "PACT_SELECT"
+                    elif state == "BLACKSMITH":
+                        if hub_equip_open or hub_status_open:
+                            hub_equip_open  = False
+                            hub_status_open = False
+                            _drag_item = None; _drag_active = False
+                        elif craft_open:
+                            craft_open   = False
+                            hub_equip_open = False
+                            _craft_slots = [None, None, None]
+                            _drag_item = None; _drag_active = False
+                        else:
+                            hub_equip_open  = False
+                            hub_status_open = False
+                            craft_open      = False
+                            _craft_slots    = [None, None, None]
+                            _drag_item = None; _drag_active = False
+                            state = "MARKET"
                     elif state == "REWARD_ROOM":
                         if _mining_system is not None:
                             _mining_system.cancel_mining()
@@ -6248,14 +6297,13 @@ def main():
                             hub_countdown_active = True
                             hub_countdown_timer  = 5.0
                             if snd_click: snd_click.play()
-                        # Botões de atalho: Mercado e Talentos
+                        # Botão de atalho: Mercado
                         _hub_panel_x = int(SCREEN_W * 0.84)
                         _hub_panel_w = SCREEN_W - _hub_panel_x
                         _hub_rb_rw = _hub_panel_w - int(_hub_panel_w * 0.20)
                         _hub_rb_rx = _hub_panel_x + int(_hub_panel_w * 0.10)
                         _hub_rb_h  = 50
                         _hub_market_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.373) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
-                        _hub_talent_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.453) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
                         if _hub_market_rect.collidepoint(click_pos):
                             if market_scene is None:
                                 _ferreiro_dir = os.path.join(BASE_DIR, "assets", "Teste", "ferreiro")
@@ -6276,9 +6324,6 @@ def main():
                                 )
                             state = "MARKET"
                             if snd_click: snd_click.play()
-                        elif _hub_talent_rect.collidepoint(click_pos):
-                            hub_return = True
-                            state = "SHOP"
                         # Setas de fase Hardcore
                         if selected_difficulty == "HARDCORE" and hasattr(main, "_hc_larr"):
                             _hc_max_unl = save_data.get("hardcore_stages", {}).get("unlocked", 1)
@@ -6289,7 +6334,7 @@ def main():
                                 current_hardcore_stage += 1
                                 if snd_click: snd_click.play()
 
-                    elif state == "MARKET":
+                    elif state in ("MARKET", "BLACKSMITH"):
                         if hub_profile_open:
                             if hasattr(_draw_profile_viewer, "_av_picker_rects") and getattr(_draw_profile_viewer, "_av_picker_open", False):
                                 for _pck_idx, _pck_r in _draw_profile_viewer._av_picker_rects:
@@ -6322,10 +6367,20 @@ def main():
                                 _cf_ev_lw  = _cf_ev_PW // 2 - 8
                                 _cf_ev_rx  = _cf_ev_PX + _cf_ev_lw + 12
                                 _cf_ev_rw  = _cf_ev_PW - _cf_ev_lw - 20
+                                # ── Tab click (Armas / Minérios) ───────────────
+                                _cf_tab_armas_r_ev = getattr(main, "_cf_tab_armas_r", None)
+                                _cf_tab_min_r_ev   = getattr(main, "_cf_tab_min_r",   None)
+                                if _cf_tab_armas_r_ev and _cf_tab_armas_r_ev.collidepoint(click_pos):
+                                    _craft_tab = "armas"
+                                    if snd_click: snd_click.play()
+                                elif _cf_tab_min_r_ev and _cf_tab_min_r_ev.collidepoint(click_pos):
+                                    _craft_tab = "minerios"
+                                    if snd_click: snd_click.play()
+
                                 # Recipe list click (approximate — just check if inside list area)
                                 _cf_ev_list_rect = pygame.Rect(_cf_ev_PX + 4, _cf_ev_PY + 46,
                                                                 _cf_ev_lw, _cf_ev_PH - 50)
-                                if _cf_ev_list_rect.collidepoint(click_pos):
+                                if _craft_tab == "armas" and _cf_ev_list_rect.collidepoint(click_pos):
                                     _cf_ev_rects = getattr(main, "_cf_ui_rects", {})
                                     for (_rcat, _ridx), _rrect in _cf_ev_rects.get("recipe_rects", {}).items():
                                         if _rrect.collidepoint(click_pos):
@@ -6335,19 +6390,20 @@ def main():
                                             break
                                 # Craft slot click (pick up item from slot)
                                 _cf_ev_rects2 = getattr(main, "_cf_ui_rects", {})
-                                for _cf_sn, _cf_sr_ev in enumerate(_cf_ev_rects2.get("slot_rects", [])):
-                                    if _cf_sr_ev.collidepoint(click_pos) and _craft_slots[_cf_sn] is not None:
-                                        _drag_item   = {"item": _craft_slots[_cf_sn], "from": "craft_slot",
-                                                        "_idx": -1, "_slot": None, "_slot_n": _cf_sn}
-                                        _drag_active = True
-                                        _drag_offset = (click_pos[0] - _cf_sr_ev.centerx,
-                                                        click_pos[1] - _cf_sr_ev.centery)
-                                        _craft_slots[_cf_sn] = None
-                                        if snd_click: snd_click.play()
-                                        break
+                                if _craft_tab == "armas":
+                                    for _cf_sn, _cf_sr_ev in enumerate(_cf_ev_rects2.get("slot_rects", [])):
+                                        if _cf_sr_ev.collidepoint(click_pos) and _craft_slots[_cf_sn] is not None:
+                                            _drag_item   = {"item": _craft_slots[_cf_sn], "from": "craft_slot",
+                                                            "_idx": -1, "_slot": None, "_slot_n": _cf_sn}
+                                            _drag_active = True
+                                            _drag_offset = (click_pos[0] - _cf_sr_ev.centerx,
+                                                            click_pos[1] - _cf_sr_ev.centery)
+                                            _craft_slots[_cf_sn] = None
+                                            if snd_click: snd_click.play()
+                                            break
                                 # FORJAR button click
                                 _cf_ev_btn = _cf_ev_rects2.get("btn_forge")
-                                if _cf_ev_btn and _cf_ev_btn.collidepoint(click_pos):
+                                if _craft_tab == "armas" and _cf_ev_btn and _cf_ev_btn.collidepoint(click_pos):
                                     _cf_sel_c, _cf_sel_i = _craft_selected
                                     _cf_cid_forge = player.char_id if player else 0
                                     _cf_inv_forge  = get_char_inventory(_cf_cid_forge)
@@ -6371,6 +6427,45 @@ def main():
                                     _craft_slots = [None, None, None]
                                     save_game()
                                     if snd_click: snd_click.play()
+                                # Lingot grid click (select lingote)
+                                if _craft_tab == "minerios":
+                                    _cf_ling_ev = getattr(main, "_cf_ling_rects", {})
+                                    for _li_ev_idx, _li_ev_r in _cf_ling_ev.get("recipe_rects", {}).items():
+                                        if _li_ev_r.collidepoint(click_pos):
+                                            _lingot_selected = _li_ev_idx
+                                            if snd_click: snd_click.play()
+                                            break
+                                    # FUNDIR button click
+                                    _ld_ev_btn = _cf_ling_ev.get("btn_fundir")
+                                    if _ld_ev_btn and _ld_ev_btn.collidepoint(click_pos) and _cf_ling_ev.get("fundir_ok"):
+                                        _ld_ev_def  = LINGOT_DEFS[_lingot_selected]
+                                        _ld_ev_cid  = player.char_id if player else 0
+                                        _ld_ev_inv  = get_char_inventory(_ld_ev_cid)
+                                        _ld_ev_oidx = _ld_ev_def["ore_idx"]
+                                        _ld_ev_qty  = _ld_ev_def["qty"]
+                                        # Remove ore qty from inventory
+                                        _ld_ev_rem  = _ld_ev_qty
+                                        for _ld_ev_slot in list(_ld_ev_inv):
+                                            if _ld_ev_rem <= 0: break
+                                            if _ld_ev_slot.get("category") == "Minérios" and _ld_ev_slot.get("idx") == _ld_ev_oidx:
+                                                _ld_ev_sq = _ld_ev_slot.get("qty", 1)
+                                                if _ld_ev_sq <= _ld_ev_rem:
+                                                    _ld_ev_rem -= _ld_ev_sq
+                                                    _ld_ev_inv.remove(_ld_ev_slot)
+                                                else:
+                                                    _ld_ev_slot["qty"] = _ld_ev_sq - _ld_ev_rem
+                                                    _ld_ev_rem = 0
+                                        # Add lingot to inventory (stackable)
+                                        _ld_ev_existing = next(
+                                            (s for s in _ld_ev_inv
+                                             if s.get("category") == "Lingotes" and s.get("idx") == _lingot_selected),
+                                            None)
+                                        if _ld_ev_existing:
+                                            _ld_ev_existing["qty"] = _ld_ev_existing.get("qty", 1) + 1
+                                        else:
+                                            _ld_ev_inv.append({"category": "Lingotes", "idx": _lingot_selected, "qty": 1})
+                                        save_game()
+                                        if snd_click: snd_click.play()
                             _dd_eqslots = {
                                 "helmet": (295,143,110,104), "weapon": (141,266,106,105),
                                 "shield": (457,266,106,105),
@@ -6416,7 +6511,7 @@ def main():
                                 _drag_active = True
                                 _drag_offset = (click_pos[0]-_cx_dd, click_pos[1]-_cy_dd)
                                 if snd_click: snd_click.play()
-                        elif market_shop_open:
+                        elif market_shop_open and state == "MARKET":
                             if shop_back_btn.rect.collidepoint(click_pos):
                                 market_shop_open = False
                                 save_game()
@@ -6432,7 +6527,7 @@ def main():
                                                 save_data["gold"] -= price
                                                 save_data["perm_upgrades"][s_key] = lvl + 1
                                                 if snd_click: snd_click.play()
-                        elif market_missions_open:
+                        elif market_missions_open and state == "MARKET":
                             if mission_btns[0].rect.collidepoint(click_pos):
                                 market_missions_open = False
                                 if snd_click: snd_click.play()
@@ -6446,27 +6541,61 @@ def main():
                                             play_sfx("win")
                                             save_game()
                         else:
-                            # Painel direito só recebe cliques quando visível
-                            _mk_panel_visible = (not craft_open) or (click_pos[0] >= SCREEN_W - 60)
-                            if _mk_panel_visible:
-                                _mk_panel_x = int(SCREEN_W * 0.84)
-                                _mk_panel_w = SCREEN_W - _mk_panel_x
-                                _mk_rb_rw = _mk_panel_w - int(_mk_panel_w * 0.20)
-                                _mk_rb_rx = _mk_panel_x + int(_mk_panel_w * 0.10)
-                                _mk_rb_h  = 50
-                                _mk_missions_rect = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                                _mk_talent_rect   = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.453) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                                _mk_voltar_rect   = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.562) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                                if _mk_missions_rect.collidepoint(click_pos):
-                                    market_missions_open = True
-                                    if snd_click: snd_click.play()
-                                elif _mk_talent_rect.collidepoint(click_pos):
-                                    market_shop_open = True
-                                    update_shop_talent_button_layout()
-                                    if snd_click: snd_click.play()
-                                elif _mk_voltar_rect.collidepoint(click_pos):
-                                    state = "HUB"
-                                    if snd_click: snd_click.play()
+                            if state == "MARKET":
+                                # Painel direito só recebe cliques quando visível
+                                _mk_panel_visible = (not craft_open) or (click_pos[0] >= SCREEN_W - 60)
+                                if _mk_panel_visible:
+                                    _mk_panel_x = int(SCREEN_W * 0.84)
+                                    _mk_panel_w = SCREEN_W - _mk_panel_x
+                                    _mk_rb_rw = _mk_panel_w - int(_mk_panel_w * 0.20)
+                                    _mk_rb_rx = _mk_panel_x + int(_mk_panel_w * 0.10)
+                                    _mk_rb_h  = 50
+                                    _mk_missions_rect  = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                                    _mk_ferreiro_rect  = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.453) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                                    _mk_voltar_rect    = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.562) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                                    if _mk_missions_rect.collidepoint(click_pos):
+                                        market_missions_open = True
+                                        if snd_click: snd_click.play()
+                                    elif _mk_ferreiro_rect.collidepoint(click_pos):
+                                        _bs_dir = os.path.join(BASE_DIR, "assets", "Teste", "blacksmith")
+                                        if blacksmith_scene is None:
+                                            blacksmith_scene = BlacksmithScene(_bs_dir)
+                                            blacksmith_scene.load_all()
+                                            blacksmith_scene.load_surfaces_and_bake()
+                                            blacksmith_scene.setup_player()
+                                        else:
+                                            blacksmith_scene.reset_spawn()
+                                        if player is not None:
+                                            _cid_bs  = player.char_id
+                                            _cdat_bs = CHAR_DATA.get(_cid_bs, {})
+                                            blacksmith_scene.apply_char_frames(
+                                                dir_walk      = dict(player._dir_walk_frames),
+                                                dir_idle      = dict(player._dir_idle_frames),
+                                                walk_fallback = list(player.anim_frames),
+                                                idle_fallback = list(player.idle_frames),
+                                                anim_spd      = _cdat_bs.get("anim_speed", 0.10),
+                                                idle_anim_spd = _cdat_bs.get("idle_anim_speed", 0.13),
+                                            )
+                                        state = "BLACKSMITH"
+                                        if snd_click: snd_click.play()
+                                    elif _mk_voltar_rect.collidepoint(click_pos):
+                                        state = "HUB"
+                                        if snd_click: snd_click.play()
+                            elif state == "BLACKSMITH":
+                                # Painel da ferraria só recebe cliques quando visível (mouse na borda direita, craft fechado)
+                                if click_pos[0] >= SCREEN_W - 60 and not craft_open:
+                                    _bs_panel_x  = int(SCREEN_W * 0.84)
+                                    _bs_panel_w  = SCREEN_W - _bs_panel_x
+                                    _bs_rb_rw    = _bs_panel_w - int(_bs_panel_w * 0.20)
+                                    _bs_rb_rx    = _bs_panel_x + int(_bs_panel_w * 0.10)
+                                    _bs_rb_h     = 50
+                                    _bs_vlt_rect = pygame.Rect(_bs_rb_rx, int(SCREEN_H * 0.373) - _bs_rb_h//2, _bs_rb_rw, _bs_rb_h)
+                                    if _bs_vlt_rect.collidepoint(click_pos):
+                                        craft_open   = False
+                                        hub_equip_open = False
+                                        _craft_slots = [None, None, None]
+                                        state = "MARKET"
+                                        if snd_click: snd_click.play()
 
                     elif state == "REWARD_ROOM":
                         if hub_equip_open and not _drag_active:
@@ -6968,7 +7097,7 @@ def main():
                 stop_settings_drag()
 
             # ── Drop do Drag-and-Drop de Inventário/Baú/Equipamento ──────────
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state in ("HUB", "MARKET", "REWARD_ROOM") and _drag_active:
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and _drag_active:
                 _drop_pos = event.pos
                 _dd_cid_u = player.char_id if player else 0
                 _dd_inv_u = get_char_inventory(_dd_cid_u)
@@ -7414,6 +7543,12 @@ def main():
                     _mining_system.update(dt, reward_room_player_pos)
                 if player is not None:
                     _mining_system.collect_mined_ores(get_char_inventory(player.char_id))
+
+        # 3d. Lógica da Ferraria
+        if state == "BLACKSMITH" and blacksmith_scene is not None:
+            if not hub_equip_open and not hub_status_open and not hub_profile_open:
+                keys = pygame.key.get_pressed()
+                blacksmith_scene.update(dt, keys, SCREEN_W, SCREEN_H)
 
         # 3. Atualização da Lógica do Jogo
         if state == "PLAYING" and player and player.hp > 0 and not show_stage_victory and not show_reward_dialog:
@@ -9162,7 +9297,7 @@ def main():
                 diff_back_btn.check_hover(m_pos, snd_hover)
                 diff_back_btn.draw(screen)
 
-        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None) or state == "REWARD_ROOM":
+        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None) or (state == "BLACKSMITH" and blacksmith_scene is not None) or state == "REWARD_ROOM":
             # ── Mapa + jogador ─────────────────────────────────────────────
             if state == "HUB":
                 hub_scene.draw(screen)
@@ -9180,28 +9315,8 @@ def main():
             elif state == "MARKET":
                 market_scene.draw(screen)
 
-                # ── Label "FERREIRO" acima do NPC + hint [F] quando perto ──
-                _ferr_sp  = market_scene.ferreiro_screen_pos
-                _ferr_now = pygame.time.get_ticks()
-                _ferr_bob = math.sin(_ferr_now / 400.0) * 4
-                _fn_surf  = font_s.render("FERREIRO", True, (255, 180, 60))
-                _fn_bg    = pygame.Surface((_fn_surf.get_width() + 12, _fn_surf.get_height() + 6), pygame.SRCALPHA)
-                _fn_bg.fill((10, 8, 6, 160))
-                _fn_rect  = _fn_bg.get_rect(centerx=int(_ferr_sp.x), bottom=int(_ferr_sp.y - 72 + _ferr_bob))
-                screen.blit(_fn_bg, _fn_rect)
-                pygame.draw.rect(screen, (200, 130, 40), _fn_rect, 1, border_radius=3)
-                screen.blit(_fn_surf, _fn_surf.get_rect(center=_fn_rect.center))
-                if market_scene.player_near_ferreiro and not hub_status_open and not hub_profile_open:
-                    _fi_label = "[F] Fechar FERREIRO" if craft_open else "[F] FERREIRO"
-                    _fi_surf = font_s.render(_fi_label, True, (255, 200, 80))
-                    _fi_bg   = pygame.Surface((_fi_surf.get_width() + 16, _fi_surf.get_height() + 8), pygame.SRCALPHA)
-                    _fi_bg.fill((10, 8, 6, 180))
-                    _fi_rect = _fi_bg.get_rect(centerx=int(_ferr_sp.x), bottom=_fn_rect.top - 4)
-                    screen.blit(_fi_bg, _fi_rect)
-                    pygame.draw.rect(screen, (200, 130, 40), _fi_rect, 1, border_radius=4)
-                    screen.blit(_fi_surf, _fi_surf.get_rect(center=_fi_rect.center))
-
                 # ── Label "LOJA DE ITENS" acima do NPC esquerdo ──────────────
+                _ferr_now = pygame.time.get_ticks()
                 _loja_sp  = market_scene.loja_screen_pos
                 _loja_bob = math.sin(_ferr_now / 400.0 + 1.0) * 4
                 _ln_surf  = font_s.render("LOJA DE ITENS", True, (100, 200, 255))
@@ -9220,7 +9335,92 @@ def main():
                     pygame.draw.rect(screen, (60, 140, 200), _li_rect, 1, border_radius=4)
                     screen.blit(_li_surf, _li_surf.get_rect(center=_li_rect.center))
 
-            else:
+                # ── Label "TALENTOS" acima do NPC de talentos ──────────────
+                _tal_sp  = market_scene.talentos_screen_pos
+                _tal_bob = math.sin(_ferr_now / 400.0 + 2.0) * 4
+                _tn_surf  = font_s.render("TALENTOS", True, (140, 255, 180))
+                _tn_bg    = pygame.Surface((_tn_surf.get_width() + 12, _tn_surf.get_height() + 6), pygame.SRCALPHA)
+                _tn_bg.fill((10, 8, 6, 160))
+                _tn_rect  = _tn_bg.get_rect(centerx=int(_tal_sp.x), bottom=int(_tal_sp.y - 72 + _tal_bob))
+                screen.blit(_tn_bg, _tn_rect)
+                pygame.draw.rect(screen, (60, 160, 100), _tn_rect, 1, border_radius=3)
+                screen.blit(_tn_surf, _tn_surf.get_rect(center=_tn_rect.center))
+                if market_scene.player_near_talentos and not hub_status_open and not hub_profile_open and not craft_open:
+                    _ti_label = "[F] Fechar TALENTOS" if market_shop_open else "[F] TALENTOS"
+                    _ti_surf = font_s.render(_ti_label, True, (140, 255, 180))
+                    _ti_bg   = pygame.Surface((_ti_surf.get_width() + 16, _ti_surf.get_height() + 8), pygame.SRCALPHA)
+                    _ti_bg.fill((10, 8, 6, 180))
+                    _ti_rect = _ti_bg.get_rect(centerx=int(_tal_sp.x), bottom=_tn_rect.top - 4)
+                    screen.blit(_ti_bg, _ti_rect)
+                    pygame.draw.rect(screen, (60, 160, 100), _ti_rect, 1, border_radius=4)
+                    screen.blit(_ti_surf, _ti_surf.get_rect(center=_ti_rect.center))
+
+            elif state == "BLACKSMITH" and blacksmith_scene is not None:
+                # ── INTERIOR DA FERRARIA ────────────────────────────────────
+                blacksmith_scene.draw(screen)
+
+                # ── Label "FERREIRO" acima do NPC + hint [F] quando perto ──
+                _bs_ferr_now = pygame.time.get_ticks()
+                _bs_ferr_sp  = blacksmith_scene.ferreiro_screen_pos
+                _bs_ferr_bob = math.sin(_bs_ferr_now / 400.0) * 4
+                _bsfn_surf = font_s.render("FERREIRO", True, (255, 180, 60))
+                _bsfn_bg   = pygame.Surface((_bsfn_surf.get_width() + 12, _bsfn_surf.get_height() + 6), pygame.SRCALPHA)
+                _bsfn_bg.fill((10, 8, 6, 160))
+                _bsfn_rect = _bsfn_bg.get_rect(centerx=int(_bs_ferr_sp.x), bottom=int(_bs_ferr_sp.y - 80 + _bs_ferr_bob))
+                screen.blit(_bsfn_bg, _bsfn_rect)
+                pygame.draw.rect(screen, (200, 130, 40), _bsfn_rect, 1, border_radius=3)
+                screen.blit(_bsfn_surf, _bsfn_surf.get_rect(center=_bsfn_rect.center))
+                if blacksmith_scene.player_near_ferreiro and not hub_status_open and not hub_profile_open:
+                    _bsfi_label = "[F] Fechar FERREIRO" if craft_open else "[F] FERREIRO"
+                    _bsfi_surf = font_s.render(_bsfi_label, True, (255, 200, 80))
+                    _bsfi_bg   = pygame.Surface((_bsfi_surf.get_width() + 16, _bsfi_surf.get_height() + 8), pygame.SRCALPHA)
+                    _bsfi_bg.fill((10, 8, 6, 180))
+                    _bsfi_rect = _bsfi_bg.get_rect(centerx=int(_bs_ferr_sp.x), bottom=_bsfn_rect.top - 4)
+                    screen.blit(_bsfi_bg, _bsfi_rect)
+                    pygame.draw.rect(screen, (200, 130, 40), _bsfi_rect, 1, border_radius=4)
+                    screen.blit(_bsfi_surf, _bsfi_surf.get_rect(center=_bsfi_rect.center))
+
+                # ── Painel lateral direito (Ferraria) — só aparece na borda ─
+                _bs_show_panel = (m_pos[0] >= SCREEN_W - 60
+                                  and not craft_open and not hub_equip_open
+                                  and not hub_status_open and not hub_profile_open)
+                if not _bs_show_panel:
+                    _tab_w = 14
+                    _tab_surf = pygame.Surface((_tab_w, SCREEN_H), pygame.SRCALPHA)
+                    _tab_surf.fill((10, 8, 6, 160))
+                    screen.blit(_tab_surf, (SCREEN_W - _tab_w, 0))
+                    pygame.draw.line(screen, (120, 100, 60), (SCREEN_W - _tab_w, 0), (SCREEN_W - _tab_w, SCREEN_H), 1)
+                if _bs_show_panel:
+                    _bs_hp_x = int(SCREEN_W * 0.84)
+                    _bs_hp_w = SCREEN_W - _bs_hp_x
+                    _bs_cx   = _bs_hp_x + _bs_hp_w // 2
+                    _bs_panel = pygame.Surface((_bs_hp_w, SCREEN_H), pygame.SRCALPHA)
+                    _bs_panel.fill((10, 8, 6, 215))
+                    screen.blit(_bs_panel, (_bs_hp_x, 0))
+                    pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_bs_hp_x, 0), (_bs_hp_x, SCREEN_H), 2)
+                    _bs_title_s = font_s.render("Ferraria", True, UI_THEME.get("old_gold", (220, 180, 80)))
+                    screen.blit(_bs_title_s, _bs_title_s.get_rect(centerx=_bs_cx, top=int(SCREEN_H * 0.03)))
+                    if player is not None:
+                        _bs_name_s = font_s.render(CHAR_DATA.get(player.char_id, {}).get("name", ""), True, (220, 210, 180))
+                        screen.blit(_bs_name_s, _bs_name_s.get_rect(centerx=_bs_cx, top=int(SCREEN_H * 0.13)))
+                        _bs_hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
+                        screen.blit(_bs_hp_s, _bs_hp_s.get_rect(centerx=_bs_cx, top=int(SCREEN_H * 0.19)))
+                    _bs_rb_rw = _bs_hp_w - int(_bs_hp_w * 0.20)
+                    _bs_rb_rx = _bs_hp_x + int(_bs_hp_w * 0.10)
+                    _bs_rb_h  = 50
+                    _bs_voltar_draw = pygame.Rect(_bs_rb_rx, int(SCREEN_H * 0.373) - _bs_rb_h//2, _bs_rb_rw, _bs_rb_h)
+                    _bs_vhov = _bs_voltar_draw.collidepoint(m_pos)
+                    _bs_vs   = font_m.render("VOLTAR", True, (200, 255, 200) if _bs_vhov else (140, 220, 140))
+                    screen.blit(_bs_vs, _bs_vs.get_rect(center=_bs_voltar_draw.center))
+                    _bs_hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
+                    _bs_hint_c = font_s.render("[C] Status",      True, (100, 160, 100))
+                    _bs_esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
+                    _bs_hint_top = _bs_voltar_draw.bottom + 10
+                    screen.blit(_bs_hint_i, _bs_hint_i.get_rect(centerx=_bs_cx, top=_bs_hint_top))
+                    screen.blit(_bs_hint_c, _bs_hint_c.get_rect(centerx=_bs_cx, top=_bs_hint_top + 22))
+                    screen.blit(_bs_esc_s,  _bs_esc_s.get_rect(centerx=_bs_cx, bottom=int(SCREEN_H * 0.97)))
+
+            elif state == "REWARD_ROOM":
                 # ── SALA DE RECOMPENSA ──────────────────────────────────────
                 if _reward_room_bg is not None:
                     screen.blit(_reward_room_bg, (0, 0))
@@ -9583,198 +9783,358 @@ def main():
                                          (_cf_PX + _cf_PW - 12, _cf_PY + 14 + _cf_th), 1)
                         _cf_y0 = _cf_PY + 14 + _cf_th + 6
 
-                        # Divisão esq/dir
-                        _cf_lw  = int(_cf_PW * 0.48)
-                        _cf_rx  = _cf_PX + _cf_lw + 8
-                        _cf_rw  = _cf_PW - _cf_lw - 16
-                        _cf_lh  = _cf_PH - (_cf_y0 - _cf_PY) - 4
-
-                        # Lista de receitas (esquerda)
-                        _cf_list_r = pygame.Rect(_cf_PX + 4, _cf_y0, _cf_lw, _cf_lh)
-                        pygame.draw.rect(screen, (20, 16, 12), _cf_list_r, border_radius=4)
-                        pygame.draw.rect(screen, (80, 60, 30), _cf_list_r, 1, border_radius=4)
-
-                        _cf_REC = 44; _cf_REC_PAD = 5
-                        _cf_COLS_r = max(1, _cf_lw // (_cf_REC + _cf_REC_PAD))
-
-                        # Altura total de conteúdo para scroll
-                        _cf_total_h2 = 0
-                        for _cfc in CRAFT_CATEGORY_ORDER:
-                            if _cfc in CRAFTED_CATEGORIES:
-                                _cfc_rows = math.ceil(len(CRAFTED_CATEGORIES[_cfc]["files"]) / _cf_COLS_r)
-                                _cf_total_h2 += 22 + _cfc_rows * (_cf_REC + _cf_REC_PAD)
-                        _cf_max_sc = max(0, _cf_total_h2 - _cf_lh + 12)
-                        _craft_scroll_y = int(max(0, min(_craft_scroll_y, _cf_max_sc)))
-
-                        screen.set_clip(_cf_list_r.inflate(-2, -2))
-                        _cf_draw_y = _cf_y0 + 6 - _craft_scroll_y
-                        _cf_rects_map = {}
-
-                        for _cfc in CRAFT_CATEGORY_ORDER:
-                            if _cfc not in CRAFTED_CATEGORIES:
-                                continue
-                            _cfc_lbl = font_s.render(_cfc, True, (180, 140, 60))
-                            screen.blit(_cfc_lbl, (_cf_PX + 6, _cf_draw_y))
-                            _cf_draw_y += 22
-                            _cf_col_r = 0
-                            _cf_draw_xr = _cf_PX + 6
-                            for _cf_idx2, _cf_fn2 in enumerate(CRAFTED_CATEGORIES[_cfc]["files"]):
-                                _cf_ckey2 = f"cfr_{_cfc}_{_cf_fn2}_{_cf_REC}"
-                                if _cf_ckey2 not in _craft_img_cache:
-                                    _cf_path2 = os.path.join("assets", "ui", "itens_craft",
-                                                              CRAFTED_CATEGORIES[_cfc]["folder"], _cf_fn2)
-                                    try:
-                                        _cf_raw2 = pygame.image.load(_cf_path2).convert_alpha()
-                                        _craft_img_cache[_cf_ckey2] = pygame.transform.smoothscale(
-                                            _cf_raw2, (_cf_REC - 6, _cf_REC - 6))
-                                    except Exception:
-                                        _craft_img_cache[_cf_ckey2] = None
-                                _cf_img2  = _craft_img_cache.get(_cf_ckey2)
-                                _cf_sr3   = pygame.Rect(_cf_draw_xr, _cf_draw_y, _cf_REC, _cf_REC)
-                                _cf_rects_map[(_cfc, _cf_idx2)] = _cf_sr3
-                                _cf_sel3  = (_craft_selected == (_cfc, _cf_idx2))
-                                _cf_hov3  = _cf_sr3.collidepoint(m_pos) and _cf_list_r.collidepoint(m_pos)
-                                _cf_bg3   = (65, 48, 18) if _cf_sel3 else ((50, 38, 14) if _cf_hov3 else (28, 22, 10))
-                                _cf_brd3  = (240, 190, 60) if _cf_sel3 else ((180, 140, 50) if _cf_hov3 else (75, 60, 30))
-                                pygame.draw.rect(screen, _cf_bg3, _cf_sr3, border_radius=4)
-                                pygame.draw.rect(screen, _cf_brd3, _cf_sr3, 2 if _cf_sel3 else 1, border_radius=4)
-                                if _cf_img2:
-                                    screen.blit(_cf_img2, _cf_img2.get_rect(center=_cf_sr3.center))
-                                _cf_col_r += 1
-                                if _cf_col_r >= _cf_COLS_r:
-                                    _cf_col_r = 0
-                                    _cf_draw_xr = _cf_PX + 6
-                                    _cf_draw_y += _cf_REC + _cf_REC_PAD
-                                else:
-                                    _cf_draw_xr += _cf_REC + _cf_REC_PAD
-                            if _cf_col_r != 0:
-                                _cf_draw_y += _cf_REC + _cf_REC_PAD
-                        screen.set_clip(None)
-
-                        # Resultado selecionado (direita)
-                        _cf_ry2  = _cf_y0 + 4
-                        _cf_scat, _cf_sidx = _craft_selected
-                        _cf_sts2 = ITEM_SHOP_STATS.get(_cf_scat, [])
-                        _cf_st2  = _cf_sts2[_cf_sidx] if _cf_sidx < len(_cf_sts2) else {}
-                        _cf_nm2  = _cf_st2.get("name", "?")
-                        _cf_ak2  = _cf_st2.get("atk", 0)
-                        _cf_df2  = _cf_st2.get("def", 0)
-                        _cf_lv2  = _cf_st2.get("level", 1)
-
-                        _cf_BIG  = 72
-                        _cf_bfn  = CRAFTED_CATEGORIES.get(_cf_scat, {}).get("files", [])
-                        _cf_bfn  = _cf_bfn[_cf_sidx] if _cf_sidx < len(_cf_bfn) else None
-                        _cf_bimg = None
-                        if _cf_bfn:
-                            _cf_bkey = f"cfb_{_cf_scat}_{_cf_bfn}_{_cf_BIG}"
-                            if _cf_bkey not in _craft_img_cache:
-                                _cf_bpath = os.path.join("assets", "ui", "itens_craft",
-                                                         CRAFTED_CATEGORIES[_cf_scat]["folder"], _cf_bfn)
-                                try:
-                                    _cf_braw = pygame.image.load(_cf_bpath).convert_alpha()
-                                    _craft_img_cache[_cf_bkey] = pygame.transform.smoothscale(_cf_braw, (_cf_BIG, _cf_BIG))
-                                except Exception:
-                                    _craft_img_cache[_cf_bkey] = None
-                            _cf_bimg = _craft_img_cache.get(_cf_bkey)
-
-                        # Ícone centrado no topo da coluna direita
-                        _cf_ico_cx = _cf_rx + _cf_rw // 2
-                        _cf_ico_r  = pygame.Rect(0, 0, _cf_BIG + 4, _cf_BIG + 4)
-                        _cf_ico_r.centerx = _cf_ico_cx; _cf_ico_r.top = _cf_ry2
-                        pygame.draw.rect(screen, (40, 32, 12), _cf_ico_r, border_radius=6)
-                        pygame.draw.rect(screen, (200, 160, 50), _cf_ico_r, 1, border_radius=6)
-                        if _cf_bimg:
-                            screen.blit(_cf_bimg, _cf_bimg.get_rect(center=_cf_ico_r.center))
-                        _cf_ry2 = _cf_ico_r.bottom + 5
-
-                        # Nome — centralizado, truncado para caber na largura
-                        _cf_max_chars = max(8, (_cf_rw - 8) // max(1, font_s.size("A")[0]))
-                        _cf_nm_s = font_s.render(_cf_nm2[:_cf_max_chars], True, (255, 220, 80))
-                        screen.blit(_cf_nm_s, _cf_nm_s.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
-                        _cf_ry2 += _cf_nm_s.get_height() + 3
-
-                        # Stats em linhas independentes, centralizados
-                        for _cf_stat_txt, _cf_stat_col in [
-                            (f"ATQ +{_cf_ak2}", (255, 160, 60)) if _cf_ak2 else None,
-                            (f"DEF +{_cf_df2}", (80, 180, 240)) if _cf_df2 else None,
-                            (f"Nv. {_cf_lv2}",  (160, 130, 80)),
-                            ("Vinculada",        (200, 80, 200)),
+                        # ── Abas: Armas | Minérios ─────────────────────────
+                        _cf_tab_h  = 28
+                        _cf_tab_w  = (_cf_PW - 20) // 2
+                        _cf_tab_armas_r = pygame.Rect(_cf_PX + 4, _cf_y0, _cf_tab_w, _cf_tab_h)
+                        _cf_tab_min_r   = pygame.Rect(_cf_PX + 4 + _cf_tab_w + 4, _cf_y0, _cf_tab_w, _cf_tab_h)
+                        for _trt, _tlbl, _tkey in [
+                            (_cf_tab_armas_r, "Armas",    "armas"),
+                            (_cf_tab_min_r,   "Minérios", "minerios"),
                         ]:
-                            if _cf_stat_txt is None: continue
-                            _cf_ss = font_s.render(_cf_stat_txt, True, _cf_stat_col)
-                            screen.blit(_cf_ss, _cf_ss.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
-                            _cf_ry2 += _cf_ss.get_height() + 2
+                            _t_active = (_craft_tab == _tkey)
+                            _t_hov    = _trt.collidepoint(m_pos)
+                            _t_bg     = (65, 48, 18) if _t_active else ((38, 28, 8) if _t_hov else (22, 16, 6))
+                            _t_brd    = (240, 190, 60) if _t_active else ((160, 120, 40) if _t_hov else (80, 60, 25))
+                            pygame.draw.rect(screen, _t_bg,  _trt, border_radius=5)
+                            pygame.draw.rect(screen, _t_brd, _trt, 2 if _t_active else 1, border_radius=5)
+                            _t_s = font_s.render(_tlbl, True, (255, 220, 80) if _t_active else (180, 140, 60))
+                            screen.blit(_t_s, _t_s.get_rect(center=_trt.center))
+                        setattr(main, "_cf_tab_armas_r", _cf_tab_armas_r)
+                        setattr(main, "_cf_tab_min_r",   _cf_tab_min_r)
+                        _cf_y0 += _cf_tab_h + 6
 
-                        pygame.draw.line(screen, (100, 70, 25),
-                                         (_cf_rx, _cf_ry2), (_cf_PX + _cf_PW - 8, _cf_ry2), 1)
-                        _cf_ry2 += 8
+                        if _craft_tab == "armas":
+                            # ── ABA: ARMAS ─────────────────────────────────
+                            # Divisão esq/dir
+                            _cf_lw  = int(_cf_PW * 0.48)
+                            _cf_rx  = _cf_PX + _cf_lw + 8
+                            _cf_rw  = _cf_PW - _cf_lw - 16
+                            _cf_lh  = _cf_PH - (_cf_y0 - _cf_PY) - 4
 
-                        # Label ingredientes
-                        _cf_ing_l = font_s.render("Ingredientes:", True, (160, 140, 80))
-                        screen.blit(_cf_ing_l, _cf_ing_l.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
-                        _cf_ry2 += _cf_ing_l.get_height() + 5
+                            # Lista de receitas (esquerda)
+                            _cf_list_r = pygame.Rect(_cf_PX + 4, _cf_y0, _cf_lw, _cf_lh)
+                            pygame.draw.rect(screen, (20, 16, 12), _cf_list_r, border_radius=4)
+                            pygame.draw.rect(screen, (80, 60, 30), _cf_list_r, 1, border_radius=4)
 
-                        # 3 slots de ingredientes
-                        _cf_SL = min(62, (_cf_rw - 20) // 3)
-                        _cf_sg = (_cf_rw - 3 * _cf_SL) // 4
-                        _cf_slot_rects2: list[pygame.Rect] = []
-                        for _si2 in range(3):
-                            _cf_sx2 = _cf_rx + _cf_sg + _si2 * (_cf_SL + _cf_sg)
-                            _cf_sr4 = pygame.Rect(_cf_sx2, _cf_ry2, _cf_SL, _cf_SL)
-                            _cf_slot_rects2.append(_cf_sr4)
-                            _cf_sl2 = _craft_slots[_si2]
-                            _cf_drag_src2 = (_drag_active and _drag_item is not None and
-                                             _drag_item.get("from") == "craft_slot" and
-                                             _drag_item.get("_slot_n") == _si2)
-                            _cf_drop_tgt2 = (_drag_active and _drag_item is not None and
-                                             _drag_item.get("from") in ("inventory",) and
-                                             _cf_sr4.collidepoint(m_pos))
-                            if _cf_drop_tgt2:
-                                pygame.draw.rect(screen, (80, 70, 20), _cf_sr4, border_radius=5)
-                                pygame.draw.rect(screen, (255, 220, 80), _cf_sr4, 2, border_radius=5)
-                            elif _cf_sl2 and not _cf_drag_src2:
-                                pygame.draw.rect(screen, (42, 34, 12), _cf_sr4, border_radius=5)
-                                pygame.draw.rect(screen, (200, 160, 50), _cf_sr4, 2, border_radius=5)
-                                _cf_sl_img2 = _ie_get_img(_cf_sl2.get("category",""),
-                                                           _cf_sl2.get("idx", 0), _cf_SL - 8)
-                                if _cf_sl_img2:
-                                    screen.blit(_cf_sl_img2, _cf_sl_img2.get_rect(center=_cf_sr4.center))
-                                _cf_ql2 = _cf_sl2.get("qty", 0)
-                                if _cf_ql2 > 1:
-                                    _cf_q_s2 = font_s.render(str(_cf_ql2), True, (240, 230, 160))
-                                    screen.blit(_cf_q_s2, _cf_q_s2.get_rect(right=_cf_sr4.right-2,
-                                                                              bottom=_cf_sr4.bottom-2))
-                            else:
-                                pygame.draw.rect(screen, (22, 18, 10), _cf_sr4, border_radius=5)
-                                pygame.draw.rect(screen, (70, 55, 25), _cf_sr4, 1, border_radius=5)
-                                _cf_n_l2 = font_s.render(str(_si2 + 1), True, (55, 45, 22))
-                                screen.blit(_cf_n_l2, _cf_n_l2.get_rect(center=_cf_sr4.center))
+                            _cf_REC = 44; _cf_REC_PAD = 5
+                            _cf_COLS_r = max(1, _cf_lw // (_cf_REC + _cf_REC_PAD))
 
-                        _cf_ry2 += _cf_SL + 12
+                            # Altura total de conteúdo para scroll
+                            _cf_total_h2 = 0
+                            for _cfc in CRAFT_CATEGORY_ORDER:
+                                if _cfc in CRAFTED_CATEGORIES:
+                                    _cfc_rows = math.ceil(len(CRAFTED_CATEGORIES[_cfc]["files"]) / _cf_COLS_r)
+                                    _cf_total_h2 += 22 + _cfc_rows * (_cf_REC + _cf_REC_PAD)
+                            _cf_max_sc = max(0, _cf_total_h2 - _cf_lh + 12)
+                            _craft_scroll_y = int(max(0, min(_craft_scroll_y, _cf_max_sc)))
 
-                        # Botão FORJAR
-                        _cf_BW = min(120, _cf_rw - 12)
-                        _cf_BH = 40
-                        _cf_BR = pygame.Rect(_cf_rx + (_cf_rw - _cf_BW) // 2, _cf_ry2, _cf_BW, _cf_BH)
-                        _cf_bhov = _cf_BR.collidepoint(m_pos)
-                        _cf_bcol = (85, 58, 10) if _cf_bhov else (55, 38, 8)
-                        _cf_bbrd = (255, 200, 60) if _cf_bhov else (180, 140, 40)
-                        pygame.draw.rect(screen, _cf_bcol, _cf_BR, border_radius=7)
-                        pygame.draw.rect(screen, _cf_bbrd, _cf_BR, 2, border_radius=7)
-                        _cf_blbl = font_m.render("FORJAR", True, (255, 220, 80))
-                        screen.blit(_cf_blbl, _cf_blbl.get_rect(center=_cf_BR.center))
+                            screen.set_clip(_cf_list_r.inflate(-2, -2))
+                            _cf_draw_y = _cf_y0 + 6 - _craft_scroll_y
+                            _cf_rects_map = {}
 
-                        _cf_ry2 += _cf_BH + 8
-                        _cf_sb_w = font_s.render("Vinculada — nao vendavel", True, (170, 70, 170))
-                        screen.blit(_cf_sb_w, _cf_sb_w.get_rect(
-                            centerx=_cf_rx + _cf_rw // 2, top=_cf_ry2))
+                            for _cfc in CRAFT_CATEGORY_ORDER:
+                                if _cfc not in CRAFTED_CATEGORIES:
+                                    continue
+                                _cfc_lbl = font_s.render(_cfc, True, (180, 140, 60))
+                                screen.blit(_cfc_lbl, (_cf_PX + 6, _cf_draw_y))
+                                _cf_draw_y += 22
+                                _cf_col_r = 0
+                                _cf_draw_xr = _cf_PX + 6
+                                for _cf_idx2, _cf_fn2 in enumerate(CRAFTED_CATEGORIES[_cfc]["files"]):
+                                    _cf_ckey2 = f"cfr_{_cfc}_{_cf_fn2}_{_cf_REC}"
+                                    if _cf_ckey2 not in _craft_img_cache:
+                                        _cf_path2 = os.path.join("assets", "ui", "itens_craft",
+                                                                  CRAFTED_CATEGORIES[_cfc]["folder"], _cf_fn2)
+                                        try:
+                                            _cf_raw2 = pygame.image.load(_cf_path2).convert_alpha()
+                                            _craft_img_cache[_cf_ckey2] = pygame.transform.smoothscale(
+                                                _cf_raw2, (_cf_REC - 6, _cf_REC - 6))
+                                        except Exception:
+                                            _craft_img_cache[_cf_ckey2] = None
+                                    _cf_img2  = _craft_img_cache.get(_cf_ckey2)
+                                    _cf_sr3   = pygame.Rect(_cf_draw_xr, _cf_draw_y, _cf_REC, _cf_REC)
+                                    _cf_rects_map[(_cfc, _cf_idx2)] = _cf_sr3
+                                    _cf_sel3  = (_craft_selected == (_cfc, _cf_idx2))
+                                    _cf_hov3  = _cf_sr3.collidepoint(m_pos) and _cf_list_r.collidepoint(m_pos)
+                                    _cf_bg3   = (65, 48, 18) if _cf_sel3 else ((50, 38, 14) if _cf_hov3 else (28, 22, 10))
+                                    _cf_brd3  = (240, 190, 60) if _cf_sel3 else ((180, 140, 50) if _cf_hov3 else (75, 60, 30))
+                                    pygame.draw.rect(screen, _cf_bg3, _cf_sr3, border_radius=4)
+                                    pygame.draw.rect(screen, _cf_brd3, _cf_sr3, 2 if _cf_sel3 else 1, border_radius=4)
+                                    if _cf_img2:
+                                        screen.blit(_cf_img2, _cf_img2.get_rect(center=_cf_sr3.center))
+                                    _cf_col_r += 1
+                                    if _cf_col_r >= _cf_COLS_r:
+                                        _cf_col_r = 0
+                                        _cf_draw_xr = _cf_PX + 6
+                                        _cf_draw_y += _cf_REC + _cf_REC_PAD
+                                    else:
+                                        _cf_draw_xr += _cf_REC + _cf_REC_PAD
+                                if _cf_col_r != 0:
+                                    _cf_draw_y += _cf_REC + _cf_REC_PAD
+                            screen.set_clip(None)
 
-                        # Armazena rects para event handling no próximo frame
-                        setattr(main, "_cf_ui_rects", {
-                            "slot_rects":   _cf_slot_rects2,
-                            "btn_forge":    _cf_BR,
-                            "recipe_rects": _cf_rects_map,
-                        })
+                            # Resultado selecionado (direita)
+                            _cf_ry2  = _cf_y0 + 4
+                            _cf_scat, _cf_sidx = _craft_selected
+                            _cf_sts2 = ITEM_SHOP_STATS.get(_cf_scat, [])
+                            _cf_st2  = _cf_sts2[_cf_sidx] if _cf_sidx < len(_cf_sts2) else {}
+                            _cf_nm2  = _cf_st2.get("name", "?")
+                            _cf_ak2  = _cf_st2.get("atk", 0)
+                            _cf_df2  = _cf_st2.get("def", 0)
+                            _cf_lv2  = _cf_st2.get("level", 1)
+
+                            _cf_BIG  = 72
+                            _cf_bfn  = CRAFTED_CATEGORIES.get(_cf_scat, {}).get("files", [])
+                            _cf_bfn  = _cf_bfn[_cf_sidx] if _cf_sidx < len(_cf_bfn) else None
+                            _cf_bimg = None
+                            if _cf_bfn:
+                                _cf_bkey = f"cfb_{_cf_scat}_{_cf_bfn}_{_cf_BIG}"
+                                if _cf_bkey not in _craft_img_cache:
+                                    _cf_bpath = os.path.join("assets", "ui", "itens_craft",
+                                                             CRAFTED_CATEGORIES[_cf_scat]["folder"], _cf_bfn)
+                                    try:
+                                        _cf_braw = pygame.image.load(_cf_bpath).convert_alpha()
+                                        _craft_img_cache[_cf_bkey] = pygame.transform.smoothscale(_cf_braw, (_cf_BIG, _cf_BIG))
+                                    except Exception:
+                                        _craft_img_cache[_cf_bkey] = None
+                                _cf_bimg = _craft_img_cache.get(_cf_bkey)
+
+                            # Ícone centrado no topo da coluna direita
+                            _cf_ico_cx = _cf_rx + _cf_rw // 2
+                            _cf_ico_r  = pygame.Rect(0, 0, _cf_BIG + 4, _cf_BIG + 4)
+                            _cf_ico_r.centerx = _cf_ico_cx; _cf_ico_r.top = _cf_ry2
+                            pygame.draw.rect(screen, (40, 32, 12), _cf_ico_r, border_radius=6)
+                            pygame.draw.rect(screen, (200, 160, 50), _cf_ico_r, 1, border_radius=6)
+                            if _cf_bimg:
+                                screen.blit(_cf_bimg, _cf_bimg.get_rect(center=_cf_ico_r.center))
+                            _cf_ry2 = _cf_ico_r.bottom + 5
+
+                            # Nome — centralizado, truncado para caber na largura
+                            _cf_max_chars = max(8, (_cf_rw - 8) // max(1, font_s.size("A")[0]))
+                            _cf_nm_s = font_s.render(_cf_nm2[:_cf_max_chars], True, (255, 220, 80))
+                            screen.blit(_cf_nm_s, _cf_nm_s.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
+                            _cf_ry2 += _cf_nm_s.get_height() + 3
+
+                            # Stats em linhas independentes, centralizados
+                            for _cf_stat_txt, _cf_stat_col in [
+                                (f"ATQ +{_cf_ak2}", (255, 160, 60)) if _cf_ak2 else None,
+                                (f"DEF +{_cf_df2}", (80, 180, 240)) if _cf_df2 else None,
+                                (f"Nv. {_cf_lv2}",  (160, 130, 80)),
+                                ("Vinculada",        (200, 80, 200)),
+                            ]:
+                                if _cf_stat_txt is None: continue
+                                _cf_ss = font_s.render(_cf_stat_txt, True, _cf_stat_col)
+                                screen.blit(_cf_ss, _cf_ss.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
+                                _cf_ry2 += _cf_ss.get_height() + 2
+
+                            pygame.draw.line(screen, (100, 70, 25),
+                                             (_cf_rx, _cf_ry2), (_cf_PX + _cf_PW - 8, _cf_ry2), 1)
+                            _cf_ry2 += 8
+
+                            # Label ingredientes
+                            _cf_ing_l = font_s.render("Ingredientes:", True, (160, 140, 80))
+                            screen.blit(_cf_ing_l, _cf_ing_l.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
+                            _cf_ry2 += _cf_ing_l.get_height() + 5
+
+                            # 3 slots de ingredientes
+                            _cf_SL = min(62, (_cf_rw - 20) // 3)
+                            _cf_sg = (_cf_rw - 3 * _cf_SL) // 4
+                            _cf_slot_rects2: list[pygame.Rect] = []
+                            for _si2 in range(3):
+                                _cf_sx2 = _cf_rx + _cf_sg + _si2 * (_cf_SL + _cf_sg)
+                                _cf_sr4 = pygame.Rect(_cf_sx2, _cf_ry2, _cf_SL, _cf_SL)
+                                _cf_slot_rects2.append(_cf_sr4)
+                                _cf_sl2 = _craft_slots[_si2]
+                                _cf_drag_src2 = (_drag_active and _drag_item is not None and
+                                                 _drag_item.get("from") == "craft_slot" and
+                                                 _drag_item.get("_slot_n") == _si2)
+                                _cf_drop_tgt2 = (_drag_active and _drag_item is not None and
+                                                 _drag_item.get("from") in ("inventory",) and
+                                                 _cf_sr4.collidepoint(m_pos))
+                                if _cf_drop_tgt2:
+                                    pygame.draw.rect(screen, (80, 70, 20), _cf_sr4, border_radius=5)
+                                    pygame.draw.rect(screen, (255, 220, 80), _cf_sr4, 2, border_radius=5)
+                                elif _cf_sl2 and not _cf_drag_src2:
+                                    pygame.draw.rect(screen, (42, 34, 12), _cf_sr4, border_radius=5)
+                                    pygame.draw.rect(screen, (200, 160, 50), _cf_sr4, 2, border_radius=5)
+                                    _cf_sl_img2 = _ie_get_img(_cf_sl2.get("category",""),
+                                                               _cf_sl2.get("idx", 0), _cf_SL - 8)
+                                    if _cf_sl_img2:
+                                        screen.blit(_cf_sl_img2, _cf_sl_img2.get_rect(center=_cf_sr4.center))
+                                    _cf_ql2 = _cf_sl2.get("qty", 0)
+                                    if _cf_ql2 > 1:
+                                        _cf_q_s2 = font_s.render(str(_cf_ql2), True, (240, 230, 160))
+                                        screen.blit(_cf_q_s2, _cf_q_s2.get_rect(right=_cf_sr4.right-2,
+                                                                                  bottom=_cf_sr4.bottom-2))
+                                else:
+                                    pygame.draw.rect(screen, (22, 18, 10), _cf_sr4, border_radius=5)
+                                    pygame.draw.rect(screen, (70, 55, 25), _cf_sr4, 1, border_radius=5)
+                                    _cf_n_l2 = font_s.render(str(_si2 + 1), True, (55, 45, 22))
+                                    screen.blit(_cf_n_l2, _cf_n_l2.get_rect(center=_cf_sr4.center))
+
+                            _cf_ry2 += _cf_SL + 12
+
+                            # Botão FORJAR
+                            _cf_BW = min(120, _cf_rw - 12)
+                            _cf_BH = 40
+                            _cf_BR = pygame.Rect(_cf_rx + (_cf_rw - _cf_BW) // 2, _cf_ry2, _cf_BW, _cf_BH)
+                            _cf_bhov = _cf_BR.collidepoint(m_pos)
+                            _cf_bcol = (85, 58, 10) if _cf_bhov else (55, 38, 8)
+                            _cf_bbrd = (255, 200, 60) if _cf_bhov else (180, 140, 40)
+                            pygame.draw.rect(screen, _cf_bcol, _cf_BR, border_radius=7)
+                            pygame.draw.rect(screen, _cf_bbrd, _cf_BR, 2, border_radius=7)
+                            _cf_blbl = font_m.render("FORJAR", True, (255, 220, 80))
+                            screen.blit(_cf_blbl, _cf_blbl.get_rect(center=_cf_BR.center))
+
+                            _cf_ry2 += _cf_BH + 8
+                            _cf_sb_w = font_s.render("Vinculada — nao vendavel", True, (170, 70, 170))
+                            screen.blit(_cf_sb_w, _cf_sb_w.get_rect(
+                                centerx=_cf_rx + _cf_rw // 2, top=_cf_ry2))
+
+                            # Armazena rects para event handling no próximo frame
+                            setattr(main, "_cf_ui_rects", {
+                                "slot_rects":   _cf_slot_rects2,
+                                "btn_forge":    _cf_BR,
+                                "recipe_rects": _cf_rects_map,
+                            })
+                            setattr(main, "_cf_ling_rects", {})
+
+                        else:
+                            # ── ABA: MINÉRIOS — criar lingotes ─────────────────
+                            _cf_lh_m  = _cf_PH - (_cf_y0 - _cf_PY) - 4
+                            _cf_lw_m  = int(_cf_PW * 0.48)
+                            _cf_rx_m  = _cf_PX + _cf_lw_m + 8
+                            _cf_rw_m  = _cf_PW - _cf_lw_m - 16
+
+                            # Grade de lingotes (esquerda)
+                            _cf_ling_list = pygame.Rect(_cf_PX + 4, _cf_y0, _cf_lw_m, _cf_lh_m)
+                            pygame.draw.rect(screen, (20, 16, 12), _cf_ling_list, border_radius=4)
+                            pygame.draw.rect(screen, (80, 60, 30), _cf_ling_list, 1, border_radius=4)
+
+                            _cf_LR = 48; _cf_LP = 5
+                            _cf_LCOLS = max(1, _cf_lw_m // (_cf_LR + _cf_LP))
+                            _cf_ling_rects = {}
+                            _cf_ldraw_x = _cf_PX + 6
+                            _cf_ldraw_y = _cf_y0 + 6
+                            _cf_lcol = 0
+
+                            for _li_idx, _li_def in enumerate(LINGOT_DEFS):
+                                _li_key = f"ling_{_li_idx}_{_cf_LR}"
+                                if _li_key not in _craft_img_cache:
+                                    _li_path = os.path.join(ASSET_DIR, "Teste", "recompensa",
+                                                            "barras de minérios", _li_def["file"])
+                                    try:
+                                        _li_raw = pygame.image.load(_li_path).convert_alpha()
+                                        _craft_img_cache[_li_key] = pygame.transform.smoothscale(
+                                            _li_raw, (_cf_LR - 6, _cf_LR - 6))
+                                    except Exception:
+                                        _craft_img_cache[_li_key] = None
+                                _li_img   = _craft_img_cache.get(_li_key)
+                                _li_r     = pygame.Rect(_cf_ldraw_x, _cf_ldraw_y, _cf_LR, _cf_LR)
+                                _cf_ling_rects[_li_idx] = _li_r
+                                _li_sel   = (_lingot_selected == _li_idx)
+                                _li_hov   = _li_r.collidepoint(m_pos) and _cf_ling_list.collidepoint(m_pos)
+                                _li_bg    = (65, 48, 18) if _li_sel else ((50, 38, 14) if _li_hov else (28, 22, 10))
+                                _li_brd   = (240, 190, 60) if _li_sel else ((180, 140, 50) if _li_hov else (75, 60, 30))
+                                pygame.draw.rect(screen, _li_bg,  _li_r, border_radius=4)
+                                pygame.draw.rect(screen, _li_brd, _li_r, 2 if _li_sel else 1, border_radius=4)
+                                if _li_img:
+                                    screen.blit(_li_img, _li_img.get_rect(center=_li_r.center))
+                                _cf_lcol += 1
+                                if _cf_lcol >= _cf_LCOLS:
+                                    _cf_lcol = 0
+                                    _cf_ldraw_x = _cf_PX + 6
+                                    _cf_ldraw_y += _cf_LR + _cf_LP
+                                else:
+                                    _cf_ldraw_x += _cf_LR + _cf_LP
+
+                            # Detalhes do lingote selecionado (direita)
+                            _ld      = LINGOT_DEFS[_lingot_selected]
+                            _lo_idx  = _ld["ore_idx"]
+                            _lo_qty  = _ld["qty"]
+                            _lo_name = MINING_ORE_DEFS[_lo_idx]["name"]
+                            _ld_ico_cx = _cf_rx_m + _cf_rw_m // 2
+                            _ld_ry     = _cf_y0 + 4
+
+                            # Ícone do lingote
+                            _ld_BIG = 64
+                            _ld_key = f"ling_big_{_lingot_selected}_{_ld_BIG}"
+                            if _ld_key not in _craft_img_cache:
+                                _ld_path = os.path.join(ASSET_DIR, "Teste", "recompensa",
+                                                        "barras de minérios", _ld["file"])
+                                try:
+                                    _ld_raw = pygame.image.load(_ld_path).convert_alpha()
+                                    _craft_img_cache[_ld_key] = pygame.transform.smoothscale(
+                                        _ld_raw, (_ld_BIG, _ld_BIG))
+                                except Exception:
+                                    _craft_img_cache[_ld_key] = None
+                            _ld_bimg = _craft_img_cache.get(_ld_key)
+                            _ld_ico_r = pygame.Rect(0, 0, _ld_BIG + 4, _ld_BIG + 4)
+                            _ld_ico_r.centerx = _ld_ico_cx; _ld_ico_r.top = _ld_ry
+                            pygame.draw.rect(screen, (40, 32, 12), _ld_ico_r, border_radius=6)
+                            pygame.draw.rect(screen, (200, 160, 50), _ld_ico_r, 1, border_radius=6)
+                            if _ld_bimg:
+                                screen.blit(_ld_bimg, _ld_bimg.get_rect(center=_ld_ico_r.center))
+                            _ld_ry = _ld_ico_r.bottom + 4
+
+                            # Nome do lingote
+                            _ld_nm_s = font_s.render(_ld["name"], True, (255, 220, 80))
+                            screen.blit(_ld_nm_s, _ld_nm_s.get_rect(centerx=_ld_ico_cx, top=_ld_ry))
+                            _ld_ry += _ld_nm_s.get_height() + 6
+
+                            pygame.draw.line(screen, (100, 70, 25),
+                                             (_cf_rx_m, _ld_ry), (_cf_PX + _cf_PW - 8, _ld_ry), 1)
+                            _ld_ry += 6
+
+                            # Ingrediente: ore icon + qty
+                            _ore_key_sm = f"ore_sm_{_lo_idx}_32"
+                            if _ore_key_sm not in _craft_img_cache:
+                                _ore_path_sm = os.path.join(ASSET_DIR, "Teste", "recompensa",
+                                                            "minérios", MINING_ORE_DEFS[_lo_idx]["file"])
+                                try:
+                                    _ore_raw_sm = pygame.image.load(_ore_path_sm).convert_alpha()
+                                    _craft_img_cache[_ore_key_sm] = pygame.transform.smoothscale(_ore_raw_sm, (32, 32))
+                                except Exception:
+                                    _craft_img_cache[_ore_key_sm] = None
+                            _ore_img_sm = _craft_img_cache.get(_ore_key_sm)
+                            _ore_r_sm   = pygame.Rect(0, 0, 32, 32)
+                            _ore_r_sm.centerx = _ld_ico_cx; _ore_r_sm.top = _ld_ry
+                            pygame.draw.rect(screen, (28, 22, 10), _ore_r_sm, border_radius=3)
+                            if _ore_img_sm:
+                                screen.blit(_ore_img_sm, _ore_r_sm)
+                            _ld_ry = _ore_r_sm.bottom + 2
+
+                            # Contagem de ores no inventário
+                            _ld_cid_inv = player.char_id if player else 0
+                            _ld_inv_list = get_char_inventory(_ld_cid_inv)
+                            _ld_have = sum(s.get("qty", 1) for s in _ld_inv_list
+                                          if s.get("category") == "Minérios" and s.get("idx") == _lo_idx)
+                            _ld_enough = _ld_have >= _lo_qty
+                            _ld_req_s = font_s.render(f"{_lo_name}: {_ld_have}/{_lo_qty}",
+                                                      True, (100, 220, 100) if _ld_enough else (220, 80, 80))
+                            screen.blit(_ld_req_s, _ld_req_s.get_rect(centerx=_ld_ico_cx, top=_ld_ry))
+                            _ld_ry += _ld_req_s.get_height() + 10
+
+                            # Botão FUNDIR
+                            _ld_BW = min(110, _cf_rw_m - 8)
+                            _ld_BH = 38
+                            _ld_BR = pygame.Rect(_cf_rx_m + (_cf_rw_m - _ld_BW) // 2, _ld_ry, _ld_BW, _ld_BH)
+                            _ld_bhov   = _ld_BR.collidepoint(m_pos) and _ld_enough
+                            _ld_bcol   = (85, 55, 8)  if _ld_bhov  else ((38, 28, 6)  if not _ld_enough else (55, 38, 8))
+                            _ld_bbrd   = (255, 200, 60) if _ld_enough else (90, 70, 30)
+                            pygame.draw.rect(screen, _ld_bcol, _ld_BR, border_radius=7)
+                            pygame.draw.rect(screen, _ld_bbrd, _ld_BR, 2, border_radius=7)
+                            _ld_blbl   = font_m.render("FUNDIR", True,
+                                                        (255, 220, 80) if _ld_enough else (100, 80, 30))
+                            screen.blit(_ld_blbl, _ld_blbl.get_rect(center=_ld_BR.center))
+
+                            setattr(main, "_cf_ling_rects", {
+                                "recipe_rects": _cf_ling_rects,
+                                "btn_fundir":   _ld_BR,
+                                "fundir_ok":    _ld_enough,
+                            })
+                            setattr(main, "_cf_ui_rects", {})
 
                 # Tooltip por cima de tudo (desenhado por último)
                 _ie_draw_pending_tooltip()
@@ -10209,9 +10569,8 @@ def main():
                 _rb_rx = _hp_x + int(_hp_w * 0.10)
                 _rb_h  = 50
                 _market_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
-                _talent_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
                 _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
-                for _r, _lbl in [(_market_rect, "Mercado"), (_talent_rect, "Talentos")]:
+                for _r, _lbl in [(_market_rect, "Mercado")]:
                     _hov = _r.collidepoint(m_pos)
                     _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
                     screen.blit(_ls, _ls.get_rect(center=_r.center))
@@ -10274,18 +10633,9 @@ def main():
                 screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
                 screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
 
-            else:
+            elif state == "MARKET":
                 # ── Painel lateral direito (Mercado) ─────────────────────────
-                # Quando craft_open: painel fica oculto e só aparece ao encostar o cursor na borda direita
-                _mkt_panel_edge_trigger = SCREEN_W - 60
-                _show_mkt_panel = (not craft_open) or (m_pos[0] >= _mkt_panel_edge_trigger)
-                if not _show_mkt_panel:
-                    # Mostra aba estreita na borda para indicar que o painel existe
-                    _tab_w = 14
-                    _tab_surf = pygame.Surface((_tab_w, SCREEN_H), pygame.SRCALPHA)
-                    _tab_surf.fill((10, 8, 6, 160))
-                    screen.blit(_tab_surf, (SCREEN_W - _tab_w, 0))
-                    pygame.draw.line(screen, (120, 100, 60), (SCREEN_W - _tab_w, 0), (SCREEN_W - _tab_w, SCREEN_H), 1)
+                _show_mkt_panel = not craft_open or m_pos[0] >= int(SCREEN_W * 0.84)
                 if _show_mkt_panel:
                     _hp_x = int(SCREEN_W * 0.84)
                     _hp_w = SCREEN_W - _hp_x
@@ -10319,22 +10669,26 @@ def main():
                     _rb_rw = _hp_w - int(_hp_w * 0.20)
                     _rb_rx = _hp_x + int(_hp_w * 0.10)
                     _rb_h  = 50
-                    _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
+                    _mkt_missions_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
+                    _mkt_ferreiro_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
+                    _mkt_voltar_draw   = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
                     for _r, _lbl in [
-                        (pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h), "Missões"),
-                        (pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h), "Talentos"),
+                        (_mkt_missions_draw, "Missões"),
                     ]:
                         _hov = _r.collidepoint(m_pos)
                         _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
                         screen.blit(_ls, _ls.get_rect(center=_r.center))
-                    _vol_hov = _pronto_rect.collidepoint(m_pos)
+                    _fhov = _mkt_ferreiro_draw.collidepoint(m_pos)
+                    _fs   = font_s.render("Ferreiro", True, (255, 200, 80) if _fhov else (210, 160, 60))
+                    screen.blit(_fs, _fs.get_rect(center=_mkt_ferreiro_draw.center))
+                    _vol_hov = _mkt_voltar_draw.collidepoint(m_pos)
                     _vol_s = font_m.render("VOLTAR", True, (200, 255, 200) if _vol_hov else (140, 220, 140))
-                    screen.blit(_vol_s, _vol_s.get_rect(center=_pronto_rect.center))
+                    screen.blit(_vol_s, _vol_s.get_rect(center=_mkt_voltar_draw.center))
                     _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
                     _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
                     _hint_l = font_s.render("[L] Perfil / Conquistas", True, (160, 130, 200))
                     _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
-                    _hint_top = _pronto_rect.bottom + 10
+                    _hint_top = _mkt_voltar_draw.bottom + 10
                     screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, top=_hint_top))
                     screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, top=_hint_top + 22))
                     screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
@@ -10959,7 +11313,7 @@ def main():
         if state in ("HUB", "MARKET") and hub_profile_open:
             _draw_profile_viewer(screen, font_s, font_m, font_l, m_pos)
 
-        # ── Minicard de perfil no canto superior-esquerdo (HUB / Mercado) ─
+        # ── Minicard de perfil no canto superior-esquerdo (HUB / Mercado) ────
         if state in ("HUB", "MARKET") and not hub_profile_open:
             _hub_profile_widget_rect = _draw_profile_widget(screen, font_s, font_m, m_pos, align_right=False)
         else:
