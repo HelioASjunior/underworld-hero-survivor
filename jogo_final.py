@@ -407,6 +407,8 @@ save_data = {
     "hardcore_stages": {"unlocked": 1},
     # Dificuldades completadas (boss derrubado) — desbloqueiam Hardcore quando todas 3 concluídas
     "beaten_difficulties": [],
+    # Recordes por herói — {str(char_id): {best_time, max_combo, max_kills, fastest_boss}}
+    "hero_records": {},
 }
 
 # Definição das Missões Diárias
@@ -529,6 +531,8 @@ def load_save():
                     save_data["hardcore_stages"].update(loaded["hardcore_stages"])
                 if "beaten_difficulties" in loaded:
                     save_data["beaten_difficulties"] = loaded["beaten_difficulties"]
+                if "hero_records" in loaded:
+                    save_data["hero_records"].update(loaded["hero_records"])
                 if "char_equipped" in loaded:
                     save_data["char_equipped"] = loaded["char_equipped"]
                 elif "equipped_items" in loaded:
@@ -574,6 +578,22 @@ def get_char_equipped(cid: int) -> dict:
     if k not in save_data["char_equipped"]:
         save_data["char_equipped"][k] = _EMPTY_EQUIPPED()
     return save_data["char_equipped"][k]
+
+_EMPTY_HERO_RECORD = lambda: {"best_time": 0.0, "max_combo": 0, "max_kills": 0, "fastest_boss": 0.0}
+
+def update_hero_record(cid: int, field: str, value, lower_is_better: bool = False):
+    """Atualiza recorde de um herói se o novo valor for melhor."""
+    k = str(cid)
+    if k not in save_data["hero_records"]:
+        save_data["hero_records"][k] = _EMPTY_HERO_RECORD()
+    rec = save_data["hero_records"][k]
+    cur = rec.get(field, 0)
+    if lower_is_better:
+        if cur == 0 or value < cur:
+            rec[field] = value
+    else:
+        if value > cur:
+            rec[field] = value
 
 # Categorias que vão para slot de arma
 _WEAPON_CATEGORIES = {"Espadas", "Machados", "Hammers", "Bows", "Crossbows", "Cajados",
@@ -2701,6 +2721,8 @@ bosses_spawned = 0
 session_boss_kills = 0
 session_max_level = 1
 triggered_hordes = set()
+run_max_combo = 0           # V12: pico de streak nesta run
+_agis_spawn_time_gt = 0.0   # V12: game_time quando o selo do Agis apareceu
 # Fila de spawn da horda (anti-spike de CPU)
 pending_horde_queue: list = []
 # Obstáculos graduais
@@ -3548,6 +3570,7 @@ def reset_game(char_id=0):
     global streak_count, streak_timer, _boss_phase2_set, _trail_positions
     global _fury_tick_timer, _fury_stacks
     global _orb_hit_cd
+    global run_max_combo, _agis_spawn_time_gt
 
     save_data["stats"]["games_played"] += 1
     
@@ -3708,6 +3731,8 @@ def reset_game(char_id=0):
     _fury_tick_timer = 0.0
     _fury_stacks = 0
     _orb_hit_cd.clear()
+    run_max_combo = 0
+    _agis_spawn_time_gt = 0.0
 
     dark_hud.reset_feedback()
 
@@ -4921,7 +4946,7 @@ def _draw_profile_viewer(screen, font_s, font_m, font_l, m_pos, show_change_btn=
         screen.blit(sv, sv.get_rect(right=lp_x + lp_w - 14, centery=_lcy + sl.get_height() // 2))
         _lcy += sl.get_height() + 5
 
-    # ── Painel direito (conquistas) ───────────────────────────────────────
+    # ── Painel direito (abas: conquistas / recordes) ──────────────────────
     rp_x = lp_x + lp_w + int(sw * 0.03)
     rp_w = sw - rp_x - int(sw * 0.04)
     rp_y = lp_y
@@ -4931,78 +4956,139 @@ def _draw_profile_viewer(screen, font_s, font_m, font_l, m_pos, show_change_btn=
     screen.blit(rp_surf, (rp_x, rp_y))
     pygame.draw.rect(screen, GOLD, pygame.Rect(rp_x, rp_y, rp_w, rp_h), 2, border_radius=10)
 
-    _rcy = rp_y + 16
-    ach_title = font_l.render("CONQUISTAS", True, GOLD)
-    screen.blit(ach_title, ach_title.get_rect(centerx=rp_x + rp_w // 2, top=_rcy))
-    _rcy += ach_title.get_height() + 6
+    if not hasattr(_draw_profile_viewer, "_tab"):
+        _draw_profile_viewer._tab = "conquistas"
+    _cur_tab = _draw_profile_viewer._tab
 
-    counts = _ach.count_by_series(achievements_data)
-    total_unlocked = sum(c[0] for c in counts.values())
-    total_all = sum(c[1] for c in counts.values())
-    count_surf = font_s.render(f"Desbloqueadas: {total_unlocked} / {total_all}", True, SILVER)
-    screen.blit(count_surf, count_surf.get_rect(centerx=rp_x + rp_w // 2, top=_rcy))
-    _rcy += count_surf.get_height() + 8
+    # Abas
+    _tab_defs = [("conquistas", "CONQUISTAS"), ("recordes", "RECORDES")]
+    _tab_w = rp_w // len(_tab_defs)
+    _tab_h = 32
+    _tab_y = rp_y + 8
+    _draw_profile_viewer._tab_rects = {}
+    for _ti, (_tid, _tlbl) in enumerate(_tab_defs):
+        _tr = pygame.Rect(rp_x + _ti * _tab_w, _tab_y, _tab_w, _tab_h)
+        _draw_profile_viewer._tab_rects[_tid] = _tr
+        _is_active = _tid == _cur_tab
+        _tab_bg = pygame.Surface((_tab_w, _tab_h), pygame.SRCALPHA)
+        _tab_bg.fill((30, 22, 50, 240) if _is_active else (14, 10, 24, 180))
+        screen.blit(_tab_bg, _tr.topleft)
+        pygame.draw.rect(screen, GOLD if _is_active else (80, 65, 30), _tr, 1 if _is_active else 1, border_radius=4)
+        _ts = font_s.render(_tlbl, True, GOLD if _is_active else (120, 100, 50))
+        screen.blit(_ts, _ts.get_rect(center=_tr.center))
+
+    _rcy = _tab_y + _tab_h + 10
     pygame.draw.line(screen, GOLD, (rp_x + 12, _rcy), (rp_x + rp_w - 12, _rcy))
-    _rcy += 14
+    _rcy += 10
 
-    unlocked_ids = _ach.get_unlocked_set(achievements_data)
-    ICON_SIZE = min(46, int(rp_w * 0.065))
-    ICON_GAP  = max(4, int(ICON_SIZE * 0.12))
-    SERIES_LABELS = {"gold": "OURO", "forte": "FORTE / BATALHA", "hardcore": "HARDCORE"}
+    if _cur_tab == "conquistas":
+        counts = _ach.count_by_series(achievements_data)
+        total_unlocked = sum(c[0] for c in counts.values())
+        total_all = sum(c[1] for c in counts.values())
+        count_surf = font_s.render(f"Desbloqueadas: {total_unlocked} / {total_all}", True, SILVER)
+        screen.blit(count_surf, count_surf.get_rect(centerx=rp_x + rp_w // 2, top=_rcy))
+        _rcy += count_surf.get_height() + 8
+        pygame.draw.line(screen, (60, 55, 80), (rp_x + 12, _rcy), (rp_x + rp_w - 12, _rcy))
+        _rcy += 10
 
-    _pending_tt = None
-    for series in _ach.SERIES_ORDER:
-        defs = [a for a in _ach.ACHIEVEMENT_DEFS if a["series"] == series]
-        un, tot = counts[series]
-        lbl_s = font_s.render(f"{SERIES_LABELS.get(series, series.upper())}  ({un}/{tot})", True, GOLD)
-        screen.blit(lbl_s, (rp_x + 14, _rcy))
-        _rcy += lbl_s.get_height() + 6
+        unlocked_ids = _ach.get_unlocked_set(achievements_data)
+        ICON_SIZE = min(46, int(rp_w * 0.065))
+        ICON_GAP  = max(4, int(ICON_SIZE * 0.12))
+        SERIES_LABELS = {"gold": "OURO", "forte": "FORTE / BATALHA", "hardcore": "HARDCORE"}
 
-        # Fileira de ícones
-        row_x = rp_x + 14
-        for a in defs:
-            is_unlocked = a["id"] in unlocked_ids
-            icon = _load_ach_icon(a["icon"], ICON_SIZE)
-            icon_rect = pygame.Rect(row_x, _rcy, ICON_SIZE, ICON_SIZE)
-            if icon:
-                if not is_unlocked:
-                    dim = pygame.Surface((ICON_SIZE, ICON_SIZE), pygame.SRCALPHA)
-                    dim.fill((0, 0, 0, 160))
-                    screen.blit(icon, icon_rect)
-                    screen.blit(dim, icon_rect)
+        _pending_tt = None
+        for series in _ach.SERIES_ORDER:
+            defs = [a for a in _ach.ACHIEVEMENT_DEFS if a["series"] == series]
+            un, tot = counts[series]
+            lbl_s = font_s.render(f"{SERIES_LABELS.get(series, series.upper())}  ({un}/{tot})", True, GOLD)
+            screen.blit(lbl_s, (rp_x + 14, _rcy))
+            _rcy += lbl_s.get_height() + 6
+
+            row_x = rp_x + 14
+            for a in defs:
+                is_unlocked = a["id"] in unlocked_ids
+                icon = _load_ach_icon(a["icon"], ICON_SIZE)
+                icon_rect = pygame.Rect(row_x, _rcy, ICON_SIZE, ICON_SIZE)
+                if icon:
+                    if not is_unlocked:
+                        dim = pygame.Surface((ICON_SIZE, ICON_SIZE), pygame.SRCALPHA)
+                        dim.fill((0, 0, 0, 160))
+                        screen.blit(icon, icon_rect)
+                        screen.blit(dim, icon_rect)
+                    else:
+                        screen.blit(icon, icon_rect)
+                        pygame.draw.rect(screen, GOLD, icon_rect, 1, border_radius=4)
                 else:
-                    screen.blit(icon, icon_rect)
-                    pygame.draw.rect(screen, GOLD, icon_rect, 1, border_radius=4)
-            else:
-                col_box = (60, 45, 15) if is_unlocked else (30, 25, 20)
-                pygame.draw.rect(screen, col_box, icon_rect, border_radius=4)
-                if is_unlocked:
-                    pygame.draw.rect(screen, GOLD, icon_rect, 1, border_radius=4)
+                    col_box = (60, 45, 15) if is_unlocked else (30, 25, 20)
+                    pygame.draw.rect(screen, col_box, icon_rect, border_radius=4)
+                    if is_unlocked:
+                        pygame.draw.rect(screen, GOLD, icon_rect, 1, border_radius=4)
+                if icon_rect.collidepoint(m_pos):
+                    _pending_tt = (icon_rect, a["name"], a["desc"], is_unlocked)
+                row_x += ICON_SIZE + ICON_GAP
+            _rcy += ICON_SIZE + 14
 
-            # Tooltip ao hover
-            if icon_rect.collidepoint(m_pos):
-                _pending_tt = (icon_rect, a["name"], a["desc"], is_unlocked)
+        if _pending_tt:
+            _tt_rect, _tt_name, _tt_desc, _tt_unlocked = _pending_tt
+            tt_lines = [_tt_name, _tt_desc]
+            if not _tt_unlocked:
+                tt_lines.append("[ Bloqueada ]")
+            tt_w = max(font_s.size(l)[0] for l in tt_lines) + 16
+            tt_h = len(tt_lines) * 20 + 10
+            tt_x = min(_tt_rect.right + 6, sw - tt_w - 4)
+            tt_y = max(4, _tt_rect.top - tt_h // 2)
+            tt_s = pygame.Surface((tt_w, tt_h), pygame.SRCALPHA)
+            tt_s.fill((20, 15, 30, 230))
+            screen.blit(tt_s, (tt_x, tt_y))
+            pygame.draw.rect(screen, GOLD, pygame.Rect(tt_x, tt_y, tt_w, tt_h), 1, border_radius=4)
+            for li, line in enumerate(tt_lines):
+                lc = GOLD if li == 0 else ((180, 170, 150) if li == 1 else (140, 100, 100))
+                ls = font_s.render(line, True, lc)
+                screen.blit(ls, (tt_x + 8, tt_y + 5 + li * 20))
 
-            row_x += ICON_SIZE + ICON_GAP
-        _rcy += ICON_SIZE + 14
+    else:  # aba "recordes"
+        def _fmt_time(s: float) -> str:
+            if s <= 0: return "—"
+            m, sec = divmod(int(s), 60)
+            return f"{m}m {sec:02d}s"
 
-    if _pending_tt:
-        _tt_rect, _tt_name, _tt_desc, _tt_unlocked = _pending_tt
-        tt_lines = [_tt_name, _tt_desc]
-        if not _tt_unlocked:
-            tt_lines.append("[ Bloqueada ]")
-        tt_w = max(font_s.size(l)[0] for l in tt_lines) + 16
-        tt_h = len(tt_lines) * 20 + 10
-        tt_x = min(_tt_rect.right + 6, sw - tt_w - 4)
-        tt_y = max(4, _tt_rect.top - tt_h // 2)
-        tt_s = pygame.Surface((tt_w, tt_h), pygame.SRCALPHA)
-        tt_s.fill((20, 15, 30, 230))
-        screen.blit(tt_s, (tt_x, tt_y))
-        pygame.draw.rect(screen, GOLD, pygame.Rect(tt_x, tt_y, tt_w, tt_h), 1, border_radius=4)
-        for li, line in enumerate(tt_lines):
-            lc = GOLD if li == 0 else ((180, 170, 150) if li == 1 else (140, 100, 100))
-            ls = font_s.render(line, True, lc)
-            screen.blit(ls, (tt_x + 8, tt_y + 5 + li * 20))
+        _rec_title = font_s.render("MELHOR DESEMPENHO POR HERÓI", True, GOLD)
+        screen.blit(_rec_title, _rec_title.get_rect(centerx=rp_x + rp_w // 2, top=_rcy))
+        _rcy += _rec_title.get_height() + 8
+
+        # Cabeçalho da tabela
+        _col_labels = ["HERÓI", "TEMPO", "COMBO", "INIMIGOS", "BOSS"]
+        _col_xs = [rp_x + 10, rp_x + int(rp_w * 0.28), rp_x + int(rp_w * 0.46),
+                   rp_x + int(rp_w * 0.60), rp_x + int(rp_w * 0.79)]
+        for _ci, _cl in enumerate(_col_labels):
+            _hs = font_s.render(_cl, True, (160, 140, 80))
+            screen.blit(_hs, (_col_xs[_ci], _rcy))
+        _rcy += font_s.get_height() + 4
+        pygame.draw.line(screen, (80, 70, 40), (rp_x + 8, _rcy), (rp_x + rp_w - 8, _rcy))
+        _rcy += 6
+
+        _hr = save_data.get("hero_records", {})
+        for _hid in range(8):
+            _hname = CHAR_DATA.get(_hid, {}).get("name", f"HERÓI {_hid}")
+            _rec = _hr.get(str(_hid), {})
+            _has_any = any(_rec.get(f, 0) > 0 for f in ("best_time", "max_combo", "max_kills", "fastest_boss"))
+            _row_col = (200, 190, 150) if _has_any else (90, 85, 80)
+
+            _row_bg = pygame.Surface((rp_w - 16, font_s.get_height() + 4), pygame.SRCALPHA)
+            _row_bg.fill((25, 20, 40, 100) if _hid % 2 == 0 else (0, 0, 0, 0))
+            screen.blit(_row_bg, (rp_x + 8, _rcy - 2))
+
+            _cells = [
+                _hname,
+                _fmt_time(_rec.get("best_time", 0.0)),
+                str(_rec.get("max_combo", 0)) if _rec.get("max_combo", 0) > 0 else "—",
+                str(_rec.get("max_kills", 0)) if _rec.get("max_kills", 0) > 0 else "—",
+                _fmt_time(_rec.get("fastest_boss", 0.0)),
+            ]
+            for _ci, _cv in enumerate(_cells):
+                _cs = font_s.render(_cv, True, _row_col)
+                screen.blit(_cs, (_col_xs[_ci], _rcy))
+            _rcy += font_s.get_height() + 6
 
     # ── Botão "Alterar Perfil" (só quando aberto pelo menu) ──────────────
     if show_change_btn:
@@ -5349,16 +5435,6 @@ def main():
         diff_back_btn.w, diff_back_btn.h = _vs.get_size()
         diff_back_btn.rect = pygame.Rect(0, 0, diff_back_btn.w, diff_back_btn.h)
         diff_back_btn.update_rect()
-
-    pact_btns = []
-    pact_back_btn = Button(0.5, 0.92, BTN_SM_W, BTN_SM_H, "VOLTAR", font_m, color=(80, 30, 30))
-    pact_back_btn.sprite_idx = 6
-    for i, (pact_name, pact_data) in enumerate(PACTOS.items()):
-        btn = Button(0.5, 0.27 + i * 0.16, BTN_W, BTN_H,
-                     pact_data["name"], font_m,
-                     color=(40, 20, 60))
-        btn.sprite_idx = i % 7
-        pact_btns.append(btn)
 
     bg_btns = []
     bg_back_btn = Button(0.5, 0.92, BTN_SM_W, BTN_SM_H, "VOLTAR", font_m, color=(80, 30, 30))
@@ -5931,7 +6007,7 @@ def main():
                         else:
                             hub_countdown_active = False
                             hub_countdown_timer  = 0.0
-                            state = "PACT_SELECT"
+                            state = "DIFF_SELECT"
                     elif state == "BLACKSMITH":
                         if hub_equip_open or hub_status_open:
                             hub_equip_open  = False
@@ -5988,8 +6064,6 @@ def main():
                             state = "MENU"
                     elif state == "DIFF_SELECT":
                         state = "CHAR_SELECT"
-                    elif state == "PACT_SELECT":
-                        state = "DIFF_SELECT"
                     elif state == "MOD_SELECT":
                         active_run_mods = set()
                         state = "PLAYING"
@@ -6046,32 +6120,13 @@ def main():
                                 menu_intro_timer = MENU_ENTER_DURATION
                         continue
 
-                    # Overlay de vitória de fase Hardcore (prioridade máxima)
-                    if show_stage_victory and hasattr(main, "_sv_btns_rects"):
-                        for _svr, _svact in main._sv_btns_rects:
-                            if _svr.collidepoint(click_pos):
+                    # Diálogo pós-Agis (Recompensa / Sair) — unificado normal + hardcore
+                    if show_reward_dialog and hasattr(main, "_rrd_btns"):
+                        for _rrd_r, _rrd_act in main._rrd_btns:
+                            if _rrd_r.collidepoint(click_pos):
                                 if snd_click: snd_click.play()
-                                if _svact == "continue":
-                                    show_stage_victory = False
-                                elif _svact == "next":
-                                    if current_hardcore_stage < 10:
-                                        _next = current_hardcore_stage + 1
-                                        if _next > save_data["hardcore_stages"].get("unlocked", 1):
-                                            save_data["hardcore_stages"]["unlocked"] = _next
-                                        current_hardcore_stage = _next
-                                        achievements_data["hardcore_stages_unlocked"] = max(
-                                            achievements_data.get("hardcore_stages_unlocked", 1),
-                                            save_data["hardcore_stages"]["unlocked"],
-                                        )
-                                        _check_achievements()
-                                        save_game()
-                                    show_stage_victory = False
-                                    state = "HUB"
-                                elif _svact == "hub":
-                                    show_stage_victory = False
-                                    state = "HUB"
-                                elif _svact == "reward":
-                                    show_stage_victory = False
+                                if _rrd_act == "reward":
+                                    show_reward_dialog = False
                                     _reward_room_bg = None
                                     try:
                                         _rr_path = os.path.join(ASSET_DIR, "Teste", "recompensa", "sala_recompença.png")
@@ -6088,40 +6143,12 @@ def main():
                                     save_game()
                                     autosave_feedback_timer = 2.5
                                     state = "REWARD_ROOM"
-                                    if snd_click: snd_click.play()
+                                else:  # "hub"
+                                    show_reward_dialog = False
+                                    hub_equip_open = False; hub_status_open = False
+                                    save_game()
+                                    state = "HUB"
                                 break
-
-                    # Diálogo "Entrar na Sala de Recompensas?" (após morte do Agis)
-                    if show_reward_dialog:
-                        _rrd_w = 460; _rrd_h = 210
-                        _rrd_x = (SCREEN_W - _rrd_w) // 2; _rrd_y = (SCREEN_H - _rrd_h) // 2
-                        _rrd_sim = pygame.Rect(_rrd_x + 40,  _rrd_y + 140, 160, 48)
-                        _rrd_nao = pygame.Rect(_rrd_x + 260, _rrd_y + 140, 160, 48)
-                        if _rrd_sim.collidepoint(click_pos):
-                            show_reward_dialog = False
-                            _reward_room_bg = None
-                            try:
-                                _rr_path = os.path.join(ASSET_DIR, "Teste", "recompensa", "sala_recompença.png")
-                                _raw_rr = pygame.image.load(_rr_path).convert_alpha()
-                                _reward_room_bg = pygame.transform.smoothscale(_raw_rr, (SCREEN_W, SCREEN_H))
-                            except Exception:
-                                pass
-                            reward_room_player_pos = pygame.Vector2(SCREEN_W // 2, int(SCREEN_H * 0.65))
-                            reward_room_anim_t = 0.0; reward_room_anim_idx = 0
-                            hub_equip_open = False; hub_status_open = False
-                            _mining_system = MiningSystem(SCREEN_W, SCREEN_H,
-                                                          selected_difficulty, current_hardcore_stage)
-                            _mining_system.spawn_ores()
-                            save_game()
-                            autosave_feedback_timer = 2.5
-                            state = "REWARD_ROOM"
-                            if snd_click: snd_click.play()
-                        elif _rrd_nao.collidepoint(click_pos):
-                            show_reward_dialog = False
-                            hub_equip_open = False; hub_status_open = False
-                            save_game()
-                            state = "HUB"
-                            if snd_click: snd_click.play()
                         continue
 
                     # ── Diálogo de confirmação de descarte (prioridade alta) ──
@@ -6217,6 +6244,13 @@ def main():
                     if state == "MENU":
                         # Clique no overlay de perfil (quando aberto)
                         if menu_profile_open:
+                            # Abas CONQUISTAS / RECORDES
+                            if hasattr(_draw_profile_viewer, "_tab_rects"):
+                                for _tid, _tr in _draw_profile_viewer._tab_rects.items():
+                                    if _tr.collidepoint(click_pos):
+                                        _draw_profile_viewer._tab = _tid
+                                        if snd_click: snd_click.play()
+                                        break
                             if hasattr(_draw_profile_viewer, "_btn_alterar") and _draw_profile_viewer._btn_alterar.collidepoint(click_pos):
                                 menu_profile_open = False
                                 _prof_mode = "list"
@@ -6260,6 +6294,13 @@ def main():
                     elif state == "HUB":
                         # ── Cliques no overlay de perfil (hub) ─────────────────────
                         if hub_profile_open:
+                            # Abas CONQUISTAS / RECORDES
+                            if hasattr(_draw_profile_viewer, "_tab_rects"):
+                                for _tid, _tr in _draw_profile_viewer._tab_rects.items():
+                                    if _tr.collidepoint(click_pos):
+                                        _draw_profile_viewer._tab = _tid
+                                        if snd_click: snd_click.play()
+                                        break
                             if hasattr(_draw_profile_viewer, "_av_picker_rects") and getattr(_draw_profile_viewer, "_av_picker_open", False):
                                 for _pck_idx, _pck_r in _draw_profile_viewer._av_picker_rects:
                                     if _pck_r.collidepoint(click_pos):
@@ -6954,34 +6995,13 @@ def main():
                         for i, btn in enumerate(diff_btns):
                             if btn.rect.collidepoint(click_pos) and not btn.locked:
                                 selected_difficulty = diff_order[i]
+                                selected_pact = "NENHUM"
                                 if snd_click: snd_click.play()
-                                state = "PACT_SELECT"
-
-                    elif state == "PACT_SELECT":
-                        if pact_back_btn.rect.collidepoint(click_pos):
-                            state = "DIFF_SELECT"
-                        pact_names = list(PACTOS.keys())
-                        for i, btn in enumerate(pact_btns):
-                            if btn.rect.collidepoint(click_pos):
-                                selected_pact = pact_names[i]
-                                if snd_click: snd_click.play()
-                                p_data = PACTOS[selected_pact]
                                 _init_cid = player.char_id if player else 0
                                 reset_game(_init_cid)
                                 hub_last_char_id = _init_cid
                                 run_gold_collected = 0.0
                                 autosave_timer = 0.0
-                                if p_data["hp"] > 0:
-                                    player.hp = p_data["hp"]
-                                _hp_pct = p_data.get("hp_pct", 0)
-                                if _hp_pct != 0:
-                                    PLAYER_MAX_HP = max(1, int(PLAYER_MAX_HP * (1.0 + _hp_pct)))
-                                    player.hp = min(player.hp, PLAYER_MAX_HP)
-                                    player.base_hp = PLAYER_MAX_HP
-                                _xp_pct = p_data.get("xp_pct", 0)
-                                if _xp_pct != 0:
-                                    XP_BONUS_PCT += _xp_pct
-                                # Carrega o Hub Room multi-mapa antes de começar a partida
                                 _tmx_dir = os.path.join(BASE_DIR, "assets", "Teste", "Tiled_files")
                                 if os.path.isdir(_tmx_dir):
                                     hub_scene = HubScene(_tmx_dir)
@@ -7487,7 +7507,6 @@ def main():
                         else:
                             state = "MENU"
                     elif state == "DIFF_SELECT": state = "CHAR_SELECT"
-                    elif state == "PACT_SELECT": state = "DIFF_SELECT"
 
                 # A (0) → opção 1 de upgrade / clique nos menus
                 elif btn == 0:
@@ -7671,7 +7690,7 @@ def main():
                 blacksmith_scene.update(dt, keys, SCREEN_W, SCREEN_H)
 
         # 3. Atualização da Lógica do Jogo
-        if state == "PLAYING" and player and player.hp > 0 and not show_stage_victory and not show_reward_dialog:
+        if state == "PLAYING" and player and player.hp > 0 and not show_reward_dialog:
 
             current_xp_to_level = _bal.xp_to_level(level)
 
@@ -7829,19 +7848,33 @@ def main():
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
                             if random.random() < 0.50: gems.add(Gem(e.pos, loader))
                             if e.kind == "agis":
-                                if selected_difficulty == "HARDCORE":
-                                    show_stage_victory = True
-                                else:
-                                    show_reward_dialog = True
+                                show_reward_dialog = True
+                                if selected_difficulty == "HARDCORE" and current_hardcore_stage < 10:
+                                    _next_hcs = current_hardcore_stage + 1
+                                    if _next_hcs > save_data["hardcore_stages"].get("unlocked", 1):
+                                        save_data["hardcore_stages"]["unlocked"] = _next_hcs
+                                    current_hardcore_stage = _next_hcs
+                                    achievements_data["hardcore_stages_unlocked"] = max(
+                                        achievements_data.get("hardcore_stages_unlocked", 1),
+                                        save_data["hardcore_stages"]["unlocked"],
+                                    )
+                                    _check_achievements()
                                 session_boss_kills += 1
                                 save_data["stats"]["boss_kills"] += 1
                                 update_mission_progress("boss", 1)
+                                _cid = getattr(player, "char_id", 0)
+                                update_hero_record(_cid, "best_time", game_time)
+                                update_hero_record(_cid, "max_kills", kills + 1)
+                                update_hero_record(_cid, "max_combo", max(run_max_combo, streak_count + 1))
+                                if _agis_spawn_time_gt > 0:
+                                    update_hero_record(_cid, "fastest_boss", game_time - _agis_spawn_time_gt, lower_is_better=True)
                             elif e.kind in ("boss", "mini_boss"):
                                 session_boss_kills += 1
                                 save_data["stats"]["boss_kills"] += 1
                                 update_mission_progress("boss", 1)
                             e.kill(); kills += 1
                             streak_count += 1; streak_timer = 3.5
+                            if streak_count > run_max_combo: run_max_combo = streak_count
 
             spawn_t += dt
 
@@ -7917,9 +7950,10 @@ def main():
                 screen.blit(warn_txt, warn_txt.get_rect(center=(SCREEN_W//2, SCREEN_H//2 - 200)))
                 play_sfx("ult")
 
-            # --- Agis — selo de invocação aparece no minuto 2 ---
+            # --- Agis — selo de invocação aparece no minuto 5 ---
             if game_time >= AGIS_SPAWN_TIME and "agis_seal" not in triggered_hordes:
                 triggered_hordes.add("agis_seal")
+                _agis_spawn_time_gt = game_time
                 seal_offset = pygame.Vector2(random.choice([-1, 1]) * random.randint(180, 300),
                                              random.choice([-1, 1]) * random.randint(100, 220))
                 doom_seals.add(DoomSeal(player.pos + seal_offset, loader))
@@ -8317,6 +8351,7 @@ def main():
                             # V5 Kill streak
                             streak_count += 1
                             streak_timer = 3.5
+                            if streak_count > run_max_combo: run_max_combo = streak_count
                             if streak_count == 15:
                                 player.hp = min(PLAYER_MAX_HP, player.hp + PLAYER_MAX_HP * 0.08)
                                 damage_texts.add(DamageText(player.pos, "+8% HP!", True, (80, 255, 80)))
@@ -8344,11 +8379,23 @@ def main():
                                 for gi in range(gold_count):
                                     offset = pygame.Vector2(random.randint(-80, 80), random.randint(-80, 80))
                                     drops.add(create_drop(hit.pos + offset, "coin"))
-                                if selected_difficulty == "HARDCORE":
-                                    show_stage_victory = True
-                                else:
-                                    show_reward_dialog = True
+                                show_reward_dialog = True
+                                if selected_difficulty == "HARDCORE" and current_hardcore_stage < 10:
+                                    _next_hcs = current_hardcore_stage + 1
+                                    if _next_hcs > save_data["hardcore_stages"].get("unlocked", 1):
+                                        save_data["hardcore_stages"]["unlocked"] = _next_hcs
+                                    current_hardcore_stage = _next_hcs
+                                    achievements_data["hardcore_stages_unlocked"] = max(
+                                        achievements_data.get("hardcore_stages_unlocked", 1),
+                                        save_data["hardcore_stages"]["unlocked"],
+                                    )
                                 _check_achievements()
+                                _cid = getattr(player, "char_id", 0)
+                                update_hero_record(_cid, "best_time", game_time)
+                                update_hero_record(_cid, "max_kills", kills)
+                                update_hero_record(_cid, "max_combo", run_max_combo)
+                                if _agis_spawn_time_gt > 0:
+                                    update_hero_record(_cid, "fastest_boss", game_time - _agis_spawn_time_gt, lower_is_better=True)
                             elif hit.kind == "mini_boss":
                                 # Mini boss conta como kill de boss e dropa várias moedas
                                 session_boss_kills += 1
@@ -8456,6 +8503,9 @@ def main():
                 save_data["stats"]["deaths"] += 1
                 save_data["stats"]["total_time"] += game_time
                 save_data["stats"]["max_level_reached"] = max(save_data["stats"]["max_level_reached"], session_max_level)
+                _cid_go = getattr(player, "char_id", 0)
+                update_hero_record(_cid_go, "max_kills", kills)
+                update_hero_record(_cid_go, "max_combo", run_max_combo)
                 check_achievements()
                 _check_achievements()
                 # Award profile XP based on time survived and difficulty
@@ -10968,26 +11018,6 @@ def main():
                     mission_btns[0].check_hover(m_pos, snd_hover)
                     mission_btns[0].draw(screen)
 
-        elif state == "PACT_SELECT":
-            draw_menu_background(screen, m_pos, dt)
-            draw_screen_title(screen, font_l, "ESCOLHA SEU PACTO", SCREEN_W//2, int(SCREEN_H*0.12), text_color=UI_THEME["blood_red"])
-            pact_names = list(PACTOS.keys())
-            for i, btn in enumerate(pact_btns):
-                btn.check_hover(m_pos, snd_hover)
-                btn.draw(screen)
-                pact_key  = pact_names[i]
-                pact_data = PACTOS[pact_key]
-                # Descrição centralizada abaixo do bar sprite
-                desc_col = (200, 175, 120) if btn.is_hovered else (155, 135, 85)
-                desc_s   = font_s.render(pact_data["desc"], True, desc_col)
-                screen.blit(desc_s, desc_s.get_rect(center=(SCREEN_W // 2, btn.rect.bottom + 13)))
-                # Indicador de selecionado (✓ à direita do bar)
-                if pact_key == selected_pact:
-                    sel_s = font_s.render("✓", True, pact_data["color"])
-                    screen.blit(sel_s, sel_s.get_rect(midleft=(btn.rect.right + 8, btn.rect.centery)))
-            pact_back_btn.check_hover(m_pos, snd_hover)
-            pact_back_btn.draw(screen)
-
         elif state == "MOD_SELECT":
             draw_menu_background(screen, m_pos, dt)
             _ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA); _ov.fill((0,0,0,170)); screen.blit(_ov, (0,0))
@@ -11356,61 +11386,41 @@ def main():
 
             if show_reward_dialog:
                 if not hasattr(main, "_rrd_ov"): main._rrd_ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                main._rrd_ov.fill((0, 0, 0, 190))
+                main._rrd_ov.fill((0, 0, 0, 200))
                 screen.blit(main._rrd_ov, (0, 0))
-                _rrd_w = 460; _rrd_h = 210
+                _rrd_w = 480; _rrd_h = 220
                 _rrd_x = SCREEN_W // 2 - _rrd_w // 2; _rrd_y = SCREEN_H // 2 - _rrd_h // 2
                 pygame.draw.rect(screen, (28, 20, 12), (_rrd_x, _rrd_y, _rrd_w, _rrd_h), border_radius=14)
                 pygame.draw.rect(screen, (200, 160, 50), (_rrd_x, _rrd_y, _rrd_w, _rrd_h), 3, border_radius=14)
                 _rrd_title = font_l.render("AGIS DERROTADO!", True, (255, 215, 0))
                 screen.blit(_rrd_title, _rrd_title.get_rect(centerx=SCREEN_W // 2, top=_rrd_y + 18))
-                _rrd_sub = font_s.render("Entrar na Sala de Recompensas?", True, (220, 200, 160))
-                screen.blit(_rrd_sub, _rrd_sub.get_rect(centerx=SCREEN_W // 2, top=_rrd_y + 72))
-                _rrd_sim = pygame.Rect(_rrd_x + 40,  _rrd_y + 140, 160, 48)
-                _rrd_nao = pygame.Rect(_rrd_x + 260, _rrd_y + 140, 160, 48)
-                for _rb, _rl, _rc in [(_rrd_sim, "SIM", (40, 120, 40)), (_rrd_nao, "NÃO", (120, 40, 40))]:
+                if selected_difficulty == "HARDCORE":
+                    if current_hardcore_stage >= 10:
+                        _rrd_sub_txt = "Parabéns! Todas as fases concluídas!"
+                        _rrd_sub_col = (255, 215, 0)
+                    else:
+                        _rrd_sub_txt = f"Fase {current_hardcore_stage} / 10 desbloqueada!"
+                        _rrd_sub_col = (200, 160, 100)
+                    _rrd_sub = font_s.render(_rrd_sub_txt, True, _rrd_sub_col)
+                    screen.blit(_rrd_sub, _rrd_sub.get_rect(centerx=SCREEN_W // 2, top=_rrd_y + 68))
+                _btn_w, _btn_h = 200, 52
+                _gap = 20
+                _btns_total = _btn_w * 2 + _gap
+                _btn_left_x = SCREEN_W // 2 - _btns_total // 2
+                _rrd_btn_y = _rrd_y + _rrd_h - _btn_h - 22
+                _rrd_reward = pygame.Rect(_btn_left_x,              _rrd_btn_y, _btn_w, _btn_h)
+                _rrd_hub    = pygame.Rect(_btn_left_x + _btn_w + _gap, _rrd_btn_y, _btn_w, _btn_h)
+                main._rrd_btns = [(_rrd_reward, "reward"), (_rrd_hub, "hub")]
+                for _rb, _rl, _rc in [
+                    (_rrd_reward, "RECOMPENSA",     (130, 100, 20)),
+                    (_rrd_hub,    "SAIR PARA ROOM", (80,  40, 120)),
+                ]:
                     _rhov = _rb.collidepoint(m_pos)
-                    _rfc = tuple(min(255, c + 35) for c in _rc) if _rhov else _rc
+                    _rfc = tuple(min(255, c + 40) for c in _rc) if _rhov else _rc
                     pygame.draw.rect(screen, _rfc, _rb, border_radius=8)
-                    pygame.draw.rect(screen, (200, 170, 60), _rb, 2, border_radius=8)
-                    _rls = font_m.render(_rl, True, (240, 230, 200))
+                    pygame.draw.rect(screen, (220, 185, 60), _rb, 2, border_radius=8)
+                    _rls = font_s.render(_rl, True, (240, 230, 200))
                     screen.blit(_rls, _rls.get_rect(center=_rb.center))
-
-            if show_stage_victory:
-                if not hasattr(main, "_svo"): main._svo = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
-                main._svo.fill((0, 0, 0, 200))
-                screen.blit(main._svo, (0, 0))
-                _sv_bw, _sv_bh = 560, 380
-                _sv_bx = SCREEN_W // 2 - _sv_bw // 2
-                _sv_by = SCREEN_H // 2 - _sv_bh // 2
-                pygame.draw.rect(screen, (30, 20, 10), (_sv_bx, _sv_by, _sv_bw, _sv_bh), border_radius=14)
-                pygame.draw.rect(screen, (200, 160, 50), (_sv_bx, _sv_by, _sv_bw, _sv_bh), 3, border_radius=14)
-                _sv_title = font_l.render("AGIS DERROTADO!", True, (255, 215, 0))
-                screen.blit(_sv_title, _sv_title.get_rect(centerx=SCREEN_W // 2, top=_sv_by + 18))
-                _sv_sub = font_s.render(f"Fase {current_hardcore_stage} / 10 — Modo Hardcore", True, (200, 160, 100))
-                screen.blit(_sv_sub, _sv_sub.get_rect(centerx=SCREEN_W // 2, top=_sv_by + 60))
-                _sv_btn_w, _sv_btn_h = 500, 48
-                _sv_btn_x = SCREEN_W // 2 - _sv_btn_w // 2
-                _sv_btns = [
-                    (_sv_btn_x, _sv_by + 110, _sv_btn_w, _sv_btn_h, "Continuar na fase atual", (60, 180, 60), "continue"),
-                    (_sv_btn_x, _sv_by + 172, _sv_btn_w, _sv_btn_h, "Próximo Nível", (60, 120, 200), "next"),
-                    (_sv_btn_x, _sv_by + 234, _sv_btn_w, _sv_btn_h, "Reivindicar Recompensa", (160, 120, 20), "reward"),
-                    (_sv_btn_x, _sv_by + 296, _sv_btn_w, _sv_btn_h, "Ir para o Hub", (160, 80, 60), "hub"),
-                ]
-                if not hasattr(main, "_sv_btns_rects"): main._sv_btns_rects = []
-                main._sv_btns_rects = []
-                for _bx2, _by2, _bw2, _bh2, _blbl, _bcol, _bact in _sv_btns:
-                    _br = pygame.Rect(_bx2, _by2, _bw2, _bh2)
-                    main._sv_btns_rects.append((_br, _bact))
-                    _bhov = _br.collidepoint(m_pos)
-                    _bfill = tuple(min(255, c + 40) for c in _bcol) if _bhov else _bcol
-                    pygame.draw.rect(screen, _bfill, _br, border_radius=8)
-                    pygame.draw.rect(screen, (220, 190, 80), _br, 2, border_radius=8)
-                    _bsurf = font_s.render(_blbl, True, (240, 230, 200))
-                    screen.blit(_bsurf, _bsurf.get_rect(center=_br.center))
-                if current_hardcore_stage >= 10:
-                    _sv_max = font_s.render("Parabéns! Todas as fases concluídas!", True, (255, 215, 0))
-                    screen.blit(_sv_max, _sv_max.get_rect(centerx=SCREEN_W // 2, bottom=_sv_by + _sv_bh - 8))
 
             if state == "PAUSED":
                 overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
