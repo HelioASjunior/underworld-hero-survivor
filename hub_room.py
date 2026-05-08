@@ -173,7 +173,8 @@ class HubMap:
                 all_xs += [cx, cx + cw]
                 all_ys += [cy, cy + ch]
                 raw = chunk.text.strip() if chunk.text else ""
-                gids = [int(v) for v in raw.replace("\n", ",").split(",") if v.strip()]
+                # Mascara bits de flip do Tiled (bits 29-31 indicam espelhamento)
+                gids = [int(v) & 0x1FFFFFFF for v in raw.replace("\n", ",").split(",") if v.strip()]
                 chunks.append({"cx": cx, "cy": cy, "cw": cw, "ch": ch, "gids": gids})
             raw_layers.append({"name": name, "visible": visible, "chunks": chunks})
 
@@ -1086,6 +1087,113 @@ class BlacksmithScene:
             BLACKSMITH_FERREIRO_POS.x + self._cam.x,
             BLACKSMITH_FERREIRO_POS.y + self._cam.y,
         )
+
+    def update(self, dt: float, keys, screen_w: int, screen_h: int):
+        if self._map is None or self._player is None:
+            return
+        self._player.update(dt, keys)
+        self._map.update(dt)
+        if self._map.content_center:
+            self._cam = compute_camera_fixed(self._map.content_center, screen_w, screen_h)
+        else:
+            self._cam = compute_camera(
+                self._player.pos,
+                self._map.pixel_width,
+                self._map.pixel_height,
+                screen_w, screen_h,
+            )
+
+    def draw(self, screen: pygame.Surface):
+        if self._map is None or self._player is None:
+            return
+        self._player.draw_scale = 1.5
+        self._map.draw_base(screen, self._cam)
+        self._player.draw(screen, self._cam)
+        self._map.draw_top(screen, self._cam)
+
+
+# ---------------------------------------------------------------------------
+# TemploScene — interior do templo (Interior.tmx)
+# ---------------------------------------------------------------------------
+
+class TemploScene:
+    """Cena do interior do templo. Câmera fixa no centro, colisão via camada 'Walls'."""
+
+    def __init__(self, templo_dir: str):
+        self._dir    = templo_dir
+        self._map:    HubMap | None    = None
+        self._player: HubPlayer | None = None
+        self._cam     = pygame.Vector2(0, 0)
+
+    def load_all(self):
+        path = os.path.join(self._dir, "Interior.tmx")
+        if os.path.exists(path):
+            self._map = HubMap(path)
+            self._map.load()
+            self._patch_map_bounds()
+        else:
+            print(f"[TemploScene] Arquivo não encontrado: {path}")
+
+    def _patch_map_bounds(self):
+        """Restringe o content_rect às paredes físicas do templo sem mexer no content_center (câmera)."""
+        if self._map is None:
+            return
+        TW = self._map.tile_w * SCALE   # 64 px por tile
+        inner_left   = 6  * TW          # 384 px — primeira coluna de piso
+        inner_top    = 8  * TW          # 512 px — primeira linha de piso
+        inner_right  = 26 * TW          # 1664 px — início da parede direita
+        inner_bottom = 17 * TW          # 1088 px — início da parede inferior
+        self._map._content_rect = pygame.Rect(
+            inner_left, inner_top,
+            inner_right - inner_left,
+            inner_bottom - inner_top,
+        )
+        # content_center preservado (câmera e spawn usam o centro auto-calculado do mapa)
+
+    def load_surfaces_and_bake(self):
+        if self._map is not None:
+            self._map.load_surfaces()
+            self._map.bake()
+
+    def _spawn_pos(self) -> pygame.Vector2:
+        """Posição de spawn: centro do conteúdo do mapa."""
+        if self._map and self._map.content_center:
+            return pygame.Vector2(self._map.content_center)
+        return pygame.Vector2(self._map.pixel_width / 2, self._map.pixel_height / 2)
+
+    def setup_player(self):
+        if self._map is None:
+            return
+        self._player = HubPlayer(self._map)
+        self._player.pos = self._spawn_pos()
+
+    def reset_spawn(self):
+        """Reposiciona o jogador na entrada sem recriar instância."""
+        if self._player is None or self._map is None:
+            return
+        self._player.pos = self._spawn_pos()
+
+    def apply_char_frames(
+        self,
+        dir_walk:      dict,
+        dir_idle:      dict,
+        walk_fallback: list | None = None,
+        idle_fallback: list | None = None,
+        anim_spd:      float = 0.10,
+        idle_anim_spd: float = 0.13,
+    ):
+        if self._player:
+            self._player.set_char_frames(
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+            )
+
+    @property
+    def player(self) -> "HubPlayer | None":
+        return self._player
+
+    @property
+    def cam(self) -> pygame.Vector2:
+        return self._cam
 
     def update(self, dt: float, keys, screen_w: int, screen_h: int):
         if self._map is None or self._player is None:

@@ -18,7 +18,7 @@ from forest_biome import build_forest_ground, ForestDecoManager
 from dungeon_biome import DungeonDecoManager
 from volcano_biome import build_volcano_ground, VolcanoDecoManager
 from moon_biome import build_moon_ground, MoonDecoManager
-from hub_room import HubScene, MarketScene, BlacksmithScene
+from hub_room import HubScene, MarketScene, BlacksmithScene, TemploScene
 from drops import Drop as ModularDrop
 from enemies import Enemy as ModularEnemy, EnemyProjectile as ModularEnemyProjectile, EnemyDeathAnim
 from ecs_world import World as ECSWorld
@@ -5528,6 +5528,7 @@ def main():
     hub_profile_open   = False   # Janela de Perfil/Conquistas (L key)
     market_scene:     MarketScene     | None = None   # Cena do Mercado (carregada na primeira visita)
     blacksmith_scene: BlacksmithScene | None = None   # Interior da ferraria (carregada na primeira visita)
+    templo_scene:     TemploScene     | None = None   # Interior do templo (carregado na primeira visita)
     menu_profile_open  = False   # Overlay de Perfil/Conquistas no MENU
     # Mensagem de erro de equipamento (nível insuficiente)
     _equip_err_msg       = ""
@@ -5865,20 +5866,20 @@ def main():
                             if snd_click: snd_click.play()
                             break
 
-                if state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and event.key == pygame.K_i:
+                if state in ("HUB", "MARKET", "BLACKSMITH", "TEMPLO", "REWARD_ROOM") and event.key == pygame.K_i:
                     hub_equip_open = not hub_equip_open
                     _drag_item = None; _drag_active = False
                     if state == "REWARD_ROOM" and _mining_system is not None:
                         _mining_system.cancel_mining()
                     if snd_click: snd_click.play()
 
-                if state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and event.key == pygame.K_c:
+                if state in ("HUB", "MARKET", "BLACKSMITH", "TEMPLO", "REWARD_ROOM") and event.key == pygame.K_c:
                     hub_status_open = not hub_status_open
                     if state == "REWARD_ROOM" and _mining_system is not None:
                         _mining_system.cancel_mining()
                     if snd_click: snd_click.play()
 
-                if state in ("HUB", "MARKET", "BLACKSMITH") and event.key == pygame.K_l:
+                if state in ("HUB", "MARKET", "BLACKSMITH", "TEMPLO") and event.key == pygame.K_l:
                     hub_profile_open = not hub_profile_open
                     if snd_click: snd_click.play()
 
@@ -6025,6 +6026,18 @@ def main():
                             _craft_slots    = [None, None, None]
                             _drag_item = None; _drag_active = False
                             state = "MARKET"
+                    elif state == "TEMPLO":
+                        if hub_equip_open or hub_status_open or hub_profile_open:
+                            hub_equip_open   = False
+                            hub_status_open  = False
+                            hub_profile_open = False
+                            _drag_item = None; _drag_active = False
+                        else:
+                            hub_equip_open   = False
+                            hub_status_open  = False
+                            hub_profile_open = False
+                            _drag_item = None; _drag_active = False
+                            state = "HUB"
                     elif state == "REWARD_ROOM":
                         if _mining_system is not None:
                             _mining_system.cancel_mining()
@@ -6450,6 +6463,7 @@ def main():
                         _hub_rb_rx = _hub_panel_x + int(_hub_panel_w * 0.10)
                         _hub_rb_h  = 50
                         _hub_market_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.373) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
+                        _hub_templo_rect = pygame.Rect(_hub_rb_rx, int(SCREEN_H * 0.453) - _hub_rb_h//2, _hub_rb_rw, _hub_rb_h)
                         if _hub_market_rect.collidepoint(click_pos):
                             if market_scene is None:
                                 _ferreiro_dir = os.path.join(BASE_DIR, "assets", "Teste", "ferreiro")
@@ -6470,6 +6484,28 @@ def main():
                                 )
                             state = "MARKET"
                             if snd_click: snd_click.play()
+                        elif _hub_templo_rect.collidepoint(click_pos):
+                            _templo_dir = os.path.join(BASE_DIR, "assets", "Teste", "templo")
+                            if templo_scene is None:
+                                templo_scene = TemploScene(_templo_dir)
+                                templo_scene.load_all()
+                                templo_scene.load_surfaces_and_bake()
+                                templo_scene.setup_player()
+                            else:
+                                templo_scene.reset_spawn()
+                            if player is not None:
+                                _cid_tp  = player.char_id
+                                _cdat_tp = CHAR_DATA.get(_cid_tp, {})
+                                templo_scene.apply_char_frames(
+                                    dir_walk      = dict(player._dir_walk_frames),
+                                    dir_idle      = dict(player._dir_idle_frames),
+                                    walk_fallback = list(player.anim_frames),
+                                    idle_fallback = list(player.idle_frames),
+                                    anim_spd      = _cdat_tp.get("anim_speed", 0.10),
+                                    idle_anim_spd = _cdat_tp.get("idle_anim_speed", 0.13),
+                                )
+                            state = "TEMPLO"
+                            if snd_click: snd_click.play()
                         # Setas de fase Hardcore
                         if selected_difficulty == "HARDCORE" and hasattr(main, "_hc_larr"):
                             _hc_max_unl = save_data.get("hardcore_stages", {}).get("unlocked", 1)
@@ -6480,7 +6516,7 @@ def main():
                                 current_hardcore_stage += 1
                                 if snd_click: snd_click.play()
 
-                    elif state in ("MARKET", "BLACKSMITH"):
+                    elif state in ("MARKET", "BLACKSMITH", "TEMPLO"):
                         if hub_profile_open:
                             if hasattr(_draw_profile_viewer, "_av_picker_rects") and getattr(_draw_profile_viewer, "_av_picker_open", False):
                                 for _pck_idx, _pck_r in _draw_profile_viewer._av_picker_rects:
@@ -6741,6 +6777,21 @@ def main():
                                         hub_equip_open = False
                                         _craft_slots = [None, None, None]
                                         state = "MARKET"
+                                        if snd_click: snd_click.play()
+                            elif state == "TEMPLO":
+                                # Painel do templo só recebe cliques na borda direita
+                                if click_pos[0] >= SCREEN_W - 60:
+                                    _tp_panel_x  = int(SCREEN_W * 0.84)
+                                    _tp_panel_w  = SCREEN_W - _tp_panel_x
+                                    _tp_rb_rw    = _tp_panel_w - int(_tp_panel_w * 0.20)
+                                    _tp_rb_rx    = _tp_panel_x + int(_tp_panel_w * 0.10)
+                                    _tp_rb_h     = 50
+                                    _tp_vlt_rect = pygame.Rect(_tp_rb_rx, int(SCREEN_H * 0.562) - _tp_rb_h//2, _tp_rb_rw, _tp_rb_h)
+                                    if _tp_vlt_rect.collidepoint(click_pos):
+                                        hub_equip_open   = False
+                                        hub_status_open  = False
+                                        hub_profile_open = False
+                                        state = "HUB"
                                         if snd_click: snd_click.play()
 
                     elif state == "REWARD_ROOM":
@@ -7234,7 +7285,7 @@ def main():
                 stop_settings_drag()
 
             # ── Drop do Drag-and-Drop de Inventário/Baú/Equipamento ──────────
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state in ("HUB", "MARKET", "BLACKSMITH", "REWARD_ROOM") and _drag_active:
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and state in ("HUB", "MARKET", "BLACKSMITH", "TEMPLO", "REWARD_ROOM") and _drag_active:
                 _drop_pos = event.pos
                 _dd_cid_u = player.char_id if player else 0
                 _dd_inv_u = get_char_inventory(_dd_cid_u)
@@ -7688,6 +7739,12 @@ def main():
             if not hub_equip_open and not hub_status_open and not hub_profile_open:
                 keys = pygame.key.get_pressed()
                 blacksmith_scene.update(dt, keys, SCREEN_W, SCREEN_H)
+
+        # 3e. Lógica do Templo
+        if state == "TEMPLO" and templo_scene is not None:
+            if not hub_equip_open and not hub_status_open and not hub_profile_open:
+                keys = pygame.key.get_pressed()
+                templo_scene.update(dt, keys, SCREEN_W, SCREEN_H)
 
         # 3. Atualização da Lógica do Jogo
         if state == "PLAYING" and player and player.hp > 0 and not show_reward_dialog:
@@ -9576,7 +9633,7 @@ def main():
                 diff_back_btn.check_hover(m_pos, snd_hover)
                 diff_back_btn.draw(screen)
 
-        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None) or (state == "BLACKSMITH" and blacksmith_scene is not None) or state == "REWARD_ROOM":
+        elif (state == "HUB" and hub_scene is not None) or (state == "MARKET" and market_scene is not None) or (state == "BLACKSMITH" and blacksmith_scene is not None) or (state == "TEMPLO" and templo_scene is not None) or state == "REWARD_ROOM":
             # ── Mapa + jogador ─────────────────────────────────────────────
             if state == "HUB":
                 hub_scene.draw(screen)
@@ -9662,6 +9719,14 @@ def main():
                 # ── Dica de saída centralizada na parte inferior ──────────
                 _bs_esc_hint = font_s.render("Pressione ESC para sair", True, (120, 110, 90))
                 screen.blit(_bs_esc_hint, _bs_esc_hint.get_rect(centerx=SCREEN_W // 2, bottom=SCREEN_H - 12))
+
+            elif state == "TEMPLO" and templo_scene is not None:
+                # ── INTERIOR DO TEMPLO ──────────────────────────────────────
+                templo_scene.draw(screen)
+
+                # ── Dica de saída centralizada na parte inferior ──────────
+                _tp_esc_hint = font_s.render("Pressione ESC para sair", True, (120, 110, 90))
+                screen.blit(_tp_esc_hint, _tp_esc_hint.get_rect(centerx=SCREEN_W // 2, bottom=SCREEN_H - 12))
 
             elif state == "REWARD_ROOM":
                 # ── SALA DE RECOMPENSA ──────────────────────────────────────
@@ -10812,8 +10877,9 @@ def main():
                 _rb_rx = _hp_x + int(_hp_w * 0.10)
                 _rb_h  = 50
                 _market_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
+                _templo_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
                 _pronto_rect = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
-                for _r, _lbl in [(_market_rect, "Mercado")]:
+                for _r, _lbl in [(_market_rect, "Mercado"), (_templo_rect, "Templo")]:
                     _hov = _r.collidepoint(m_pos)
                     _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
                     screen.blit(_ls, _ls.get_rect(center=_r.center))
@@ -11017,6 +11083,54 @@ def main():
                                 mission_claim_btns[i].draw(screen)
                     mission_btns[0].check_hover(m_pos, snd_hover)
                     mission_btns[0].draw(screen)
+
+            elif state == "TEMPLO":
+                # ── Painel lateral direito (Templo) ──────────────────────────
+                _hp_x = int(SCREEN_W * 0.84)
+                _hp_w = SCREEN_W - _hp_x
+                _cx   = _hp_x + _hp_w // 2
+                _panel = pygame.Surface((_hp_w, SCREEN_H), pygame.SRCALPHA)
+                _panel.fill((10, 8, 6, 215))
+                screen.blit(_panel, (_hp_x, 0))
+                _sh_key = (_hp_w, SCREEN_H)
+                if _sh_key not in _sala_heroi_cache:
+                    try:
+                        _sh_raw = pygame.image.load(
+                            os.path.join("assets", "ui", "panels", "sala_do_heroi.png")
+                        ).convert_alpha()
+                        _sala_heroi_cache[_sh_key] = pygame.transform.smoothscale(_sh_raw, _sh_key)
+                    except Exception:
+                        _sala_heroi_cache[_sh_key] = None
+                _sh_img = _sala_heroi_cache.get(_sh_key)
+                if _sh_img:
+                    screen.blit(_sh_img, (_hp_x, 0))
+                pygame.draw.line(screen, UI_THEME.get("old_gold", (180, 150, 80)), (_hp_x, 0), (_hp_x, SCREEN_H), 2)
+                _title_s = font_s.render("Templo", True, UI_THEME.get("old_gold", (220, 180, 80)))
+                screen.blit(_title_s, _title_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.03)))
+                _area_s = font_s.render("Interior", True, (160, 150, 120))
+                screen.blit(_area_s, _area_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.08)))
+                if player is not None:
+                    _char_name = CHAR_DATA.get(player.char_id, {}).get("name", "")
+                    _name_s = font_s.render(_char_name, True, (220, 210, 180))
+                    screen.blit(_name_s, _name_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.13)))
+                    _hp_s = font_s.render(f"HP: {int(player.hp)}/{PLAYER_MAX_HP}", True, (220, 80, 80))
+                    screen.blit(_hp_s, _hp_s.get_rect(centerx=_cx, top=int(SCREEN_H * 0.19)))
+                _rb_rw = _hp_w - int(_hp_w * 0.20)
+                _rb_rx = _hp_x + int(_hp_w * 0.10)
+                _rb_h  = 50
+                _tp_voltar_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
+                _vol_hov = _tp_voltar_draw.collidepoint(m_pos)
+                _vol_s = font_m.render("VOLTAR", True, (200, 255, 200) if _vol_hov else (140, 220, 140))
+                screen.blit(_vol_s, _vol_s.get_rect(center=_tp_voltar_draw.center))
+                _hint_i = font_s.render("[I] Inventário", True, (100, 120, 160))
+                _hint_c = font_s.render("[C] Status", True, (100, 160, 100))
+                _hint_l = font_s.render("[L] Perfil / Conquistas", True, (160, 130, 200))
+                _esc_s  = font_s.render("ESC → Voltar", True, (120, 110, 90))
+                _hint_top = _tp_voltar_draw.bottom + 10
+                screen.blit(_hint_i, _hint_i.get_rect(centerx=_cx, top=_hint_top))
+                screen.blit(_hint_c, _hint_c.get_rect(centerx=_cx, top=_hint_top + 22))
+                screen.blit(_hint_l, _hint_l.get_rect(centerx=_cx, top=_hint_top + 44))
+                screen.blit(_esc_s,  _esc_s.get_rect(centerx=_cx,  bottom=int(SCREEN_H * 0.97)))
 
         elif state == "MOD_SELECT":
             draw_menu_background(screen, m_pos, dt)
