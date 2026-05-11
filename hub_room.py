@@ -631,6 +631,8 @@ INTERIOR_2_TABLE_RECTS: list[pygame.Rect] = [
 INTERIOR_1_CHEST_POS    = pygame.Vector2(1024, 896)  # ponto de interação do baú em px
 CHEST_INTERACT_RADIUS   = 150                         # raio de interação em px
 
+SACERDOTE_INTERACT_RADIUS = 250   # raio de interação do Sacerdote (px)
+
 # Ferreiro NPC no Mercado — Trader_weapon (stall direito), tiles (20-21,14-15), origin=(-16,-16)
 # Centro do sprite 2×2: world x=(20+1)*64=1344, y=(14+1)*64=960
 FERREIRO_NPC_POS         = pygame.Vector2(1344, 960)
@@ -1194,6 +1196,24 @@ class TemploScene:
     @property
     def cam(self) -> pygame.Vector2:
         return self._cam
+
+    def _sacerdote_world_pos(self) -> pygame.Vector2:
+        """Posição mundial do NPC Sacerdote: centro horizontal do mapa, levemente acima do content_center."""
+        if self._map and self._map.content_center:
+            return pygame.Vector2(self._map.content_center.x,
+                                  self._map.content_center.y - 100)
+        return pygame.Vector2(1024, 800)
+
+    @property
+    def player_near_sacerdote(self) -> bool:
+        if self._player is None:
+            return False
+        return self._player.pos.distance_to(self._sacerdote_world_pos()) <= SACERDOTE_INTERACT_RADIUS
+
+    @property
+    def sacerdote_screen_pos(self) -> pygame.Vector2:
+        pos = self._sacerdote_world_pos()
+        return pygame.Vector2(pos.x + self._cam.x, pos.y + self._cam.y)
 
     def update(self, dt: float, keys, screen_w: int, screen_h: int):
         if self._map is None or self._player is None:

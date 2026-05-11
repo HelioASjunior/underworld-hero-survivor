@@ -409,6 +409,8 @@ save_data = {
     "beaten_difficulties": [],
     # Recordes por herói — {str(char_id): {best_time, max_combo, max_kills, fastest_boss}}
     "hero_records": {},
+    # Bênçãos compradas no Templo para a próxima run (IDs); zeradas ao entrar na run
+    "active_blessings": [],
 }
 
 # Definição das Missões Diárias
@@ -425,6 +427,20 @@ DAILY_MISSIONS_POOL = [
     {"id": "level_30",   "name": "LENDA",              "desc": "Alcance o Nível 30 numa partida",     "goal": 30,   "reward": 3000, "type": "level"},
     {"id": "gold_600",   "name": "SAQUEADOR",          "desc": "Colete 600 de Ouro em uma partida",   "goal": 600,  "reward": 1000, "type": "gold"},
     {"id": "gold_1500",  "name": "MAGNATA",            "desc": "Colete 1500 de Ouro em uma partida",  "goal": 1500, "reward": 2400, "type": "gold"},
+]
+
+# Bênçãos do Templo — compradas antes de uma run, aplicadas ao entrar e consumidas
+BLESSINGS_POOL = [
+    {"id": "escudo_divino",   "name": "ESCUDO DIVINO",      "desc": "+25% HP maximo por uma run",          "cost": 400, "color": (220, 80,  80),  "stat": "hp_pct",    "value": 0.25},
+    {"id": "furia_sagrada",   "name": "FURIA SAGRADA",      "desc": "+30% dano de ataque por uma run",     "cost": 500, "color": (240, 110, 40),  "stat": "dmg_pct",   "value": 0.30},
+    {"id": "passo_veloz",     "name": "PASSO VELOZ",        "desc": "+20% velocidade por uma run",         "cost": 300, "color": (60,  190, 230), "stat": "spd_pct",   "value": 0.20},
+    {"id": "olhos_cacador",   "name": "OLHOS DO CACADOR",   "desc": "+30% alcance de coleta por uma run",  "cost": 250, "color": (160, 230, 60),  "stat": "pickup_pct","value": 0.30},
+    {"id": "bencao_ouro",     "name": "BENCAO DE OURO",     "desc": "+40% ouro coletado por uma run",      "cost": 350, "color": (255, 210, 40),  "stat": "gold_pct",  "value": 0.40},
+    {"id": "armadura_benc",   "name": "ARMADURA ABENCOADA", "desc": "-20% dano recebido por uma run",      "cost": 450, "color": (60,  120, 240), "stat": "res_pct",   "value": 0.20},
+    {"id": "renascimento",    "name": "RENASCIMENTO",        "desc": "+1.5 HP/s de regen por uma run",      "cost": 400, "color": (80,  230, 120), "stat": "regen_flat","value": 1.5},
+    {"id": "golpe_critico",   "name": "GOLPE CRITICO",      "desc": "+15% chance de critico por uma run",  "cost": 500, "color": (230, 60,  210), "stat": "crit_pct",  "value": 0.15},
+    {"id": "explosao_magica", "name": "EXPLOSAO MAGICA",    "desc": "+30% tamanho de explosao por uma run","cost": 350, "color": (230, 130, 40),  "stat": "exp_pct",   "value": 0.30},
+    {"id": "protecao_divina", "name": "PROTECAO DIVINA",    "desc": "Sobrevive 1x com 1HP (por run)",       "cost": 600, "color": (200, 160, 255), "stat": "revive",    "value": 1},
 ]
 
 # Definição das Conquistas e Requisitos
@@ -533,6 +549,8 @@ def load_save():
                     save_data["beaten_difficulties"] = loaded["beaten_difficulties"]
                 if "hero_records" in loaded:
                     save_data["hero_records"].update(loaded["hero_records"])
+                if "active_blessings" in loaded:
+                    save_data["active_blessings"] = loaded["active_blessings"]
                 if "char_equipped" in loaded:
                     save_data["char_equipped"] = loaded["char_equipped"]
                 elif "equipped_items" in loaded:
@@ -550,13 +568,14 @@ def check_daily_reset():
     today = datetime.now().strftime("%Y-%m-%d")
     if save_data["daily_missions"]["last_reset"] != today:
         save_data["daily_missions"]["last_reset"] = today
-        new_missions = random.sample(DAILY_MISSIONS_POOL, 6)
+        new_missions = random.sample(DAILY_MISSIONS_POOL, min(8, len(DAILY_MISSIONS_POOL)))
         save_data["daily_missions"]["active"] = []
         for m in new_missions:
             m_copy = m.copy()
             m_copy["progress"] = 0
             m_copy["completed"] = False
             m_copy["claimed"] = False
+            m_copy["accepted"] = False
             save_data["daily_missions"]["active"].append(m_copy)
         save_game()
 
@@ -629,6 +648,8 @@ def update_mission_progress(m_type, amount, is_absolute=False):
         update_mission_progress._time_acc = 0.0
 
     for m in save_data["daily_missions"]["active"]:
+        if not m.get("accepted", False):
+            continue
         if m["type"] == m_type and not m["completed"]:
             if is_absolute:
                 m["progress"] = max(m["progress"], amount)
@@ -1906,6 +1927,7 @@ FIRE_DMG_MULT = 1.0
 BURN_AURA_MULT = 1.0
 HAS_CHAOS_BOLT = False
 HAS_INFERNO = False
+HAS_DIVINE_PROTECT = False   # Bênção Proteção Divina: sobrevive 1x com 1HP por run
 
 def roll_rarity(player_upgrades=None):
     r = random.random()
@@ -3559,6 +3581,7 @@ def reset_game(char_id=0):
     global THORNS_PERCENT, FIRE_DMG_MULT, BURN_AURA_MULT, HAS_CHAOS_BOLT, HAS_INFERNO
     global PROJ_RICOCHET, ORB_DMG, ORB_DISTANCE, EXPLOSION_DMG
     global LIFESTEAL_PCT, GOLD_RUN_MULT, XP_BONUS_PCT
+    global HAS_DIVINE_PROTECT
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval
     global obstacle_total_placed
@@ -3639,7 +3662,28 @@ def reset_game(char_id=0):
     BURN_AURA_MULT = 1.0 + pu.get("burn_area", 0) * 0.12
     HAS_INFERNO = pu.get("inferno", 0) >= 1
     AURA_DMG += pu.get("eternal_flame", 0) * 3
-    
+
+    # Aplicar bênçãos do Templo (consumidas ao entrar na run)
+    HAS_DIVINE_PROTECT = False
+    for _bid in list(save_data.get("active_blessings", [])):
+        _bdef = next((b for b in BLESSINGS_POOL if b["id"] == _bid), None)
+        if _bdef is None:
+            continue
+        _bst  = _bdef["stat"]
+        _bval = _bdef["value"]
+        if   _bst == "hp_pct":       PLAYER_MAX_HP       = int(PLAYER_MAX_HP * (1 + _bval))
+        elif _bst == "dmg_pct":      PROJECTILE_DMG      = PROJECTILE_DMG * (1 + _bval)
+        elif _bst == "spd_pct":      PLAYER_SPEED        = int(PLAYER_SPEED * (1 + _bval))
+        elif _bst == "pickup_pct":   PICKUP_RANGE        *= (1 + _bval)
+        elif _bst == "gold_pct":     GOLD_RUN_MULT       *= (1 + _bval)
+        elif _bst == "res_pct":      DAMAGE_RES          = min(0.70, DAMAGE_RES + _bval)
+        elif _bst == "regen_flat":   REGEN_RATE          += _bval
+        elif _bst == "crit_pct":     CRIT_CHANCE         = min(0.95, CRIT_CHANCE + _bval)
+        elif _bst == "exp_pct":      EXPLOSION_SIZE_MULT *= (1 + _bval)
+        elif _bst == "revive":       HAS_DIVINE_PROTECT  = True
+    save_data["active_blessings"] = []
+    save_game()
+
     # Resetar grupos de sprites
     enemies = pygame.sprite.Group()
     projectiles = pygame.sprite.Group()
@@ -5529,6 +5573,8 @@ def main():
     market_scene:     MarketScene     | None = None   # Cena do Mercado (carregada na primeira visita)
     blacksmith_scene: BlacksmithScene | None = None   # Interior da ferraria (carregada na primeira visita)
     templo_scene:     TemploScene     | None = None   # Interior do templo (carregado na primeira visita)
+    templo_npc_open:  bool = False    # Painel do Sacerdote (Missões/Bênçãos) aberto
+    templo_tab:       str  = "missoes"  # Aba ativa do painel do Sacerdote: "missoes" | "bencaos"
     menu_profile_open  = False   # Overlay de Perfil/Conquistas no MENU
     # Mensagem de erro de equipamento (nível insuficiente)
     _equip_err_msg       = ""
@@ -5836,6 +5882,16 @@ def main():
                     _drag_item = None; _drag_active = False
                     if snd_click: snd_click.play()
 
+                if (state == "TEMPLO" and event.key == pygame.K_f
+                        and templo_scene is not None
+                        and templo_scene.player_near_sacerdote
+                        and not hub_status_open and not hub_profile_open
+                        and not hub_equip_open):
+                    templo_npc_open = not templo_npc_open
+                    if templo_npc_open:
+                        templo_tab = "missoes"
+                    if snd_click: snd_click.play()
+
                 if (state == "REWARD_ROOM" and event.key == pygame.K_f
                         and _mining_system is not None
                         and not hub_equip_open and not hub_status_open
@@ -6027,7 +6083,9 @@ def main():
                             _drag_item = None; _drag_active = False
                             state = "MARKET"
                     elif state == "TEMPLO":
-                        if hub_equip_open or hub_status_open or hub_profile_open:
+                        if templo_npc_open:
+                            templo_npc_open = False
+                        elif hub_equip_open or hub_status_open or hub_profile_open:
                             hub_equip_open   = False
                             hub_status_open  = False
                             hub_profile_open = False
@@ -6779,8 +6837,58 @@ def main():
                                         state = "MARKET"
                                         if snd_click: snd_click.play()
                             elif state == "TEMPLO":
-                                # Painel do templo só recebe cliques na borda direita
-                                if click_pos[0] >= SCREEN_W - 60:
+                                if templo_npc_open:
+                                    # Cliques no painel do Sacerdote
+                                    _tn_tab_miss_r = getattr(main, "_tn_tab_miss_r", None)
+                                    _tn_tab_benc_r = getattr(main, "_tn_tab_benc_r", None)
+                                    if _tn_tab_miss_r and _tn_tab_miss_r.collidepoint(click_pos):
+                                        templo_tab = "missoes"
+                                        if snd_click: snd_click.play()
+                                    elif _tn_tab_benc_r and _tn_tab_benc_r.collidepoint(click_pos):
+                                        templo_tab = "bencaos"
+                                        if snd_click: snd_click.play()
+                                    elif templo_tab == "missoes":
+                                        for _tn_i, _tn_m in enumerate(save_data["daily_missions"]["active"]):
+                                            # Aceitar missão
+                                            if not _tn_m.get("accepted", False):
+                                                _tn_acc_r = getattr(main, f"_tn_accept_{_tn_i}", None)
+                                                if _tn_acc_r and _tn_acc_r.collidepoint(click_pos):
+                                                    _tn_m["accepted"] = True
+                                                    save_game()
+                                                    if snd_click: snd_click.play()
+                                                    break
+                                            # Coletar recompensa
+                                            elif _tn_m["completed"] and not _tn_m["claimed"]:
+                                                _tn_claim_r = getattr(main, f"_tn_claim_{_tn_i}", None)
+                                                if _tn_claim_r and _tn_claim_r.collidepoint(click_pos):
+                                                    _tn_m["claimed"] = True
+                                                    save_data["gold"] += _tn_m["reward"]
+                                                    achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + _tn_m["reward"]
+                                                    play_sfx("win")
+                                                    save_game()
+                                                    break
+                                    elif templo_tab == "bencaos":
+                                        _tn_bless_rects = getattr(main, "_tn_bless_rects", {})
+                                        for _tn_bid, _tn_brect in _tn_bless_rects.items():
+                                            if _tn_brect.collidepoint(click_pos):
+                                                _tn_bdef = next((b for b in BLESSINGS_POOL if b["id"] == _tn_bid), None)
+                                                if _tn_bdef:
+                                                    _tn_active_ids = save_data.get("active_blessings", [])
+                                                    if _tn_bid in _tn_active_ids:
+                                                        push_skill_feed("Bencao ja ativa!", (180, 180, 80))
+                                                    elif save_data["gold"] >= _tn_bdef["cost"]:
+                                                        save_data["gold"] -= _tn_bdef["cost"]
+                                                        if "active_blessings" not in save_data:
+                                                            save_data["active_blessings"] = []
+                                                        save_data["active_blessings"].append(_tn_bid)
+                                                        play_sfx("win")
+                                                        save_game()
+                                                        if snd_click: snd_click.play()
+                                                    else:
+                                                        push_skill_feed("Ouro insuficiente!", (200, 60, 60))
+                                                break
+                                elif click_pos[0] >= SCREEN_W - 60:
+                                    # Painel do templo só recebe cliques na borda direita
                                     _tp_panel_x  = int(SCREEN_W * 0.84)
                                     _tp_panel_w  = SCREEN_W - _tp_panel_x
                                     _tp_rb_rw    = _tp_panel_w - int(_tp_panel_w * 0.20)
@@ -8554,37 +8662,43 @@ def main():
                     up_rarities.append((chosen_rarity, RARITIES[chosen_rarity]))
 
             if player.hp <= 0:
-                play_sfx("lose")
-                state = "GAME_OVER"
-                save_run_slot(0)
-                save_data["stats"]["deaths"] += 1
-                save_data["stats"]["total_time"] += game_time
-                save_data["stats"]["max_level_reached"] = max(save_data["stats"]["max_level_reached"], session_max_level)
-                _cid_go = getattr(player, "char_id", 0)
-                update_hero_record(_cid_go, "max_kills", kills)
-                update_hero_record(_cid_go, "max_combo", run_max_combo)
-                check_achievements()
-                _check_achievements()
-                # Award profile XP based on time survived and difficulty
-                if profile_mgr and profile_mgr.has_active_profile():
-                    _xp_rate = PROFILE_XP_RATES.get(selected_difficulty, 10)
-                    _xp_earned = int(game_time / 60 * _xp_rate)
-                    if _xp_earned > 0:
-                        _ap = profile_mgr.get_active_profile()
-                        _old_lv = ProfileManager.xp_to_level(_ap.get("profile_xp", 0))[0]
-                        profile_mgr.update_xp(_ap["id"], _xp_earned)
-                        _new_lv = ProfileManager.xp_to_level(_ap.get("profile_xp", 0))[0]
-                        if _new_lv > _old_lv:
-                            _unlocked_now = ProfileManager.level_unlocked_avatars(_new_lv)
-                            _unlocked_prev = ProfileManager.level_unlocked_avatars(_old_lv)
-                            _new_av_count = _unlocked_now - _unlocked_prev
-                            _lv_def = {
-                                "icon": "",
-                                "name": f"NÍVEL DE PERFIL {_new_lv}!",
-                                "desc": f"+{_xp_earned} XP" + (f"  •  {_new_av_count} novo(s) avatar(es)" if _new_av_count > 0 else ""),
-                            }
-                            _achievement_notifs.append([_lv_def, 5.0])
-                save_game()
+                if HAS_DIVINE_PROTECT:
+                    HAS_DIVINE_PROTECT = False
+                    player.hp = 1
+                    damage_texts.add(DamageText(player.pos, "PROTECAO DIVINA!", True, (200, 160, 255)))
+                    play_sfx("win")
+                else:
+                    play_sfx("lose")
+                    state = "GAME_OVER"
+                    save_run_slot(0)
+                    save_data["stats"]["deaths"] += 1
+                    save_data["stats"]["total_time"] += game_time
+                    save_data["stats"]["max_level_reached"] = max(save_data["stats"]["max_level_reached"], session_max_level)
+                    _cid_go = getattr(player, "char_id", 0)
+                    update_hero_record(_cid_go, "max_kills", kills)
+                    update_hero_record(_cid_go, "max_combo", run_max_combo)
+                    check_achievements()
+                    _check_achievements()
+                    # Award profile XP based on time survived and difficulty
+                    if profile_mgr and profile_mgr.has_active_profile():
+                        _xp_rate = PROFILE_XP_RATES.get(selected_difficulty, 10)
+                        _xp_earned = int(game_time / 60 * _xp_rate)
+                        if _xp_earned > 0:
+                            _ap = profile_mgr.get_active_profile()
+                            _old_lv = ProfileManager.xp_to_level(_ap.get("profile_xp", 0))[0]
+                            profile_mgr.update_xp(_ap["id"], _xp_earned)
+                            _new_lv = ProfileManager.xp_to_level(_ap.get("profile_xp", 0))[0]
+                            if _new_lv > _old_lv:
+                                _unlocked_now = ProfileManager.level_unlocked_avatars(_new_lv)
+                                _unlocked_prev = ProfileManager.level_unlocked_avatars(_old_lv)
+                                _new_av_count = _unlocked_now - _unlocked_prev
+                                _lv_def = {
+                                    "icon": "",
+                                    "name": f"NÍVEL DE PERFIL {_new_lv}!",
+                                    "desc": f"+{_xp_earned} XP" + (f"  •  {_new_av_count} novo(s) avatar(es)" if _new_av_count > 0 else ""),
+                                }
+                                _achievement_notifs.append([_lv_def, 5.0])
+                    save_game()
 
         elif state == "CHEST_UI":
             auto_apply = settings["gameplay"].get("auto_apply_chest_reward", "On") == "On"
@@ -9724,9 +9838,159 @@ def main():
                 # ── INTERIOR DO TEMPLO ──────────────────────────────────────
                 templo_scene.draw(screen)
 
+                # ── Label "SACERDOTE" + hint [F] acima do NPC ──────────────
+                if not hub_equip_open and not hub_status_open and not hub_profile_open:
+                    _sac_now  = pygame.time.get_ticks()
+                    _sac_sp   = templo_scene.sacerdote_screen_pos
+                    _sac_bob  = math.sin(_sac_now / 400.0) * 4
+                    _sacn_s   = font_s.render("SACERDOTE", True, (200, 160, 255))
+                    _sacn_bg  = pygame.Surface((_sacn_s.get_width() + 12, _sacn_s.get_height() + 6), pygame.SRCALPHA)
+                    _sacn_bg.fill((10, 8, 14, 160))
+                    _sacn_r   = _sacn_bg.get_rect(centerx=int(_sac_sp.x), bottom=int(_sac_sp.y - 72 + _sac_bob))
+                    screen.blit(_sacn_bg, _sacn_r)
+                    pygame.draw.rect(screen, (160, 90, 240), _sacn_r, 1, border_radius=3)
+                    screen.blit(_sacn_s, _sacn_s.get_rect(center=_sacn_r.center))
+                    if templo_scene.player_near_sacerdote:
+                        _saci_lbl = "[F] Fechar" if templo_npc_open else "[F] Sacerdote"
+                        _saci_s   = font_s.render(_saci_lbl, True, (220, 180, 255))
+                        _saci_bg  = pygame.Surface((_saci_s.get_width() + 16, _saci_s.get_height() + 8), pygame.SRCALPHA)
+                        _saci_bg.fill((10, 8, 14, 180))
+                        _saci_r   = _saci_bg.get_rect(centerx=int(_sac_sp.x), bottom=_sacn_r.top - 4)
+                        screen.blit(_saci_bg, _saci_r)
+                        pygame.draw.rect(screen, (160, 90, 240), _saci_r, 1, border_radius=4)
+                        screen.blit(_saci_s, _saci_s.get_rect(center=_saci_r.center))
+
+                # ── Painel do Sacerdote (Missões / Bênçãos) ────────────────
+                if templo_npc_open:
+                    _tn_w  = min(740, SCREEN_W - 80)
+                    _tn_h  = min(530, SCREEN_H - 80)
+                    _tn_x  = (SCREEN_W - _tn_w) // 2
+                    _tn_y  = (SCREEN_H - _tn_h) // 2
+                    _tn_bg_s = pygame.Surface((_tn_w, _tn_h), pygame.SRCALPHA)
+                    _tn_bg_s.fill((8, 5, 14, 235))
+                    screen.blit(_tn_bg_s, (_tn_x, _tn_y))
+                    pygame.draw.rect(screen, (160, 90, 240), pygame.Rect(_tn_x, _tn_y, _tn_w, _tn_h), 2, border_radius=12)
+
+                    _tn_title_s = font_l.render("SACERDOTE", True, (210, 170, 255))
+                    screen.blit(_tn_title_s, _tn_title_s.get_rect(centerx=_tn_x + _tn_w // 2, top=_tn_y + 8))
+
+                    _tn_gold_s = font_s.render(f"Ouro: {save_data['gold']}", True, (255, 205, 60))
+                    screen.blit(_tn_gold_s, _tn_gold_s.get_rect(right=_tn_x + _tn_w - 10, top=_tn_y + 10))
+
+                    # Abas
+                    _tn_tab_y    = _tn_y + 54
+                    _tn_tab_h    = 34
+                    _tn_tab_miss = pygame.Rect(_tn_x + 10, _tn_tab_y, _tn_w // 2 - 14, _tn_tab_h)
+                    _tn_tab_benc = pygame.Rect(_tn_x + _tn_w // 2 + 4, _tn_tab_y, _tn_w // 2 - 14, _tn_tab_h)
+                    main._tn_tab_miss_r = _tn_tab_miss
+                    main._tn_tab_benc_r = _tn_tab_benc
+                    for _tn_tr, _tn_tl in [(_tn_tab_miss, "MISSOES"), (_tn_tab_benc, "BENCAOS")]:
+                        _tn_act  = ((_tn_tl == "MISSOES" and templo_tab == "missoes") or
+                                    (_tn_tl == "BENCAOS" and templo_tab == "bencaos"))
+                        pygame.draw.rect(screen, (50, 28, 80) if _tn_act else (18, 12, 28), _tn_tr, border_radius=8)
+                        pygame.draw.rect(screen, (200, 140, 255) if _tn_act else (90, 60, 130), _tn_tr, 2, border_radius=8)
+                        _tn_ts = font_m.render(_tn_tl, True, (240, 200, 255) if _tn_act else (140, 110, 190))
+                        screen.blit(_tn_ts, _tn_ts.get_rect(center=_tn_tr.center))
+
+                    _tn_cy0 = _tn_tab_y + _tn_tab_h + 8
+
+                    if templo_tab == "missoes":
+                        _now_tn  = datetime.now()
+                        _nxt_tn  = (_now_tn + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                        _rem_tn  = max(0, int((_nxt_tn - _now_tn).total_seconds()))
+                        _rh_tn   = _rem_tn // 3600; _rm_tn = (_rem_tn % 3600) // 60; _rs_tn = _rem_tn % 60
+                        _tmr_s   = font_s.render(f"RESET EM: {_rh_tn:02}:{_rm_tn:02}:{_rs_tn:02}", True, (255, 240, 140))
+                        screen.blit(_tmr_s, _tmr_s.get_rect(centerx=_tn_x + _tn_w // 2, top=_tn_cy0 + 2))
+                        _tn_my0 = _tn_cy0 + 24
+                        for _tn_i, _tn_m in enumerate(save_data["daily_missions"]["active"]):
+                            _tn_my = _tn_my0 + _tn_i * 68
+                            if _tn_my + 62 > _tn_y + _tn_h - 16:
+                                break
+                            _tn_accepted = _tn_m.get("accepted", False)
+                            _tn_mbox = pygame.Rect(_tn_x + 10, _tn_my, _tn_w - 20, 62)
+                            _tn_mbg = (28, 18, 48) if _tn_accepted else (20, 14, 34)
+                            _tn_mbord = (90, 70, 170) if _tn_accepted else (60, 50, 100)
+                            pygame.draw.rect(screen, _tn_mbg, _tn_mbox, border_radius=8)
+                            pygame.draw.rect(screen, _tn_mbord, _tn_mbox, 1, border_radius=8)
+                            _tn_name_col = (255, 255, 100) if _tn_accepted else (180, 180, 80)
+                            _tn_mt = font_m.render(_tn_m["name"], True, _tn_name_col)
+                            screen.blit(_tn_mt, (_tn_mbox.x + 10, _tn_mbox.y + 5))
+                            _tn_rw = font_s.render(f"+{_tn_m['reward']}G", True, (255, 200, 60))
+                            screen.blit(_tn_rw, (_tn_mbox.right - 90, _tn_mbox.y + 5))
+                            if not _tn_accepted:
+                                # Show description and accept button
+                                _tn_desc_s = font_s.render(_tn_m.get("desc", ""), True, (130, 120, 160))
+                                screen.blit(_tn_desc_s, (_tn_mbox.x + 10, _tn_mbox.y + 28))
+                                _tn_ab = pygame.Rect(_tn_mbox.right - 120, _tn_mbox.centery - 1, 110, 24)
+                                _tn_ahov = _tn_ab.collidepoint(m_pos)
+                                pygame.draw.rect(screen, (50, 30, 90) if not _tn_ahov else (70, 45, 120), _tn_ab, border_radius=6)
+                                pygame.draw.rect(screen, (160, 100, 255), _tn_ab, 1, border_radius=6)
+                                _tn_as = font_s.render("Aceitar Missao", True, (200, 160, 255))
+                                screen.blit(_tn_as, _tn_as.get_rect(center=_tn_ab.center))
+                                setattr(main, f"_tn_accept_{_tn_i}", _tn_ab)
+                            else:
+                                # Show progress bar
+                                _tn_pp = min(1.0, _tn_m["progress"] / max(1, _tn_m["goal"]))
+                                _tn_pt = font_s.render(f"{_tn_m['progress']}/{_tn_m['goal']}", True, (170, 220, 170))
+                                screen.blit(_tn_pt, (_tn_mbox.x + 10, _tn_mbox.y + 30))
+                                _tn_pb = pygame.Rect(_tn_mbox.x + 130, _tn_mbox.y + 34, 200, 10)
+                                pygame.draw.rect(screen, (0, 0, 0), _tn_pb)
+                                pygame.draw.rect(screen, (0, 200, 80), (_tn_pb.x, _tn_pb.y, int(_tn_pb.w * _tn_pp), _tn_pb.h))
+                                pygame.draw.rect(screen, (140, 140, 140), _tn_pb, 1)
+                                if _tn_m["completed"]:
+                                    if _tn_m["claimed"]:
+                                        _tn_cls = font_s.render("COLETADO!", True, (100, 255, 100))
+                                        screen.blit(_tn_cls, (_tn_mbox.right - 90, _tn_mbox.centery - 8))
+                                    else:
+                                        _tn_cb = pygame.Rect(_tn_mbox.right - 92, _tn_mbox.centery - 13, 82, 26)
+                                        _tn_chov = _tn_cb.collidepoint(m_pos)
+                                        pygame.draw.rect(screen, (40, 110, 40) if not _tn_chov else (60, 150, 60), _tn_cb, border_radius=6)
+                                        pygame.draw.rect(screen, (100, 220, 100), _tn_cb, 1, border_radius=6)
+                                        _tn_cs = font_s.render("COLETAR", True, (200, 255, 200))
+                                        screen.blit(_tn_cs, _tn_cs.get_rect(center=_tn_cb.center))
+                                        setattr(main, f"_tn_claim_{_tn_i}", _tn_cb)
+
+                    elif templo_tab == "bencaos":
+                        _tn_active_ids = save_data.get("active_blessings", [])
+                        _tn_brects = {}
+                        _tn_bcol_w = (_tn_w - 20) // 2
+                        _tn_brow_h = 60
+                        for _tn_bi, _tn_bd in enumerate(BLESSINGS_POOL):
+                            _tn_bcol  = _tn_bi % 2
+                            _tn_brow  = _tn_bi // 2
+                            _tn_bx    = _tn_x + 10 + _tn_bcol * _tn_bcol_w
+                            _tn_by    = _tn_cy0 + 4 + _tn_brow * (_tn_brow_h + 6)
+                            if _tn_by + _tn_brow_h > _tn_y + _tn_h - 20:
+                                break
+                            _tn_brect = pygame.Rect(_tn_bx, _tn_by, _tn_bcol_w - 8, _tn_brow_h)
+                            _tn_brects[_tn_bd["id"]] = _tn_brect
+                            _tn_bact  = _tn_bd["id"] in _tn_active_ids
+                            _tn_bbg   = (14, 38, 14) if _tn_bact else (18, 12, 28)
+                            _tn_bbord = (80, 210, 80) if _tn_bact else _tn_bd["color"]
+                            _tn_bhov  = _tn_brect.collidepoint(m_pos) and not _tn_bact
+                            if _tn_bhov:
+                                _tn_bbg = (30, 18, 48)
+                            pygame.draw.rect(screen, _tn_bbg, _tn_brect, border_radius=8)
+                            pygame.draw.rect(screen, _tn_bbord, _tn_brect, 2, border_radius=8)
+                            _tn_bns = font_s.render(_tn_bd["name"], True, _tn_bd["color"])
+                            screen.blit(_tn_bns, (_tn_brect.x + 8, _tn_brect.y + 5))
+                            _tn_bds = font_s.render(_tn_bd["desc"], True, (160, 150, 180))
+                            screen.blit(_tn_bds, (_tn_brect.x + 8, _tn_brect.y + 26))
+                            _tn_cost_txt = "ATIVA" if _tn_bact else f"{_tn_bd['cost']}G"
+                            _tn_cost_col = (80, 255, 80) if _tn_bact else (255, 205, 60)
+                            _tn_costs    = font_s.render(_tn_cost_txt, True, _tn_cost_col)
+                            screen.blit(_tn_costs, (_tn_brect.right - _tn_costs.get_width() - 8, _tn_brect.y + 5))
+                        main._tn_bless_rects = _tn_brects
+                        _tn_hint_b = font_s.render("Bencoes duram apenas UMA run", True, (160, 130, 200))
+                        screen.blit(_tn_hint_b, _tn_hint_b.get_rect(centerx=_tn_x + _tn_w // 2, bottom=_tn_y + _tn_h - 20))
+
+                    _tn_close_s = font_s.render("[ESC] Fechar", True, (140, 110, 180))
+                    screen.blit(_tn_close_s, _tn_close_s.get_rect(centerx=_tn_x + _tn_w // 2, bottom=_tn_y + _tn_h - 5))
+
                 # ── Dica de saída centralizada na parte inferior ──────────
-                _tp_esc_hint = font_s.render("Pressione ESC para sair", True, (120, 110, 90))
-                screen.blit(_tp_esc_hint, _tp_esc_hint.get_rect(centerx=SCREEN_W // 2, bottom=SCREEN_H - 12))
+                if not templo_npc_open:
+                    _tp_esc_hint = font_s.render("Pressione ESC para sair", True, (120, 110, 90))
+                    screen.blit(_tp_esc_hint, _tp_esc_hint.get_rect(centerx=SCREEN_W // 2, bottom=SCREEN_H - 12))
 
             elif state == "REWARD_ROOM":
                 # ── SALA DE RECOMPENSA ──────────────────────────────────────
