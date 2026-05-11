@@ -5340,18 +5340,16 @@ def main():
     # Menu reposicionado para o canto inferior esquerdo conforme imagem
     menu_btns = [
         Button(0.15, 0.53, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
-        Button(0.15, 0.59, BTN_W, BTN_H, "MISSÕES",        font_m),
-        Button(0.15, 0.65, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.71, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.59, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.65, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
-    menu_icons = ["play", "missions", "settings", "exit"]
+    menu_icons = ["play", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
         btn.icon = load_menu_icon_surface(loader, icon, size=(20, 20))
         btn.sprite_idx = idx % 7
 
     menu_preview_map = {
         "JOGAR": ("Iniciar Jornada", "Selecione heroi, dificuldade e pacto para começar uma nova run de sobrevivencia."),
-        "MISSÕES": ("Rotina Diaria", "Acompanhe objetivos diarios, resgate recompensas e acelere sua progressao."),
         "CONFIGURAÇÕES": ("Ajustes do Jogo", "Video, audio, controles e acessibilidade com aplicacao imediata."),
         "SAIR": ("Encerrar", "Salva progresso atual e fecha o jogo com seguranca."),
     }
@@ -6117,7 +6115,7 @@ def main():
                         else:
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
-                    elif state in ["CHAR_SELECT", "MISSIONS", "BG_SELECT", "SAVES"]:
+                    elif state in ["CHAR_SELECT", "BG_SELECT", "SAVES"]:
                         state = "MENU"
                     elif state in ["SHOP", "ITEM_SHOP"]:
                         if item_shop_sell_confirm is not None:
@@ -6348,10 +6346,8 @@ def main():
                             if menu_btns[0].rect.collidepoint(click_pos):
                                 menu_pending_action = "CHAR_SELECT"
                             elif menu_btns[1].rect.collidepoint(click_pos):
-                                menu_pending_action = "MISSIONS"
-                            elif menu_btns[2].rect.collidepoint(click_pos):
                                 menu_pending_action = "SETTINGS"
-                            elif menu_btns[3].rect.collidepoint(click_pos):
+                            elif menu_btns[2].rect.collidepoint(click_pos):
                                 menu_pending_action = "QUIT"
                             elif menu_site_rect.collidepoint(click_pos):
                                 webbrowser.open(_menu_site_url)
@@ -6969,18 +6965,6 @@ def main():
                                         autosave_timer = 0.0
                                         state = "PLAYING"
                                     break
-
-                    elif state == "MISSIONS":
-                        if mission_btns[0].rect.collidepoint(click_pos): 
-                            state = "MENU"
-                        for i, m in enumerate(save_data["daily_missions"]["active"]):
-                            if m["completed"] and not m["claimed"]:
-                                if mission_claim_btns[i].rect.collidepoint(click_pos):
-                                    m["claimed"] = True
-                                    save_data["gold"] += m["reward"]
-                                    achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + m["reward"]
-                                    play_sfx("win")
-                                    save_game()
 
                     elif state == "SHOP":
                         if shop_back_btn.rect.collidepoint(click_pos):
@@ -7652,7 +7636,7 @@ def main():
                         else:
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
-                    elif state in ["CHAR_SELECT", "MISSIONS", "BG_SELECT", "SAVES"]:
+                    elif state in ["CHAR_SELECT", "BG_SELECT", "SAVES"]:
                         state = "MENU"
                     elif state in ["SHOP", "ITEM_SHOP"]:
                         if item_shop_confirm is not None:
@@ -8770,46 +8754,6 @@ def main():
 
             saves_back_btn.check_hover(m_pos, snd_hover)
             saves_back_btn.draw(screen)
-
-        elif state == "MISSIONS":
-            draw_menu_background(screen, m_pos, dt)
-            overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA); overlay.fill((0, 0, 0, 180)); screen.blit(overlay, (0, 0))
-            draw_screen_title(screen, font_l, "MISSÕES DIÁRIAS", SCREEN_W//2, int(SCREEN_H*0.12), text_color=(255, 215, 0))
-
-            now_dt = datetime.now()
-            next_reset = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-            remaining = max(0, int((next_reset - now_dt).total_seconds()))
-            rem_h = remaining // 3600
-            rem_m = (remaining % 3600) // 60
-            rem_s = remaining % 60
-            timer_txt = font_s.render(f"RESET EM: {rem_h:02}:{rem_m:02}:{rem_s:02}", True, (255, 240, 140))
-            screen.blit(timer_txt, timer_txt.get_rect(center=(SCREEN_W//2, SCREEN_H*0.18)))
-            
-            for i, m in enumerate(save_data["daily_missions"]["active"]):
-                y_base = int(SCREEN_H * 0.22) + i * 74
-                box_rect = pygame.Rect(SCREEN_W//2 - 310, y_base, 620, 66)
-                pygame.draw.rect(screen, (30, 30, 50, 200), box_rect, border_radius=8)
-                pygame.draw.rect(screen, (100, 100, 255), box_rect, 2, border_radius=8)
-                title = font_m.render(m['name'], True, (255, 255, 100))
-                screen.blit(title, (box_rect.x + 14, box_rect.y + 6))
-                _prog_pct = min(1.0, m['progress'] / max(1, m['goal']))
-                _prog_txt = font_s.render(f"{m['progress']}/{m['goal']}", True, (180, 220, 180))
-                screen.blit(_prog_txt, (box_rect.x + 14, box_rect.y + 34))
-                prog_bar_rect = pygame.Rect(box_rect.x + 130, box_rect.y + 38, 240, 12)
-                pygame.draw.rect(screen, (0, 0, 0), prog_bar_rect)
-                pygame.draw.rect(screen, (0, 220, 80), (prog_bar_rect.x, prog_bar_rect.y, int(prog_bar_rect.width * _prog_pct), prog_bar_rect.height))
-                pygame.draw.rect(screen, (180, 180, 180), prog_bar_rect, 1)
-                _rew_txt = font_s.render(f"+{m['reward']}G", True, (255, 200, 60))
-                screen.blit(_rew_txt, (box_rect.right - 110, box_rect.y + 6))
-                if m['completed']:
-                    if m['claimed']:
-                        claim_txt = font_s.render("COLETADO!", True, (100, 255, 100))
-                        screen.blit(claim_txt, (box_rect.right - 110, box_rect.centery - 8))
-                    else:
-                        mission_claim_btns[i].rect.midright = (box_rect.right - 6, box_rect.centery)
-                        mission_claim_btns[i].check_hover(m_pos, snd_hover)
-                        mission_claim_btns[i].draw(screen)
-            mission_btns[0].check_hover(m_pos, snd_hover); mission_btns[0].draw(screen)
 
         elif state == "SHOP":
             draw_menu_background(screen, m_pos, dt)
