@@ -9862,8 +9862,8 @@ def main():
 
                 # ── Painel do Sacerdote (Missões / Bênçãos) ────────────────
                 if templo_npc_open:
-                    _tn_w  = min(740, SCREEN_W - 80)
-                    _tn_h  = min(530, SCREEN_H - 80)
+                    _tn_w  = min(880, SCREEN_W - 80)
+                    _tn_h  = min(600, SCREEN_H - 80)
                     _tn_x  = (SCREEN_W - _tn_w) // 2
                     _tn_y  = (SCREEN_H - _tn_h) // 2
                     _tn_bg_s = pygame.Surface((_tn_w, _tn_h), pygame.SRCALPHA)
@@ -9903,46 +9903,54 @@ def main():
                         screen.blit(_tmr_s, _tmr_s.get_rect(centerx=_tn_x + _tn_w // 2, top=_tn_cy0 + 2))
                         _tn_my0 = _tn_cy0 + 24
                         for _tn_i, _tn_m in enumerate(save_data["daily_missions"]["active"]):
-                            _tn_my = _tn_my0 + _tn_i * 68
-                            if _tn_my + 62 > _tn_y + _tn_h - 16:
+                            _tn_my = _tn_my0 + _tn_i * 88
+                            if _tn_my + 82 > _tn_y + _tn_h - 16:
                                 break
                             _tn_accepted = _tn_m.get("accepted", False)
-                            _tn_mbox = pygame.Rect(_tn_x + 10, _tn_my, _tn_w - 20, 62)
+                            _tn_mbox = pygame.Rect(_tn_x + 10, _tn_my, _tn_w - 20, 82)
                             _tn_mbg = (28, 18, 48) if _tn_accepted else (20, 14, 34)
                             _tn_mbord = (90, 70, 170) if _tn_accepted else (60, 50, 100)
                             pygame.draw.rect(screen, _tn_mbg, _tn_mbox, border_radius=8)
                             pygame.draw.rect(screen, _tn_mbord, _tn_mbox, 1, border_radius=8)
+                            # Título (esquerda)
                             _tn_name_col = (255, 255, 100) if _tn_accepted else (180, 180, 80)
                             _tn_mt = font_m.render(_tn_m["name"], True, _tn_name_col)
-                            screen.blit(_tn_mt, (_tn_mbox.x + 10, _tn_mbox.y + 5))
+                            screen.blit(_tn_mt, (_tn_mbox.x + 10, _tn_mbox.y + 6))
+                            # Recompensa (topo direito)
                             _tn_rw = font_s.render(f"+{_tn_m['reward']}G", True, (255, 200, 60))
-                            screen.blit(_tn_rw, (_tn_mbox.right - 90, _tn_mbox.y + 5))
+                            screen.blit(_tn_rw, _tn_rw.get_rect(right=_tn_mbox.right - 10, top=_tn_mbox.y + 8))
                             if not _tn_accepted:
-                                # Show description and accept button
-                                _tn_desc_s = font_s.render(_tn_m.get("desc", ""), True, (130, 120, 160))
-                                screen.blit(_tn_desc_s, (_tn_mbox.x + 10, _tn_mbox.y + 28))
-                                _tn_ab = pygame.Rect(_tn_mbox.right - 120, _tn_mbox.centery - 1, 110, 24)
+                                # Descrição
+                                _tn_desc_s = font_s.render(_tn_m.get("desc", ""), True, (150, 140, 180))
+                                screen.blit(_tn_desc_s, (_tn_mbox.x + 10, _tn_mbox.y + 40))
+                                # Botão Aceitar (canto inferior direito)
+                                _tn_ab = pygame.Rect(_tn_mbox.right - 150, _tn_mbox.bottom - 32, 140, 26)
                                 _tn_ahov = _tn_ab.collidepoint(m_pos)
                                 pygame.draw.rect(screen, (50, 30, 90) if not _tn_ahov else (70, 45, 120), _tn_ab, border_radius=6)
                                 pygame.draw.rect(screen, (160, 100, 255), _tn_ab, 1, border_radius=6)
-                                _tn_as = font_s.render("Aceitar Missao", True, (200, 160, 255))
+                                _tn_as = font_s.render("Aceitar Missao", True, (210, 170, 255))
                                 screen.blit(_tn_as, _tn_as.get_rect(center=_tn_ab.center))
                                 setattr(main, f"_tn_accept_{_tn_i}", _tn_ab)
                             else:
-                                # Show progress bar
+                                # Descrição
+                                _tn_desc_s = font_s.render(_tn_m.get("desc", ""), True, (150, 140, 180))
+                                screen.blit(_tn_desc_s, (_tn_mbox.x + 10, _tn_mbox.y + 40))
+                                # Barra de progresso (ocupa largura disponível exceto espaço do botão)
                                 _tn_pp = min(1.0, _tn_m["progress"] / max(1, _tn_m["goal"]))
                                 _tn_pt = font_s.render(f"{_tn_m['progress']}/{_tn_m['goal']}", True, (170, 220, 170))
-                                screen.blit(_tn_pt, (_tn_mbox.x + 10, _tn_mbox.y + 30))
-                                _tn_pb = pygame.Rect(_tn_mbox.x + 130, _tn_mbox.y + 34, 200, 10)
+                                screen.blit(_tn_pt, (_tn_mbox.x + 10, _tn_mbox.y + 58))
+                                _tn_pb_x = _tn_mbox.x + 100
+                                _tn_pb_w = _tn_mbox.w - 210
+                                _tn_pb = pygame.Rect(_tn_pb_x, _tn_mbox.y + 62, _tn_pb_w, 10)
                                 pygame.draw.rect(screen, (0, 0, 0), _tn_pb)
                                 pygame.draw.rect(screen, (0, 200, 80), (_tn_pb.x, _tn_pb.y, int(_tn_pb.w * _tn_pp), _tn_pb.h))
                                 pygame.draw.rect(screen, (140, 140, 140), _tn_pb, 1)
                                 if _tn_m["completed"]:
                                     if _tn_m["claimed"]:
                                         _tn_cls = font_s.render("COLETADO!", True, (100, 255, 100))
-                                        screen.blit(_tn_cls, (_tn_mbox.right - 90, _tn_mbox.centery - 8))
+                                        screen.blit(_tn_cls, _tn_cls.get_rect(right=_tn_mbox.right - 10, centery=_tn_mbox.centery + 14))
                                     else:
-                                        _tn_cb = pygame.Rect(_tn_mbox.right - 92, _tn_mbox.centery - 13, 82, 26)
+                                        _tn_cb = pygame.Rect(_tn_mbox.right - 100, _tn_mbox.bottom - 34, 90, 28)
                                         _tn_chov = _tn_cb.collidepoint(m_pos)
                                         pygame.draw.rect(screen, (40, 110, 40) if not _tn_chov else (60, 150, 60), _tn_cb, border_radius=6)
                                         pygame.draw.rect(screen, (100, 220, 100), _tn_cb, 1, border_radius=6)
@@ -9953,16 +9961,17 @@ def main():
                     elif templo_tab == "bencaos":
                         _tn_active_ids = save_data.get("active_blessings", [])
                         _tn_brects = {}
-                        _tn_bcol_w = (_tn_w - 20) // 2
-                        _tn_brow_h = 60
+                        _tn_bcol_w = (_tn_w - 20) // 2   # largura de cada coluna
+                        _tn_brow_h = 66
+                        _tn_bgap   = 8
                         for _tn_bi, _tn_bd in enumerate(BLESSINGS_POOL):
                             _tn_bcol  = _tn_bi % 2
                             _tn_brow  = _tn_bi // 2
                             _tn_bx    = _tn_x + 10 + _tn_bcol * _tn_bcol_w
-                            _tn_by    = _tn_cy0 + 4 + _tn_brow * (_tn_brow_h + 6)
-                            if _tn_by + _tn_brow_h > _tn_y + _tn_h - 20:
+                            _tn_by    = _tn_cy0 + 4 + _tn_brow * (_tn_brow_h + _tn_bgap)
+                            if _tn_by + _tn_brow_h > _tn_y + _tn_h - 36:
                                 break
-                            _tn_brect = pygame.Rect(_tn_bx, _tn_by, _tn_bcol_w - 8, _tn_brow_h)
+                            _tn_brect = pygame.Rect(_tn_bx, _tn_by, _tn_bcol_w - 10, _tn_brow_h)
                             _tn_brects[_tn_bd["id"]] = _tn_brect
                             _tn_bact  = _tn_bd["id"] in _tn_active_ids
                             _tn_bbg   = (14, 38, 14) if _tn_bact else (18, 12, 28)
@@ -9972,14 +9981,20 @@ def main():
                                 _tn_bbg = (30, 18, 48)
                             pygame.draw.rect(screen, _tn_bbg, _tn_brect, border_radius=8)
                             pygame.draw.rect(screen, _tn_bbord, _tn_brect, 2, border_radius=8)
+                            # Nome (esquerda, cor da bênção)
                             _tn_bns = font_s.render(_tn_bd["name"], True, _tn_bd["color"])
-                            screen.blit(_tn_bns, (_tn_brect.x + 8, _tn_brect.y + 5))
-                            _tn_bds = font_s.render(_tn_bd["desc"], True, (160, 150, 180))
-                            screen.blit(_tn_bds, (_tn_brect.x + 8, _tn_brect.y + 26))
+                            screen.blit(_tn_bns, (_tn_brect.x + 8, _tn_brect.y + 8))
+                            # Custo (direita alinhado)
                             _tn_cost_txt = "ATIVA" if _tn_bact else f"{_tn_bd['cost']}G"
                             _tn_cost_col = (80, 255, 80) if _tn_bact else (255, 205, 60)
                             _tn_costs    = font_s.render(_tn_cost_txt, True, _tn_cost_col)
-                            screen.blit(_tn_costs, (_tn_brect.right - _tn_costs.get_width() - 8, _tn_brect.y + 5))
+                            screen.blit(_tn_costs, _tn_costs.get_rect(right=_tn_brect.right - 8, top=_tn_brect.y + 8))
+                            # Descrição (linha de baixo, clip na largura do card)
+                            _tn_bds_surf = font_s.render(_tn_bd["desc"], True, (170, 160, 195))
+                            _tn_max_dw   = _tn_brect.w - 16
+                            if _tn_bds_surf.get_width() > _tn_max_dw:
+                                _tn_bds_surf = _tn_bds_surf.subsurface((0, 0, _tn_max_dw, _tn_bds_surf.get_height()))
+                            screen.blit(_tn_bds_surf, (_tn_brect.x + 8, _tn_brect.y + 34))
                         main._tn_bless_rects = _tn_brects
                         _tn_hint_b = font_s.render("Bencoes duram apenas UMA run", True, (160, 130, 200))
                         screen.blit(_tn_hint_b, _tn_hint_b.get_rect(centerx=_tn_x + _tn_w // 2, bottom=_tn_y + _tn_h - 20))
