@@ -431,16 +431,16 @@ DAILY_MISSIONS_POOL = [
 
 # Bênçãos do Templo — compradas antes de uma run, aplicadas ao entrar e consumidas
 BLESSINGS_POOL = [
-    {"id": "escudo_divino",   "name": "ESCUDO DIVINO",      "desc": "+25% HP maximo por uma run",          "cost": 400, "color": (220, 80,  80),  "stat": "hp_pct",    "value": 0.25},
-    {"id": "furia_sagrada",   "name": "FURIA SAGRADA",      "desc": "+30% dano de ataque por uma run",     "cost": 500, "color": (240, 110, 40),  "stat": "dmg_pct",   "value": 0.30},
-    {"id": "passo_veloz",     "name": "PASSO VELOZ",        "desc": "+20% velocidade por uma run",         "cost": 300, "color": (60,  190, 230), "stat": "spd_pct",   "value": 0.20},
-    {"id": "olhos_cacador",   "name": "OLHOS DO CACADOR",   "desc": "+30% alcance de coleta por uma run",  "cost": 250, "color": (160, 230, 60),  "stat": "pickup_pct","value": 0.30},
-    {"id": "bencao_ouro",     "name": "BENCAO DE OURO",     "desc": "+40% ouro coletado por uma run",      "cost": 350, "color": (255, 210, 40),  "stat": "gold_pct",  "value": 0.40},
-    {"id": "armadura_benc",   "name": "ARMADURA ABENCOADA", "desc": "-20% dano recebido por uma run",      "cost": 450, "color": (60,  120, 240), "stat": "res_pct",   "value": 0.20},
-    {"id": "renascimento",    "name": "RENASCIMENTO",        "desc": "+1.5 HP/s de regen por uma run",      "cost": 400, "color": (80,  230, 120), "stat": "regen_flat","value": 1.5},
-    {"id": "golpe_critico",   "name": "GOLPE CRITICO",      "desc": "+15% chance de critico por uma run",  "cost": 500, "color": (230, 60,  210), "stat": "crit_pct",  "value": 0.15},
-    {"id": "explosao_magica", "name": "EXPLOSAO MAGICA",    "desc": "+30% tamanho de explosao por uma run","cost": 350, "color": (230, 130, 40),  "stat": "exp_pct",   "value": 0.30},
-    {"id": "protecao_divina", "name": "PROTECAO DIVINA",    "desc": "Sobrevive 1x com 1HP (por run)",       "cost": 600, "color": (200, 160, 255), "stat": "revive",    "value": 1},
+    {"id": "escudo_divino",   "name": "ESCUDO DIVINO",       "desc": "+25% HP máximo por uma run",           "cost": 400, "color": (220, 80,  80),  "stat": "hp_pct",    "value": 0.25},
+    {"id": "furia_sagrada",   "name": "FÚRIA SAGRADA",       "desc": "+30% dano de ataque por uma run",      "cost": 500, "color": (240, 110, 40),  "stat": "dmg_pct",   "value": 0.30},
+    {"id": "passo_veloz",     "name": "PASSO VELOZ",         "desc": "+20% velocidade por uma run",          "cost": 300, "color": (60,  190, 230), "stat": "spd_pct",   "value": 0.20},
+    {"id": "olhos_cacador",   "name": "OLHOS DO CAÇADOR",    "desc": "+30% alcance de coleta por uma run",   "cost": 250, "color": (160, 230, 60),  "stat": "pickup_pct","value": 0.30},
+    {"id": "bencao_ouro",     "name": "BÊNÇÃO DE OURO",      "desc": "+40% ouro coletado por uma run",       "cost": 350, "color": (255, 210, 40),  "stat": "gold_pct",  "value": 0.40},
+    {"id": "armadura_benc",   "name": "ARMADURA ABENÇOADA",  "desc": "-20% dano recebido por uma run",       "cost": 450, "color": (60,  120, 240), "stat": "res_pct",   "value": 0.20},
+    {"id": "renascimento",    "name": "RENASCIMENTO",         "desc": "+1.5 HP/s de regeneração por run",    "cost": 400, "color": (80,  230, 120), "stat": "regen_flat","value": 1.5},
+    {"id": "golpe_critico",   "name": "GOLPE CRÍTICO",       "desc": "+15% chance de crítico por uma run",   "cost": 500, "color": (230, 60,  210), "stat": "crit_pct",  "value": 0.15},
+    {"id": "explosao_magica", "name": "EXPLOSÃO MÁGICA",     "desc": "+30% tamanho de explosão por run",     "cost": 350, "color": (230, 130, 40),  "stat": "exp_pct",   "value": 0.30},
+    {"id": "protecao_divina", "name": "PROTEÇÃO DIVINA",     "desc": "Sobrevive 1x com 1 HP (por run)",      "cost": 600, "color": (200, 160, 255), "stat": "revive",    "value": 1},
 ]
 
 # Definição das Conquistas e Requisitos
@@ -9884,9 +9884,9 @@ def main():
                     _tn_tab_benc = pygame.Rect(_tn_x + _tn_w // 2 + 4, _tn_tab_y, _tn_w // 2 - 14, _tn_tab_h)
                     main._tn_tab_miss_r = _tn_tab_miss
                     main._tn_tab_benc_r = _tn_tab_benc
-                    for _tn_tr, _tn_tl in [(_tn_tab_miss, "MISSOES"), (_tn_tab_benc, "BENCAOS")]:
-                        _tn_act  = ((_tn_tl == "MISSOES" and templo_tab == "missoes") or
-                                    (_tn_tl == "BENCAOS" and templo_tab == "bencaos"))
+                    for _tn_tr, _tn_tl in [(_tn_tab_miss, "MISSÕES"), (_tn_tab_benc, "BÊNÇÃOS")]:
+                        _tn_act  = ((_tn_tl == "MISSÕES" and templo_tab == "missoes") or
+                                    (_tn_tl == "BÊNÇÃOS" and templo_tab == "bencaos"))
                         pygame.draw.rect(screen, (50, 28, 80) if _tn_act else (18, 12, 28), _tn_tr, border_radius=8)
                         pygame.draw.rect(screen, (200, 140, 255) if _tn_act else (90, 60, 130), _tn_tr, 2, border_radius=8)
                         _tn_ts = font_m.render(_tn_tl, True, (240, 200, 255) if _tn_act else (140, 110, 190))
@@ -9923,12 +9923,16 @@ def main():
                                 # Descrição
                                 _tn_desc_s = font_s.render(_tn_m.get("desc", ""), True, (150, 140, 180))
                                 screen.blit(_tn_desc_s, (_tn_mbox.x + 10, _tn_mbox.y + 40))
-                                # Botão Aceitar (canto inferior direito)
-                                _tn_ab = pygame.Rect(_tn_mbox.right - 150, _tn_mbox.bottom - 32, 140, 26)
+                                # Botão Aceitar (canto inferior direito, tamanho dinâmico)
+                                _tn_as = font_s.render("Aceitar Missão", True, (210, 170, 255))
+                                _tn_ab_w = _tn_as.get_width() + 18
+                                _tn_ab_h = 26
+                                _tn_ab = pygame.Rect(_tn_mbox.right - _tn_ab_w - 6,
+                                                     _tn_mbox.bottom - _tn_ab_h - 6,
+                                                     _tn_ab_w, _tn_ab_h)
                                 _tn_ahov = _tn_ab.collidepoint(m_pos)
                                 pygame.draw.rect(screen, (50, 30, 90) if not _tn_ahov else (70, 45, 120), _tn_ab, border_radius=6)
                                 pygame.draw.rect(screen, (160, 100, 255), _tn_ab, 1, border_radius=6)
-                                _tn_as = font_s.render("Aceitar Missao", True, (210, 170, 255))
                                 screen.blit(_tn_as, _tn_as.get_rect(center=_tn_ab.center))
                                 setattr(main, f"_tn_accept_{_tn_i}", _tn_ab)
                             else:
@@ -9996,7 +10000,7 @@ def main():
                                 _tn_bds_surf = _tn_bds_surf.subsurface((0, 0, _tn_max_dw, _tn_bds_surf.get_height()))
                             screen.blit(_tn_bds_surf, (_tn_brect.x + 8, _tn_brect.y + 34))
                         main._tn_bless_rects = _tn_brects
-                        _tn_hint_b = font_s.render("Bencoes duram apenas UMA run", True, (160, 130, 200))
+                        _tn_hint_b = font_s.render("Bênçãos duram apenas UMA run", True, (160, 130, 200))
                         screen.blit(_tn_hint_b, _tn_hint_b.get_rect(centerx=_tn_x + _tn_w // 2, bottom=_tn_y + _tn_h - 20))
 
                     _tn_close_s = font_s.render("[ESC] Fechar", True, (140, 110, 180))
