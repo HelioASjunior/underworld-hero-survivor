@@ -41,7 +41,7 @@ from projectile_pool import ProjectilePool, MeleeSlashPool, init_pools as init_p
 from ui_scaler import init_ui_scaler, Anchor
 from performance import frame_profiler, profile_section
 from mining_system import MiningSystem, ORE_DEFS as MINING_ORE_DEFS
-from crafting_system import CRAFTED_CATEGORIES, CRAFTED_WEAPON_STATS, CRAFT_RECIPES, CRAFT_CATEGORY_ORDER
+from crafting_system import CRAFTED_CATEGORIES, CRAFTED_WEAPON_STATS, CRAFT_RECIPES, CRAFT_CATEGORY_ORDER, get_craft_gold_cost, CRAFT_BASE_WEAPON
 
 # =========================================================
 # CONFIGURAÇÕES DE PERSISTÊNCIA -SETTINGS.JSON-
@@ -415,32 +415,32 @@ save_data = {
 
 # Definição das Missões Diárias
 DAILY_MISSIONS_POOL = [
-    {"id": "kill_250",   "name": "EXTERMINADOR",      "desc": "Mate 250 inimigos em uma partida",    "goal": 250,  "reward": 800,  "type": "kills"},
-    {"id": "kill_500",   "name": "CEIFADOR",           "desc": "Mate 500 inimigos em uma partida",    "goal": 500,  "reward": 1500, "type": "kills"},
-    {"id": "kill_800",   "name": "LORDE DA MORTE",     "desc": "Mate 800 inimigos em uma partida",    "goal": 800,  "reward": 2500, "type": "kills"},
-    {"id": "survive_8m", "name": "RESISTENTE",         "desc": "Sobreviva por 8 minutos",             "goal": 480,  "reward": 1200, "type": "time"},
-    {"id": "survive_12m","name": "IMORTAL",            "desc": "Sobreviva por 12 minutos",            "goal": 720,  "reward": 2000, "type": "time"},
-    {"id": "survive_18m","name": "ETERNO",             "desc": "Sobreviva por 18 minutos",            "goal": 1080, "reward": 3200, "type": "time"},
-    {"id": "boss_2",     "name": "CAÇADOR DE CHEFÕES", "desc": "Derrote 2 Chefões numa partida",      "goal": 2,    "reward": 2200, "type": "boss"},
-    {"id": "boss_4",     "name": "TERROR DOS TITÃS",   "desc": "Derrote 4 Chefões numa partida",      "goal": 4,    "reward": 4000, "type": "boss"},
-    {"id": "level_20",   "name": "VETERANO",           "desc": "Alcance o Nível 20 numa partida",     "goal": 20,   "reward": 1600, "type": "level"},
-    {"id": "level_30",   "name": "LENDA",              "desc": "Alcance o Nível 30 numa partida",     "goal": 30,   "reward": 3000, "type": "level"},
-    {"id": "gold_600",   "name": "SAQUEADOR",          "desc": "Colete 600 de Ouro em uma partida",   "goal": 600,  "reward": 1000, "type": "gold"},
-    {"id": "gold_1500",  "name": "MAGNATA",            "desc": "Colete 1500 de Ouro em uma partida",  "goal": 1500, "reward": 2400, "type": "gold"},
+    {"id": "kill_250",   "name": "EXTERMINADOR",      "desc": "Mate 250 inimigos em uma partida",    "goal": 250,  "reward": 600,  "type": "kills"},
+    {"id": "kill_500",   "name": "CEIFADOR",           "desc": "Mate 500 inimigos em uma partida",    "goal": 500,  "reward": 1100, "type": "kills"},
+    {"id": "kill_800",   "name": "LORDE DA MORTE",     "desc": "Mate 800 inimigos em uma partida",    "goal": 800,  "reward": 1800, "type": "kills"},
+    {"id": "survive_8m", "name": "RESISTENTE",         "desc": "Sobreviva por 8 minutos",             "goal": 480,  "reward": 900,  "type": "time"},
+    {"id": "survive_12m","name": "IMORTAL",            "desc": "Sobreviva por 12 minutos",            "goal": 720,  "reward": 1500, "type": "time"},
+    {"id": "survive_18m","name": "ETERNO",             "desc": "Sobreviva por 18 minutos",            "goal": 1080, "reward": 2400, "type": "time"},
+    {"id": "boss_2",     "name": "CAÇADOR DE CHEFÕES", "desc": "Derrote 2 Chefões numa partida",      "goal": 2,    "reward": 1600, "type": "boss"},
+    {"id": "boss_4",     "name": "TERROR DOS TITÃS",   "desc": "Derrote 4 Chefões numa partida",      "goal": 4,    "reward": 3000, "type": "boss"},
+    {"id": "level_20",   "name": "VETERANO",           "desc": "Alcance o Nível 20 numa partida",     "goal": 20,   "reward": 1200, "type": "level"},
+    {"id": "level_30",   "name": "LENDA",              "desc": "Alcance o Nível 30 numa partida",     "goal": 30,   "reward": 2200, "type": "level"},
+    {"id": "gold_600",   "name": "SAQUEADOR",          "desc": "Colete 600 de Ouro em uma partida",   "goal": 600,  "reward": 750,  "type": "gold"},
+    {"id": "gold_1500",  "name": "MAGNATA",            "desc": "Colete 1500 de Ouro em uma partida",  "goal": 1500, "reward": 1800, "type": "gold"},
 ]
 
 # Bênçãos do Templo — compradas antes de uma run, aplicadas ao entrar e consumidas
 BLESSINGS_POOL = [
-    {"id": "escudo_divino",   "name": "ESCUDO DIVINO",       "desc": "+25% HP máximo por uma run",           "cost": 400, "color": (220, 80,  80),  "stat": "hp_pct",    "value": 0.25},
-    {"id": "furia_sagrada",   "name": "FÚRIA SAGRADA",       "desc": "+30% dano de ataque por uma run",      "cost": 500, "color": (240, 110, 40),  "stat": "dmg_pct",   "value": 0.30},
-    {"id": "passo_veloz",     "name": "PASSO VELOZ",         "desc": "+20% velocidade por uma run",          "cost": 300, "color": (60,  190, 230), "stat": "spd_pct",   "value": 0.20},
-    {"id": "olhos_cacador",   "name": "OLHOS DO CAÇADOR",    "desc": "+30% alcance de coleta por uma run",   "cost": 250, "color": (160, 230, 60),  "stat": "pickup_pct","value": 0.30},
-    {"id": "bencao_ouro",     "name": "BÊNÇÃO DE OURO",      "desc": "+40% ouro coletado por uma run",       "cost": 350, "color": (255, 210, 40),  "stat": "gold_pct",  "value": 0.40},
-    {"id": "armadura_benc",   "name": "ARMADURA ABENÇOADA",  "desc": "-20% dano recebido por uma run",       "cost": 450, "color": (60,  120, 240), "stat": "res_pct",   "value": 0.20},
-    {"id": "renascimento",    "name": "RENASCIMENTO",         "desc": "+1.5 HP/s de regeneração por run",    "cost": 400, "color": (80,  230, 120), "stat": "regen_flat","value": 1.5},
-    {"id": "golpe_critico",   "name": "GOLPE CRÍTICO",       "desc": "+15% chance de crítico por uma run",   "cost": 500, "color": (230, 60,  210), "stat": "crit_pct",  "value": 0.15},
-    {"id": "explosao_magica", "name": "EXPLOSÃO MÁGICA",     "desc": "+30% tamanho de explosão por run",     "cost": 350, "color": (230, 130, 40),  "stat": "exp_pct",   "value": 0.30},
-    {"id": "protecao_divina", "name": "PROTEÇÃO DIVINA",     "desc": "Sobrevive 1x com 1 HP (por run)",      "cost": 600, "color": (200, 160, 255), "stat": "revive",    "value": 1},
+    {"id": "escudo_divino",   "name": "ESCUDO DIVINO",       "desc": "+25% HP máximo por uma run",           "cost": 800,  "color": (220, 80,  80),  "stat": "hp_pct",    "value": 0.25},
+    {"id": "furia_sagrada",   "name": "FÚRIA SAGRADA",       "desc": "+30% dano de ataque por uma run",      "cost": 1000, "color": (240, 110, 40),  "stat": "dmg_pct",   "value": 0.30},
+    {"id": "passo_veloz",     "name": "PASSO VELOZ",         "desc": "+20% velocidade por uma run",          "cost": 600,  "color": (60,  190, 230), "stat": "spd_pct",   "value": 0.20},
+    {"id": "olhos_cacador",   "name": "OLHOS DO CAÇADOR",    "desc": "+30% alcance de coleta por uma run",   "cost": 500,  "color": (160, 230, 60),  "stat": "pickup_pct","value": 0.30},
+    {"id": "bencao_ouro",     "name": "BÊNÇÃO DE OURO",      "desc": "+40% ouro coletado por uma run",       "cost": 700,  "color": (255, 210, 40),  "stat": "gold_pct",  "value": 0.40},
+    {"id": "armadura_benc",   "name": "ARMADURA ABENÇOADA",  "desc": "-20% dano recebido por uma run",       "cost": 900,  "color": (60,  120, 240), "stat": "res_pct",   "value": 0.20},
+    {"id": "renascimento",    "name": "RENASCIMENTO",         "desc": "+1.5 HP/s de regeneração por run",    "cost": 800,  "color": (80,  230, 120), "stat": "regen_flat","value": 1.5},
+    {"id": "golpe_critico",   "name": "GOLPE CRÍTICO",       "desc": "+15% chance de crítico por uma run",   "cost": 1000, "color": (230, 60,  210), "stat": "crit_pct",  "value": 0.15},
+    {"id": "explosao_magica", "name": "EXPLOSÃO MÁGICA",     "desc": "+30% tamanho de explosão por run",     "cost": 700,  "color": (230, 130, 40),  "stat": "exp_pct",   "value": 0.30},
+    {"id": "protecao_divina", "name": "PROTEÇÃO DIVINA",     "desc": "Sobrevive 1x com 1 HP (por run)",      "cost": 1200, "color": (200, 160, 255), "stat": "revive",    "value": 1},
 ]
 
 # Definição das Conquistas e Requisitos
@@ -1905,13 +1905,13 @@ def _item_img_path(category: str, idx: int):
 # ── Lingotes (craftados na aba Minérios do Ferreiro) ─────────────────────────
 # ore_idx alinha com MINING_ORE_DEFS: 0=Negro,1=Azul,2=Verm.Escuro,3=Verde,4=Verm.,5=Branco,6=Amarelo
 LINGOT_DEFS = [
-    {"name": "Lingote de Obsidiana",    "file": "blackbar.png",   "ore_idx": 0, "qty": 5},
-    {"name": "Lingote de Cristal Puro", "file": "whitebar.png",   "ore_idx": 5, "qty": 5},
-    {"name": "Lingote de Esmeralda",    "file": "greenbar.png",   "ore_idx": 3, "qty": 5},
-    {"name": "Lingote de Sangue",       "file": "darkredbar.png", "ore_idx": 2, "qty": 6},
-    {"name": "Lingote de Rubi",         "file": "redbar.png",     "ore_idx": 4, "qty": 5},
-    {"name": "Lingote de Âmbar",        "file": "yellowbar.png",  "ore_idx": 6, "qty": 5},
-    {"name": "Lingote de Safira",       "file": "bluebar.png",    "ore_idx": 1, "qty": 5},
+    {"name": "Lingote de Obsidiana",    "file": "blackbar.png",   "ore_idx": 0, "qty": 3},
+    {"name": "Lingote de Cristal Puro", "file": "whitebar.png",   "ore_idx": 5, "qty": 3},
+    {"name": "Lingote de Esmeralda",    "file": "greenbar.png",   "ore_idx": 3, "qty": 3},
+    {"name": "Lingote de Sangue",       "file": "darkredbar.png", "ore_idx": 2, "qty": 4},
+    {"name": "Lingote de Rubi",         "file": "redbar.png",     "ore_idx": 4, "qty": 3},
+    {"name": "Lingote de Âmbar",        "file": "yellowbar.png",  "ore_idx": 6, "qty": 3},
+    {"name": "Lingote de Safira",       "file": "bluebar.png",    "ore_idx": 1, "qty": 3},
 ]
 
 # Multiplicadores permanentes (serão sobrescritos em reset_game)
@@ -6643,26 +6643,52 @@ def main():
                                     _cf_sel_c, _cf_sel_i = _craft_selected
                                     _cf_cid_forge = player.char_id if player else 0
                                     _cf_inv_forge  = get_char_inventory(_cf_cid_forge)
-                                    # Consume ingredients from slots
-                                    for _cf_sl in _craft_slots:
-                                        if _cf_sl is not None:
-                                            _cf_sl_qty = _cf_sl.get("qty", 1)
-                                            if _cf_sl_qty > 1:
-                                                _cf_sl["qty"] = _cf_sl_qty - 1
-                                            elif _cf_sl in _cf_inv_forge:
-                                                _cf_inv_forge.remove(_cf_sl)
-                                    # Add crafted item (soulbound)
-                                    _cf_new_item = {
-                                        "category": _cf_sel_c,
-                                        "idx":      _cf_sel_i,
-                                        "soulbound": True,
-                                        "cid":      _cf_cid_forge,
-                                        "crafted":  True,
-                                    }
-                                    _cf_inv_forge.append(_cf_new_item)
-                                    _craft_slots = [None, None, None]
-                                    save_game()
-                                    if snd_click: snd_click.play()
+                                    _cf_recipe = CRAFT_RECIPES.get(_cf_sel_c, [{}])[_cf_sel_i] if _cf_sel_i < len(CRAFT_RECIPES.get(_cf_sel_c, [])) else [None, None, None]
+                                    _cf_wdef   = (CRAFTED_WEAPON_STATS.get(_cf_sel_c) or [{}])[_cf_sel_i] if _cf_sel_i < len(CRAFTED_WEAPON_STATS.get(_cf_sel_c, [])) else {}
+                                    _cf_gcost  = get_craft_gold_cost(_cf_wdef)
+                                    # Validate each slot — slot 0 = base weapon (idx=None → any item from category, not soulbound)
+                                    def _cf_slot_ok(slot, req):
+                                        if req is None: return True
+                                        if slot is None: return False
+                                        if req.get("idx") is None:
+                                            return (slot.get("category") == req.get("category") and
+                                                    not slot.get("soulbound") and not slot.get("crafted"))
+                                        return (slot.get("category") == req.get("category") and
+                                                slot.get("idx") == req.get("idx") and
+                                                slot.get("qty", 1) >= req.get("qty", 1))
+                                    _cf_ok = all(_cf_slot_ok(_craft_slots[_si], _req)
+                                                 for _si, _req in enumerate(_cf_recipe))
+                                    if not _cf_ok:
+                                        push_skill_feed("Ingredientes incorretos!", (220, 60, 60))
+                                    elif save_data.get("gold", 0) < _cf_gcost:
+                                        push_skill_feed(f"Ouro insuficiente! Precisa {_cf_gcost}g", (220, 60, 60))
+                                    else:
+                                        # Consume ingredients — slot 0 = base weapon (full remove); others = qty-aware
+                                        for _si, (_cf_sl, _req) in enumerate(zip(_craft_slots, _cf_recipe)):
+                                            if _cf_sl is not None and _req is not None:
+                                                if _req.get("idx") is None:
+                                                    if _cf_sl in _cf_inv_forge:
+                                                        _cf_inv_forge.remove(_cf_sl)
+                                                else:
+                                                    _req_qty = _req.get("qty", 1)
+                                                    _cf_sl_qty = _cf_sl.get("qty", 1)
+                                                    if _cf_sl_qty > _req_qty:
+                                                        _cf_sl["qty"] = _cf_sl_qty - _req_qty
+                                                    elif _cf_sl in _cf_inv_forge:
+                                                        _cf_inv_forge.remove(_cf_sl)
+                                        save_data["gold"] = save_data.get("gold", 0) - _cf_gcost
+                                        # Add crafted item (soulbound)
+                                        _cf_new_item = {
+                                            "category": _cf_sel_c,
+                                            "idx":      _cf_sel_i,
+                                            "soulbound": True,
+                                            "cid":      _cf_cid_forge,
+                                            "crafted":  True,
+                                        }
+                                        _cf_inv_forge.append(_cf_new_item)
+                                        _craft_slots = [None, None, None]
+                                        save_game()
+                                        if snd_click: snd_click.play()
                                 # Lingot grid click (select lingote)
                                 if _craft_tab == "minerios":
                                     _cf_ling_ev = getattr(main, "_cf_ling_rects", {})
@@ -8599,7 +8625,7 @@ def main():
             for d in list(drops):
                 if d.rect.colliderect(player.rect):
                     if d.kind == "coin":
-                        coin_value = 50 * _spawn_diff.get("gold_mult", 1.0) * GOLD_RUN_MULT
+                        coin_value = 35 * _spawn_diff.get("gold_mult", 1.0) * GOLD_RUN_MULT
                         if "gold_rush" in active_run_mods:
                             coin_value *= 2
                         run_gold_collected += coin_value
@@ -10468,7 +10494,7 @@ def main():
                             _cf_ry2 += 8
 
                             # Label ingredientes
-                            _cf_ing_l = font_s.render("Ingredientes:", True, (160, 140, 80))
+                            _cf_ing_l = font_s.render("Slots: [Arma] [Lingote] [Lingote]", True, (140, 115, 55))
                             screen.blit(_cf_ing_l, _cf_ing_l.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
                             _cf_ry2 += _cf_ing_l.get_height() + 5
 
@@ -10503,12 +10529,77 @@ def main():
                                         screen.blit(_cf_q_s2, _cf_q_s2.get_rect(right=_cf_sr4.right-2,
                                                                                   bottom=_cf_sr4.bottom-2))
                                 else:
-                                    pygame.draw.rect(screen, (22, 18, 10), _cf_sr4, border_radius=5)
-                                    pygame.draw.rect(screen, (70, 55, 25), _cf_sr4, 1, border_radius=5)
-                                    _cf_n_l2 = font_s.render(str(_si2 + 1), True, (55, 45, 22))
+                                    # Slot 0 = arma base (ouro escuro), outros = lingotes (cinza)
+                                    _cf_sl_empty_bg  = (38, 26, 8)  if _si2 == 0 else (22, 18, 10)
+                                    _cf_sl_empty_brd = (140, 100, 30) if _si2 == 0 else (70, 55, 25)
+                                    pygame.draw.rect(screen, _cf_sl_empty_bg,  _cf_sr4, border_radius=5)
+                                    pygame.draw.rect(screen, _cf_sl_empty_brd, _cf_sr4, 1, border_radius=5)
+                                    if _si2 == 0:
+                                        _cf_n_l2 = font_s.render("W", True, (120, 85, 25))
+                                    else:
+                                        _cf_n_l2 = font_s.render(str(_si2), True, (55, 45, 22))
                                     screen.blit(_cf_n_l2, _cf_n_l2.get_rect(center=_cf_sr4.center))
 
-                            _cf_ry2 += _cf_SL + 12
+                            _cf_ry2 += _cf_SL + 10
+
+                            # ── Receita necessária (guia visual) ─────────────────────────
+                            _cf_rec2 = CRAFT_RECIPES.get(_cf_scat, [])
+                            _cf_rec_cur = _cf_rec2[_cf_sidx] if _cf_sidx < len(_cf_rec2) else []
+                            _cf_valid_reqs = [r for r in _cf_rec_cur if r is not None]
+                            if _cf_valid_reqs:
+                                _cf_rq_lbl = font_s.render("Receita:", True, (140, 115, 55))
+                                screen.blit(_cf_rq_lbl, _cf_rq_lbl.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
+                                _cf_ry2 += _cf_rq_lbl.get_height() + 4
+
+                                _cf_RIS = min(40, (_cf_rw - 16) // max(1, len(_cf_valid_reqs)))
+                                _cf_RIG = max(4, (_cf_rw - len(_cf_valid_reqs) * _cf_RIS) // (len(_cf_valid_reqs) + 1))
+                                _cf_req_total_w = len(_cf_valid_reqs) * _cf_RIS + (len(_cf_valid_reqs) - 1) * _cf_RIG
+                                _cf_rx_req = _cf_ico_cx - _cf_req_total_w // 2
+
+                                for _ri_n, _rreq in enumerate(_cf_valid_reqs):
+                                    _cf_rixr = _cf_rx_req + _ri_n * (_cf_RIS + _cf_RIG)
+                                    _cf_ri_rect = pygame.Rect(_cf_rixr, _cf_ry2, _cf_RIS, _cf_RIS)
+                                    _rreq_cat = _rreq.get("category", "")
+                                    _rreq_idx = _rreq.get("idx")
+                                    _rreq_qty = _rreq.get("qty", 1)
+
+                                    if _rreq_idx is None:
+                                        # Slot 0: arma base de loja
+                                        _cf_bw_col = (55, 38, 12)
+                                        _cf_bw_brd = (200, 140, 40)
+                                    else:
+                                        # Slot lingote
+                                        _cf_bw_col = (30, 22, 8)
+                                        _cf_bw_brd = (100, 75, 28)
+                                    pygame.draw.rect(screen, _cf_bw_col, _cf_ri_rect, border_radius=4)
+                                    pygame.draw.rect(screen, _cf_bw_brd, _cf_ri_rect, 1, border_radius=4)
+
+                                    if _rreq_idx is None:
+                                        # Ícone da arma base (representativo, idx=4)
+                                        _cf_bwi = _ie_get_img(_rreq_cat, 4, _cf_RIS - 6)
+                                        if _cf_bwi:
+                                            screen.blit(_cf_bwi, _cf_bwi.get_rect(center=_cf_ri_rect.center))
+                                        else:
+                                            _cf_wt = font_s.render(_rreq_cat[:3], True, (220, 180, 80))
+                                            screen.blit(_cf_wt, _cf_wt.get_rect(center=_cf_ri_rect.center))
+                                        # Etiqueta "Arma" abaixo
+                                        _cf_arm_lbl = font_s.render("Arma", True, (200, 150, 50))
+                                        screen.blit(_cf_arm_lbl, _cf_arm_lbl.get_rect(
+                                            centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 1))
+                                    else:
+                                        # Ícone do lingote via _ie_get_img
+                                        _cf_ling_img_r = _ie_get_img("Lingotes", _rreq_idx, _cf_RIS - 6)
+                                        if _cf_ling_img_r:
+                                            screen.blit(_cf_ling_img_r, _cf_ling_img_r.get_rect(center=_cf_ri_rect.center))
+                                        # Quantidade abaixo
+                                        _cf_qlbl = font_s.render(f"x{_rreq_qty}", True,
+                                                                  (240, 220, 100) if _rreq_qty > 1 else (160, 140, 70))
+                                        screen.blit(_cf_qlbl, _cf_qlbl.get_rect(
+                                            centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 1))
+
+                                _cf_ry2 += _cf_RIS + 16
+                            else:
+                                _cf_ry2 += 8
 
                             # Botão FORJAR
                             _cf_BW = min(120, _cf_rw - 12)

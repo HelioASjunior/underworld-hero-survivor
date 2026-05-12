@@ -16,6 +16,7 @@ English version: [README.en.md](README.en.md)
 - [Personagens](#personagens)
 - [Inimigos e Chefes](#inimigos-e-chefes)
 - [Sistemas de jogo](#sistemas-de-jogo)
+- [Sistema de Crafting](#sistema-de-crafting)
 - [Interface e UI medieval](#interface-e-ui-medieval)
 - [Arquitetura do projeto](#arquitetura-do-projeto)
 - [Requisitos](#requisitos)
@@ -218,6 +219,49 @@ O painel de Status (tecla C) exibe os nomes das peças equipadas e a porcentagem
 
 ---
 
+## Sistema de Crafting
+
+O Ferreiro (NPC do Hub) oferece duas abas:
+
+### Aba MINÉRIOS — Fundir cristais em lingotes
+
+Cristais são coletados na **Sala de Recompensa** ao final de cada run. No Ferreiro, eles são fundidos em lingotes usando o botão **FUNDIR**.
+
+| Lingote          | Raridade | Cristal necessário        | Qtd. para fundir |
+|------------------|----------|---------------------------|-----------------|
+| Obsidiana        | RARO     | Cristal Negro             | 3               |
+| Sangue           | RARO     | Cristal Vermelho Escuro   | 4               |
+| Cristal Puro     | INCOMUM  | Cristal Branco            | 3               |
+| Rubi             | INCOMUM  | Cristal Vermelho          | 3               |
+| Esmeralda        | COMUM    | Cristal Verde             | 3               |
+| Âmbar            | COMUM    | Cristal Amarelo           | 3               |
+| Safira           | COMUM    | Cristal Azul              | 3               |
+
+A chance de cada cristal aparecer na Sala de Recompensa é ponderada: comuns (Esmeralda, Âmbar, Safira) aparecem com o dobro da frequência de raros (Obsidiana, Sangue).
+
+### Aba ARMAS — Forjar armas lendárias
+
+São **94 armas lendárias** divididas em 4 categorias: Espadas, Machados, Martelos e Cajados. Cada arma exige 2 lingotes específicos nos slots de crafting + um custo simbólico em ouro.
+
+| Tier | Nível req. | ATK base | Custo ouro | Ingredientes típicos              |
+|------|-----------|----------|------------|-----------------------------------|
+| 1    | 25        | 280–315  | 100g       | 2 lingotes comuns                 |
+| 2    | 30        | 315–355  | 200g       | 1 incomum + 1 comum               |
+| 3    | 35        | 355–400  | 350g       | 1 raro + 1 comum/incomum          |
+| 4    | 40        | 400–445  | 500g       | 1–2 raros                         |
+| 5    | 45        | 445–460  | 750g       | 2 raros (quantidades maiores)     |
+
+Armas craftadas são **soulbound** — vinculadas ao personagem que as forjou e não podem ser vendidas. O guia completo com todos os 94 itens e ingredientes está em [`CRAFT_GUIDE.txt`](CRAFT_GUIDE.txt).
+
+### Exemplo canônico
+
+```
+Lingote de Obsidiana + Lingote de Sangue = Lâmina da Predição Negra
+  (420 ATK | 15 DEF | Nível 40 | 500 ouro)
+```
+
+---
+
 ## Interface e UI medieval
 
 Toda a interface usa sprites ornamentados medievais com fundo transparente (Photoroom). O texto é sempre renderizado dinamicamente por cima — nenhum texto fica gravado na imagem.
@@ -261,6 +305,8 @@ O `AssetLoader` usa cache recursivo (`_build_cache`): arquivos podem estar em qu
 | `spatial_index.py` | Índices espaciais, pathfinding A* em grid, métricas |
 | `hot_kernels.py` | Kernels NumPy + Numba JIT com detecção automática de backend Cython |
 | `hot_kernels_cy.pyx` | Implementação acelerada opcional em Cython |
+| `mining_system.py` | Sistema de mineração: nós de cristal, progresso, raridades ponderadas |
+| `crafting_system.py` | Dados de crafting: stats, receitas e custo das 94 armas lendárias |
 
 ### Decisões técnicas
 
@@ -678,6 +724,9 @@ gcc --version
 - [ ] Novos chefes com fases e ataques adicionais.
 - [ ] Sistema de conquistas com recompensas visuais.
 - [x] Sistema de balanceamento contínuo de progressão e economia (`balance.py`).
+- [x] Sistema de mineração na Sala de Recompensa (7 tipos de cristal com raridades ponderadas).
+- [x] Sistema de Crafting no Ferreiro: 94 armas lendárias em 4 categorias, lingotes fundidos de cristais, validação de receitas e custo em ouro (`crafting_system.py`).
+- [x] Templo com NPC Sacerdote: Missões Diárias e 10 Bênçãos de run (buffs temporários comprados com ouro).
 - [x] Build distribuível para Windows (.exe) via PyInstaller (`build_dist.py`) e Nuitka (`build_nuitka.py`).
 - [x] Suporte a controle gamepad.
 - [x] Migrar para Pygame-CE (concluído com sucesso).

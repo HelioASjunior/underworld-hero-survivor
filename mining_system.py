@@ -8,14 +8,16 @@ _ASSET_DIR = os.path.join(_BASE_DIR, "assets")
 
 # ── Definições dos minérios ────────────────────────────────────────────────
 ORE_DEFS = [
-    {"name": "Cristal Negro",            "file": "Black_crystal1.png",        "color": (40,  40,  40 )},
-    {"name": "Cristal Azul",             "file": "Blue_crystal1.png",         "color": (60,  100, 200)},
-    {"name": "Cristal Vermelho Escuro",  "file": "Dark_red_ crystal1.png",    "color": (140, 20,  20 )},
-    {"name": "Cristal Verde",            "file": "Green_crystal1.png",        "color": (40,  160, 40 )},
-    {"name": "Cristal Vermelho",         "file": "Red_crystal1.png",          "color": (220, 40,  40 )},
-    {"name": "Cristal Branco",           "file": "White_crystal1.png",        "color": (220, 220, 220)},
-    {"name": "Cristal Amarelo",          "file": "Yellow_crystal1.png",       "color": (220, 200, 40 )},
+    {"name": "Cristal Negro",            "file": "Black_crystal1.png",        "color": (40,  40,  40 ), "weight": 2},
+    {"name": "Cristal Azul",             "file": "Blue_crystal1.png",         "color": (60,  100, 200), "weight": 5},
+    {"name": "Cristal Vermelho Escuro",  "file": "Dark_red_ crystal1.png",    "color": (140, 20,  20 ), "weight": 2},
+    {"name": "Cristal Verde",            "file": "Green_crystal1.png",        "color": (40,  160, 40 ), "weight": 5},
+    {"name": "Cristal Vermelho",         "file": "Red_crystal1.png",          "color": (220, 40,  40 ), "weight": 3},
+    {"name": "Cristal Branco",           "file": "White_crystal1.png",        "color": (220, 220, 220), "weight": 3},
+    {"name": "Cristal Amarelo",          "file": "Yellow_crystal1.png",       "color": (220, 200, 40 ), "weight": 5},
 ]
+
+_ORE_WEIGHTS = [d["weight"] for d in ORE_DEFS]
 
 ORE_SPRITE_SIZE = 72          # px — maior e visível
 MINE_RADIUS_SQ  = 90 * 90     # pixels² — sem sqrt (raio ajustado para sprite maior)
@@ -113,7 +115,7 @@ class MiningSystem:
         self.mining_target = None
         self.mine_progress = 0.0
         for _ in range(count):
-            idx = random.randint(0, len(ORE_DEFS) - 1)
+            idx = random.choices(range(len(ORE_DEFS)), weights=_ORE_WEIGHTS, k=1)[0]
             img = self._load_ore_image(idx)
             px  = random.randint(x_min, x_max)
             py  = random.randint(y_min, y_max)
