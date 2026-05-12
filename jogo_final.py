@@ -10546,6 +10546,7 @@ def main():
                             _cf_rec2 = CRAFT_RECIPES.get(_cf_scat, [])
                             _cf_rec_cur = _cf_rec2[_cf_sidx] if _cf_sidx < len(_cf_rec2) else []
                             _cf_valid_reqs = [r for r in _cf_rec_cur if r is not None]
+                            _cf_recipe_icon_rects = []   # (rect, tooltip_name)
                             if _cf_valid_reqs:
                                 _cf_rq_lbl = font_s.render("Receita:", True, (140, 115, 55))
                                 screen.blit(_cf_rq_lbl, _cf_rq_lbl.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
@@ -10555,6 +10556,15 @@ def main():
                                 _cf_RIG = max(4, (_cf_rw - len(_cf_valid_reqs) * _cf_RIS) // (len(_cf_valid_reqs) + 1))
                                 _cf_req_total_w = len(_cf_valid_reqs) * _cf_RIS + (len(_cf_valid_reqs) - 1) * _cf_RIG
                                 _cf_rx_req = _cf_ico_cx - _cf_req_total_w // 2
+                                _cf_lbl_h  = font_s.get_height()  # altura de uma linha de texto
+
+                                # Nomes para tooltip por tipo de slot
+                                _cf_base_wnames = {
+                                    "Espadas": "Espada da loja",
+                                    "Machados": "Machado da loja",
+                                    "Hammers": "Martelo da loja",
+                                    "Cajados": "Cajado da loja",
+                                }
 
                                 for _ri_n, _rreq in enumerate(_cf_valid_reqs):
                                     _cf_rixr = _cf_rx_req + _ri_n * (_cf_RIS + _cf_RIG)
@@ -10564,40 +10574,58 @@ def main():
                                     _rreq_qty = _rreq.get("qty", 1)
 
                                     if _rreq_idx is None:
-                                        # Slot 0: arma base de loja
                                         _cf_bw_col = (55, 38, 12)
                                         _cf_bw_brd = (200, 140, 40)
+                                        _cf_tt_nm  = _cf_base_wnames.get(_rreq_cat, _rreq_cat + " da loja")
                                     else:
-                                        # Slot lingote
                                         _cf_bw_col = (30, 22, 8)
                                         _cf_bw_brd = (100, 75, 28)
+                                        _cf_ld_def = LINGOT_DEFS[_rreq_idx] if 0 <= _rreq_idx < len(LINGOT_DEFS) else {}
+                                        _cf_tt_nm  = _cf_ld_def.get("name", "?")
+                                        if _rreq_qty > 1:
+                                            _cf_tt_nm += f" x{_rreq_qty}"
+                                    _cf_recipe_icon_rects.append((_cf_ri_rect.copy(), _cf_tt_nm))
+
                                     pygame.draw.rect(screen, _cf_bw_col, _cf_ri_rect, border_radius=4)
                                     pygame.draw.rect(screen, _cf_bw_brd, _cf_ri_rect, 1, border_radius=4)
 
                                     if _rreq_idx is None:
-                                        # Ícone da arma base (representativo, idx=4)
                                         _cf_bwi = _ie_get_img(_rreq_cat, 4, _cf_RIS - 6)
                                         if _cf_bwi:
                                             screen.blit(_cf_bwi, _cf_bwi.get_rect(center=_cf_ri_rect.center))
                                         else:
                                             _cf_wt = font_s.render(_rreq_cat[:3], True, (220, 180, 80))
                                             screen.blit(_cf_wt, _cf_wt.get_rect(center=_cf_ri_rect.center))
-                                        # Etiqueta "Arma" abaixo
                                         _cf_arm_lbl = font_s.render("Arma", True, (200, 150, 50))
                                         screen.blit(_cf_arm_lbl, _cf_arm_lbl.get_rect(
-                                            centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 1))
+                                            centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 2))
                                     else:
-                                        # Ícone do lingote via _ie_get_img
                                         _cf_ling_img_r = _ie_get_img("Lingotes", _rreq_idx, _cf_RIS - 6)
                                         if _cf_ling_img_r:
                                             screen.blit(_cf_ling_img_r, _cf_ling_img_r.get_rect(center=_cf_ri_rect.center))
-                                        # Quantidade abaixo
                                         _cf_qlbl = font_s.render(f"x{_rreq_qty}", True,
                                                                   (240, 220, 100) if _rreq_qty > 1 else (160, 140, 70))
                                         screen.blit(_cf_qlbl, _cf_qlbl.get_rect(
-                                            centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 1))
+                                            centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 2))
 
-                                _cf_ry2 += _cf_RIS + 16
+                                # Tooltip on hover — drawn after all icons to appear on top
+                                for _cf_tt_r, _cf_tt_nm in _cf_recipe_icon_rects:
+                                    if _cf_tt_r.collidepoint(m_pos):
+                                        _cf_tts = font_s.render(_cf_tt_nm, True, (255, 240, 160))
+                                        _cf_ttbg = _cf_tts.get_rect().inflate(10, 6)
+                                        _cf_ttbg.midbottom = (_cf_tt_r.centerx, _cf_tt_r.top - 4)
+                                        # Clamp tooltip inside panel
+                                        if _cf_ttbg.left < _cf_rx:
+                                            _cf_ttbg.left = _cf_rx
+                                        if _cf_ttbg.right > _cf_rx + _cf_rw:
+                                            _cf_ttbg.right = _cf_rx + _cf_rw
+                                        pygame.draw.rect(screen, (20, 15, 5), _cf_ttbg, border_radius=4)
+                                        pygame.draw.rect(screen, (180, 140, 50), _cf_ttbg, 1, border_radius=4)
+                                        screen.blit(_cf_tts, _cf_tts.get_rect(center=_cf_ttbg.center))
+                                        break
+
+                                # Account for icon height + label text row + gap before FORJAR
+                                _cf_ry2 += _cf_RIS + _cf_lbl_h + 14
                             else:
                                 _cf_ry2 += 8
 
