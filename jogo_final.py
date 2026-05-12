@@ -372,7 +372,7 @@ RUN_SLOT_FILES = [
 # Itens que começam desbloqueados
 DEFAULT_UNLOCKS = [
     "DANO ++", "VELOCIDADE ++", "VIDA MÁXIMA", "TIRO RÁPIDO", "CURA",
-    "CHAR_0", "CHAR_1", "CHAR_2", "CHAR_3", "CHAR_4", "CHAR_5", "CHAR_6", "CHAR_7", "DIFF_FÁCIL", "DIFF_MÉDIO"
+    "CHAR_0", "CHAR_1", "CHAR_2", "DIFF_FÁCIL", "DIFF_MÉDIO"
 ]
 
 save_data = {
@@ -447,11 +447,7 @@ BLESSINGS_POOL = [
 ACHIEVEMENTS = {
     "CHAR_1": {"type": "char", "name": "CAÇADOR", "desc": "Mate 500 inimigos no total", "req": lambda s: s["total_kills"] >= 500},
     "CHAR_2": {"type": "char", "name": "MAGO", "desc": "Derrote 1 Chefão", "req": lambda s: s["boss_kills"] >= 1},
-    "CHAR_3": {"type": "char", "name": "VAMPIRE", "desc": "Derrote 3 Chefões", "req": lambda s: s["boss_kills"] >= 3},
-    "CHAR_4": {"type": "char", "name": "DEMÔNIO", "desc": "Derrote 5 Chefões", "req": lambda s: s["boss_kills"] >= 5},
-    "CHAR_5": {"type": "char", "name": "GOLEM", "desc": "Derrote 8 Chefões", "req": lambda s: s["boss_kills"] >= 8},
-    "CHAR_6": {"type": "char", "name": "ESQUELETO", "desc": "Derrote 12 Chefões", "req": lambda s: s["boss_kills"] >= 12},
-    "CHAR_7": {"type": "char", "name": "FURACÃO", "desc": "Derrote 15 Chefões", "req": lambda s: s["boss_kills"] >= 15},
+    # CHAR_3-7 são desbloqueados via compra com gold (ver HERO_PRICES), não por conquistas.
 
     "DIFF_DIFÍCIL": {"type": "diff", "name": "DIFÍCIL", "desc": "Sobreviva 10 min (total)", "req": lambda s: s["total_time"] >= 600},
     "DIFF_HARDCORE": {"type": "diff", "name": "HARDCORE", "desc": "Complete Fácil, Médio e Difícil", "req": lambda s: len({"FÁCIL", "MÉDIO", "DIFÍCIL"} & set(save_data.get("beaten_difficulties", []))) >= 3},
@@ -467,6 +463,9 @@ ACHIEVEMENTS = {
     "FÚRIA": {"type": "upg", "name": "FÚRIA", "desc": "Chegue a 10% de HP (em uma run)", "req": lambda s: True}, # Lógica especial ingame
     "ÍMÃ DE XP": {"type": "upg", "name": "ÍMÃ DE XP", "desc": "Sobreviva 5 min totais", "req": lambda s: s["total_time"] >= 300},
 }
+
+# Preços (gold) para desbloquear heróis via compra — chars 3-7
+HERO_PRICES = {3: 8000, 4: 10000, 5: 15000, 6: 12000, 7: 18000}
 
 # ── Sistema de Perfis ─────────────────────────────────────────────────────
 profile_mgr: "ProfileManager | None" = None
@@ -5443,7 +5442,11 @@ def main():
     for i, (char_id, char_data) in enumerate(CHAR_DATA.items()):
         x_ratio = 0.25 + i * 0.25
         locked = char_data["id"] not in save_data["unlocks"]
-        lock_req = ACHIEVEMENTS.get(char_data["id"], {}).get("desc", "") if locked else ""
+        if locked:
+            price = HERO_PRICES.get(char_id, 0)
+            lock_req = f"{price:,}g" if price else ACHIEVEMENTS.get(char_data["id"], {}).get("desc", "")
+        else:
+            lock_req = ""
         btn = Button(x_ratio, 0.78, BTN_W, BTN_H, char_data["name"], font_m,
                      locked=locked, lock_req=lock_req)
         btn.sprite_idx = i % 7
@@ -5958,6 +5961,15 @@ def main():
                                 _reload_achievements()
                                 for _bi2, _bk2 in enumerate(diff_order):
                                     diff_btns[_bi2].locked = DIFFICULTIES[_bk2]["id"] not in save_data["unlocks"]
+                                for _bi2, (char_id2, char_data2) in enumerate(CHAR_DATA.items()):
+                                    if _bi2 < len(char_btns):
+                                        _locked2 = char_data2["id"] not in save_data["unlocks"]
+                                        char_btns[_bi2].locked = _locked2
+                                        if _locked2:
+                                            _price2 = HERO_PRICES.get(char_id2, 0)
+                                            char_btns[_bi2].lock_req = f"{_price2:,}g" if _price2 else ""
+                                        else:
+                                            char_btns[_bi2].lock_req = ""
                                 _prof_mode = "list"; _prof_sel_idx = len(profile_mgr.get_all_profiles()) - 1
                                 state = "MENU"
                                 menu_intro_timer = MENU_ENTER_DURATION
@@ -5990,6 +6002,15 @@ def main():
                                 _reload_achievements()
                                 for _bi2, _bk2 in enumerate(diff_order):
                                     diff_btns[_bi2].locked = DIFFICULTIES[_bk2]["id"] not in save_data["unlocks"]
+                                for _bi2, (char_id2, char_data2) in enumerate(CHAR_DATA.items()):
+                                    if _bi2 < len(char_btns):
+                                        _locked2 = char_data2["id"] not in save_data["unlocks"]
+                                        char_btns[_bi2].locked = _locked2
+                                        if _locked2:
+                                            _price2 = HERO_PRICES.get(char_id2, 0)
+                                            char_btns[_bi2].lock_req = f"{_price2:,}g" if _price2 else ""
+                                        else:
+                                            char_btns[_bi2].lock_req = ""
                                 state = "MENU"
                                 menu_intro_timer = MENU_ENTER_DURATION
                         elif event.key == pygame.K_LEFT:
@@ -6184,6 +6205,15 @@ def main():
                                 _reload_achievements()
                                 for _bi2, _bk2 in enumerate(diff_order):
                                     diff_btns[_bi2].locked = DIFFICULTIES[_bk2]["id"] not in save_data["unlocks"]
+                                for _bi2, (char_id2, char_data2) in enumerate(CHAR_DATA.items()):
+                                    if _bi2 < len(char_btns):
+                                        _locked2 = char_data2["id"] not in save_data["unlocks"]
+                                        char_btns[_bi2].locked = _locked2
+                                        if _locked2:
+                                            _price2 = HERO_PRICES.get(char_id2, 0)
+                                            char_btns[_bi2].lock_req = f"{_price2:,}g" if _price2 else ""
+                                        else:
+                                            char_btns[_bi2].lock_req = ""
                                 _prof_mode = "list"
                                 state = "MENU"
                                 menu_intro_timer = MENU_ENTER_DURATION
@@ -7152,8 +7182,30 @@ def main():
                     elif state == "CHAR_SELECT":
                         if char_back_btn.rect.collidepoint(click_pos):
                             state = "MENU"
+                        # Botão COMPRAR HERÓI (no painel de status)
+                        _buy_r = getattr(main, "_hero_buy_rect", None)
+                        if (_buy_r and _buy_r.collidepoint(click_pos)
+                                and getattr(main, "_hero_buy_can", False)):
+                            _buy_cid   = getattr(main, "_hero_buy_cid", -1)
+                            _buy_price = HERO_PRICES.get(_buy_cid, 0)
+                            if _buy_price and save_data.get("gold", 0) >= _buy_price:
+                                save_data["gold"] -= _buy_price
+                                _char_key = CHAR_DATA[_buy_cid]["id"]
+                                if _char_key not in save_data["unlocks"]:
+                                    save_data["unlocks"].append(_char_key)
+                                # Atualiza o botão imediatamente
+                                for _bi, _bb in enumerate(char_btns):
+                                    if list(CHAR_DATA.keys())[_bi] == _buy_cid:
+                                        _bb.locked   = False
+                                        _bb.lock_req = ""
+                                        break
+                                save_game()
+                                if snd_click: snd_click.play()
+                                push_skill_feed(
+                                    f"{CHAR_DATA[_buy_cid]['name']} desbloqueado!",
+                                    (200, 160, 255))
                         for i, btn in enumerate(char_btns):
-                            if btn.rect.collidepoint(click_pos):
+                            if btn.rect.collidepoint(click_pos) and not btn.locked:
                                 if snd_click: snd_click.play()
                                 reset_game(i)
                                 state = "DIFF_SELECT"
@@ -9531,40 +9583,57 @@ def main():
                 btn.rect  = cell_rect
 
                 btn.check_hover(m_pos, snd_hover)
-                is_hovered = btn.is_hovered and not btn.locked
+                is_hovered = btn.is_hovered
 
                 if is_hovered:
                     hovered_char_idx = i
+                    glow_col = (220, 180, 60) if not btn.locked else (160, 100, 200)
                     glow_a = int(55 + 45 * math.sin(time_ms / 180.0))
                     glow_s = pygame.Surface((chw * 2 + 12, chw * 2 + 12), pygame.SRCALPHA)
-                    glow_s.fill((220, 180, 60, glow_a))
+                    glow_s.fill((*glow_col, glow_a))
                     screen.blit(glow_s, (cx - chw - 6, cy - chw - 6))
-                    pygame.draw.rect(screen, UI_THEME["old_gold"], cell_rect, 2, border_radius=3)
+                    brd_col = UI_THEME["old_gold"] if not btn.locked else (180, 100, 220)
+                    pygame.draw.rect(screen, brd_col, cell_rect, 2, border_radius=3)
                 elif btn.locked:
-                    pygame.draw.rect(screen, UI_THEME["blood_red"], cell_rect, 1, border_radius=3)
+                    pygame.draw.rect(screen, (80, 55, 100), cell_rect, 1, border_radius=3)
 
                 # Sprite idle animado — escala por personagem
                 img = idle[frame_idx % len(idle)]
                 fw_i, fh_i = img.get_width(), img.get_height()
                 if fw_i > 0 and fh_i > 0:
                     mult     = _SIZE_MULT.get(i, 1.85)
-                    target   = int(chw * mult)          # alvo = mult × raio
+                    target   = int(chw * mult)
                     sc       = max(target / fw_i, target / fh_i)
                     img = pygame.transform.smoothscale(
                         img, (max(1, int(fw_i * sc)), max(1, int(fh_i * sc))))
 
                 if btn.locked:
-                    img = img.copy()
-                    img.fill((0, 0, 0, 160), special_flags=pygame.BLEND_RGBA_MULT)
+                    # Silhouette: cinza escuro (não totalmente preto)
+                    try:
+                        img = pygame.transform.grayscale(img.copy())
+                    except Exception:
+                        img = img.copy()
+                        img.fill((70, 70, 70, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                    _dark = pygame.Surface(img.get_size(), pygame.SRCALPHA)
+                    _dark.fill((0, 0, 0, 110))
+                    img.blit(_dark, (0, 0))
 
                 # Flutuação suave + ancoragem
                 float_off = int(math.sin((time_ms + i * 600) / 400.0) * 3)
                 screen.blit(img, img.get_rect(center=(cx, cy + float_off)))
 
                 if btn.locked:
-                    lk = load_title_font(14, bold=True).render(
-                        "🔒", True, UI_THEME["blood_red"])
-                    screen.blit(lk, lk.get_rect(center=(cx, cy)))
+                    # Mostra preço em vez de cadeado puro
+                    _char_id_v = char_ids[i]
+                    _price_v   = HERO_PRICES.get(_char_id_v, 0)
+                    _lk_txt    = f"{_price_v:,}g" if _price_v else "🔒"
+                    _lk_col    = (200, 160, 255) if _price_v else (180, 90, 90)
+                    lk = load_title_font(11, bold=True).render(_lk_txt, True, _lk_col)
+                    _lk_bg = pygame.Surface((lk.get_width() + 8, lk.get_height() + 4), pygame.SRCALPHA)
+                    _lk_bg.fill((10, 5, 18, 180))
+                    _lk_r = _lk_bg.get_rect(centerx=cx, bottom=cell_rect.bottom - 4)
+                    screen.blit(_lk_bg, _lk_r)
+                    screen.blit(lk, lk.get_rect(center=_lk_r.center))
 
             # ----------------------------------------------------------------
             # Painel de status (hover) — lado DIREITO, fora da grade
@@ -9645,13 +9714,38 @@ def main():
                 cur_y += ult.get_height() + 6
 
                 if btn.locked:
-                    lk2 = load_title_font(13, bold=True).render(
-                        "🔒 BLOQUEADO", True, UI_THEME["blood_red"])
-                    screen.blit(lk2, lk2.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
-                    if btn.lock_req:
-                        rq = load_body_font(11).render(btn.lock_req, True, (170, 130, 110))
-                        screen.blit(rq, rq.get_rect(centerx=sp_x + SP_W // 2, top=cur_y + 18))
+                    _sp_cid   = char_ids[h_idx]
+                    _sp_price = HERO_PRICES.get(_sp_cid, 0)
+                    _sp_gold  = save_data.get("gold", 0)
+                    # Preço
+                    _pr_col = (220, 185, 255) if _sp_gold >= _sp_price else (180, 80, 80)
+                    _pr_s   = load_title_font(14, bold=True).render(
+                        f"Custo: {_sp_price:,}g", True, _pr_col)
+                    screen.blit(_pr_s, _pr_s.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
+                    cur_y += _pr_s.get_height() + 4
+                    # Ouro atual do jogador
+                    _gd_s = load_body_font(11).render(
+                        f"Seu ouro: {int(_sp_gold):,}g", True, (160, 140, 100))
+                    screen.blit(_gd_s, _gd_s.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
+                    cur_y += _gd_s.get_height() + 8
+                    # Botão COMPRAR
+                    _buy_can  = _sp_gold >= _sp_price
+                    _buy_col  = (40, 25, 60) if _buy_can else (25, 20, 30)
+                    _buy_brd  = (200, 140, 255) if _buy_can else (80, 60, 100)
+                    _buy_tcol = (220, 180, 255) if _buy_can else (100, 80, 120)
+                    _buy_w, _buy_h = SP_W - pad * 2, 30
+                    _buy_rect = pygame.Rect(sp_x + pad, cur_y, _buy_w, _buy_h)
+                    pygame.draw.rect(screen, _buy_col, _buy_rect, border_radius=5)
+                    pygame.draw.rect(screen, _buy_brd, _buy_rect, 1, border_radius=5)
+                    _buy_lbl = load_title_font(13, bold=True).render(
+                        "COMPRAR HERÓI" if _buy_can else "OURO INSUFICIENTE", True, _buy_tcol)
+                    screen.blit(_buy_lbl, _buy_lbl.get_rect(center=_buy_rect.center))
+                    # Guarda rect para handler de clique
+                    main._hero_buy_rect = _buy_rect
+                    main._hero_buy_cid  = _sp_cid
+                    main._hero_buy_can  = _buy_can
                 else:
+                    main._hero_buy_rect = None
                     ht = load_body_font(12).render("Clique para selecionar", True, (150, 150, 120))
                     screen.blit(ht, ht.get_rect(centerx=sp_x + SP_W // 2,
                                                  top=sp_y + SP_H - 22))
