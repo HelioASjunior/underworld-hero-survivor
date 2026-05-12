@@ -41,7 +41,7 @@ from projectile_pool import ProjectilePool, MeleeSlashPool, init_pools as init_p
 from ui_scaler import init_ui_scaler, Anchor
 from performance import frame_profiler, profile_section
 from mining_system import MiningSystem, ORE_DEFS as MINING_ORE_DEFS
-from crafting_system import CRAFTED_CATEGORIES, CRAFTED_WEAPON_STATS, CRAFT_RECIPES, CRAFT_CATEGORY_ORDER, get_craft_gold_cost, CRAFT_BASE_WEAPON
+from crafting_system import CRAFTED_CATEGORIES, CRAFTED_WEAPON_STATS, CRAFT_RECIPES, CRAFT_CATEGORY_ORDER, get_craft_gold_cost
 
 # =========================================================
 # CONFIGURAÇÕES DE PERSISTÊNCIA -SETTINGS.JSON-
@@ -6646,12 +6646,13 @@ def main():
                                     _cf_recipe = CRAFT_RECIPES.get(_cf_sel_c, [{}])[_cf_sel_i] if _cf_sel_i < len(CRAFT_RECIPES.get(_cf_sel_c, [])) else [None, None, None]
                                     _cf_wdef   = (CRAFTED_WEAPON_STATS.get(_cf_sel_c) or [{}])[_cf_sel_i] if _cf_sel_i < len(CRAFTED_WEAPON_STATS.get(_cf_sel_c, [])) else {}
                                     _cf_gcost  = get_craft_gold_cost(_cf_wdef)
-                                    # Validate each slot — slot 0 = base weapon (idx=None → any item from category, not soulbound)
+                                    # Validate each slot — slot 0 = base weapon (shop_weapon=True → specific item from shop, not soulbound)
                                     def _cf_slot_ok(slot, req):
                                         if req is None: return True
                                         if slot is None: return False
-                                        if req.get("idx") is None:
+                                        if req.get("shop_weapon"):
                                             return (slot.get("category") == req.get("category") and
+                                                    slot.get("idx") == req.get("idx") and
                                                     not slot.get("soulbound") and not slot.get("crafted"))
                                         return (slot.get("category") == req.get("category") and
                                                 slot.get("idx") == req.get("idx") and
@@ -6666,7 +6667,7 @@ def main():
                                         # Consume ingredients — slot 0 = base weapon (full remove); others = qty-aware
                                         for _si, (_cf_sl, _req) in enumerate(zip(_craft_slots, _cf_recipe)):
                                             if _cf_sl is not None and _req is not None:
-                                                if _req.get("idx") is None:
+                                                if _req.get("shop_weapon"):
                                                     if _cf_sl in _cf_inv_forge:
                                                         _cf_inv_forge.remove(_cf_sl)
                                                 else:
@@ -10546,7 +10547,7 @@ def main():
                             _cf_rec2 = CRAFT_RECIPES.get(_cf_scat, [])
                             _cf_rec_cur = _cf_rec2[_cf_sidx] if _cf_sidx < len(_cf_rec2) else []
                             _cf_valid_reqs = [r for r in _cf_rec_cur if r is not None]
-                            _cf_recipe_icon_rects = []   # (rect, tooltip_name)
+                            _cf_recipe_icon_rects = []   # (rect, tooltip_name, stats_dict_or_None)
                             if _cf_valid_reqs:
                                 _cf_rq_lbl = font_s.render("Receita:", True, (140, 115, 55))
                                 screen.blit(_cf_rq_lbl, _cf_rq_lbl.get_rect(centerx=_cf_ico_cx, top=_cf_ry2))
@@ -10556,15 +10557,7 @@ def main():
                                 _cf_RIG = max(4, (_cf_rw - len(_cf_valid_reqs) * _cf_RIS) // (len(_cf_valid_reqs) + 1))
                                 _cf_req_total_w = len(_cf_valid_reqs) * _cf_RIS + (len(_cf_valid_reqs) - 1) * _cf_RIG
                                 _cf_rx_req = _cf_ico_cx - _cf_req_total_w // 2
-                                _cf_lbl_h  = font_s.get_height()  # altura de uma linha de texto
-
-                                # Nomes para tooltip por tipo de slot
-                                _cf_base_wnames = {
-                                    "Espadas": "Espada da loja",
-                                    "Machados": "Machado da loja",
-                                    "Hammers": "Martelo da loja",
-                                    "Cajados": "Cajado da loja",
-                                }
+                                _cf_lbl_h  = font_s.get_height()
 
                                 for _ri_n, _rreq in enumerate(_cf_valid_reqs):
                                     _cf_rixr = _cf_rx_req + _ri_n * (_cf_RIS + _cf_RIG)
@@ -10572,25 +10565,29 @@ def main():
                                     _rreq_cat = _rreq.get("category", "")
                                     _rreq_idx = _rreq.get("idx")
                                     _rreq_qty = _rreq.get("qty", 1)
+                                    _rreq_is_weapon = _rreq.get("shop_weapon", False)
 
-                                    if _rreq_idx is None:
+                                    if _rreq_is_weapon:
                                         _cf_bw_col = (55, 38, 12)
                                         _cf_bw_brd = (200, 140, 40)
-                                        _cf_tt_nm  = _cf_base_wnames.get(_rreq_cat, _rreq_cat + " da loja")
+                                        _cf_wstats_list = ITEM_SHOP_STATS.get(_rreq_cat, [])
+                                        _cf_wstats_tt = _cf_wstats_list[_rreq_idx] if _rreq_idx is not None and _rreq_idx < len(_cf_wstats_list) else {}
+                                        _cf_tt_nm  = _cf_wstats_tt.get("name", _rreq_cat)
                                     else:
                                         _cf_bw_col = (30, 22, 8)
                                         _cf_bw_brd = (100, 75, 28)
-                                        _cf_ld_def = LINGOT_DEFS[_rreq_idx] if 0 <= _rreq_idx < len(LINGOT_DEFS) else {}
+                                        _cf_ld_def = LINGOT_DEFS[_rreq_idx] if _rreq_idx is not None and 0 <= _rreq_idx < len(LINGOT_DEFS) else {}
                                         _cf_tt_nm  = _cf_ld_def.get("name", "?")
                                         if _rreq_qty > 1:
                                             _cf_tt_nm += f" x{_rreq_qty}"
-                                    _cf_recipe_icon_rects.append((_cf_ri_rect.copy(), _cf_tt_nm))
+                                        _cf_wstats_tt = None
+                                    _cf_recipe_icon_rects.append((_cf_ri_rect.copy(), _cf_tt_nm, _cf_wstats_tt))
 
                                     pygame.draw.rect(screen, _cf_bw_col, _cf_ri_rect, border_radius=4)
                                     pygame.draw.rect(screen, _cf_bw_brd, _cf_ri_rect, 1, border_radius=4)
 
-                                    if _rreq_idx is None:
-                                        _cf_bwi = _ie_get_img(_rreq_cat, 4, _cf_RIS - 6)
+                                    if _rreq_is_weapon:
+                                        _cf_bwi = _ie_get_img(_rreq_cat, _rreq_idx, _cf_RIS - 6)
                                         if _cf_bwi:
                                             screen.blit(_cf_bwi, _cf_bwi.get_rect(center=_cf_ri_rect.center))
                                         else:
@@ -10609,11 +10606,25 @@ def main():
                                             centerx=_cf_ri_rect.centerx, top=_cf_ri_rect.bottom + 2))
 
                                 # Tooltip on hover — drawn after all icons to appear on top
-                                for _cf_tt_r, _cf_tt_nm in _cf_recipe_icon_rects:
+                                for _cf_tt_r, _cf_tt_nm, _cf_tt_st in _cf_recipe_icon_rects:
                                     if _cf_tt_r.collidepoint(m_pos):
-                                        _cf_tts = font_s.render(_cf_tt_nm, True, (255, 240, 160))
-                                        _cf_ttbg = _cf_tts.get_rect().inflate(10, 6)
-                                        _cf_ttbg.midbottom = (_cf_tt_r.centerx, _cf_tt_r.top - 4)
+                                        if _cf_tt_st:
+                                            # Multi-line tooltip for shop weapons
+                                            _cf_tt_lines = [
+                                                font_s.render(_cf_tt_nm, True, (255, 240, 160)),
+                                                font_s.render(f"ATQ {_cf_tt_st.get('atk',0)}  DEF {_cf_tt_st.get('def',0)}", True, (180, 210, 255)),
+                                                font_s.render(f"Nv.{_cf_tt_st.get('level',0)}  Preço: {_cf_tt_st.get('price',0)}g", True, (160, 200, 140)),
+                                            ]
+                                            _cf_ttw = max(l.get_width() for l in _cf_tt_lines) + 14
+                                            _cf_tth = sum(l.get_height() for l in _cf_tt_lines) + 10
+                                            _cf_ttbg = pygame.Rect(0, 0, _cf_ttw, _cf_tth)
+                                            _cf_ttbg.midbottom = (_cf_tt_r.centerx, _cf_tt_r.top - 4)
+                                        else:
+                                            _cf_tt_lines = [font_s.render(_cf_tt_nm, True, (255, 240, 160))]
+                                            _cf_ttw = _cf_tt_lines[0].get_width() + 14
+                                            _cf_tth = _cf_tt_lines[0].get_height() + 8
+                                            _cf_ttbg = pygame.Rect(0, 0, _cf_ttw, _cf_tth)
+                                            _cf_ttbg.midbottom = (_cf_tt_r.centerx, _cf_tt_r.top - 4)
                                         # Clamp tooltip inside panel
                                         if _cf_ttbg.left < _cf_rx:
                                             _cf_ttbg.left = _cf_rx
@@ -10621,7 +10632,10 @@ def main():
                                             _cf_ttbg.right = _cf_rx + _cf_rw
                                         pygame.draw.rect(screen, (20, 15, 5), _cf_ttbg, border_radius=4)
                                         pygame.draw.rect(screen, (180, 140, 50), _cf_ttbg, 1, border_radius=4)
-                                        screen.blit(_cf_tts, _cf_tts.get_rect(center=_cf_ttbg.center))
+                                        _cf_tty = _cf_ttbg.top + 4
+                                        for _cf_ttl in _cf_tt_lines:
+                                            screen.blit(_cf_ttl, _cf_ttl.get_rect(centerx=_cf_ttbg.centerx, top=_cf_tty))
+                                            _cf_tty += _cf_ttl.get_height() + 1
                                         break
 
                                 # Account for icon height + label text row + gap before FORJAR
