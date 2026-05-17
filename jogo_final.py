@@ -5410,6 +5410,7 @@ def main():
     item_shop_sell_confirm  = None    # item aguardando confirmação de venda: {"entry":{...},"price":int,"st":{...}}
     item_shop_confirm       = None    # item aguardando confirmação de compra: {category,idx,price,name,st}
     _item_shop_img_cache    = {}      # cache de imagens da loja
+    hero_buy_confirm        = None    # herói aguardando confirmação de compra: {char_id, price, name}
     shop_talent_btns = []
     shop_talent_btn_map = {}
     path_names = list(TALENT_TREE.keys())
@@ -6137,7 +6138,10 @@ def main():
                             settings_category = "main"
                             temp_settings = json.loads(json.dumps(settings))
                     elif state in ["CHAR_SELECT", "BG_SELECT", "SAVES"]:
-                        state = "MENU"
+                        if state == "CHAR_SELECT" and hero_buy_confirm is not None:
+                            hero_buy_confirm = None
+                        else:
+                            state = "MENU"
                     elif state in ["SHOP", "ITEM_SHOP"]:
                         if item_shop_sell_confirm is not None:
                             item_shop_sell_confirm  = None
@@ -6313,6 +6317,35 @@ def main():
                         elif _scfd_nao.collidepoint(click_pos):
                             item_shop_sell_confirm  = None
                             item_shop_sell_selected = None
+                            if snd_click: snd_click.play()
+                        continue
+
+                    # Confirmação de compra de herói (prioridade máxima)
+                    if hero_buy_confirm is not None and state == "CHAR_SELECT":
+                        _hcfd_w = 380; _hcfd_h = 190
+                        _hcfd_x = (SCREEN_W - _hcfd_w) // 2; _hcfd_y = (SCREEN_H - _hcfd_h) // 2
+                        _hcfd_sim = pygame.Rect(_hcfd_x + 30,  _hcfd_y + 130, 140, 44)
+                        _hcfd_nao = pygame.Rect(_hcfd_x + 210, _hcfd_y + 130, 140, 44)
+                        if _hcfd_sim.collidepoint(click_pos):
+                            _hcf = hero_buy_confirm
+                            _hcf_cid   = _hcf["char_id"]
+                            _hcf_price = _hcf["price"]
+                            if save_data.get("gold", 0) >= _hcf_price:
+                                save_data["gold"] -= _hcf_price
+                                _char_key = CHAR_DATA[_hcf_cid]["id"]
+                                if _char_key not in save_data["unlocks"]:
+                                    save_data["unlocks"].append(_char_key)
+                                for _bi, _bb in enumerate(char_btns):
+                                    if list(CHAR_DATA.keys())[_bi] == _hcf_cid:
+                                        _bb.locked   = False
+                                        _bb.lock_req = ""
+                                        break
+                                save_game()
+                                push_skill_feed(f"{CHAR_DATA[_hcf_cid]['name']} desbloqueado!", (200, 160, 255))
+                            hero_buy_confirm = None
+                            if snd_click: snd_click.play()
+                        elif _hcfd_nao.collidepoint(click_pos):
+                            hero_buy_confirm = None
                             if snd_click: snd_click.play()
                         continue
 
@@ -7181,34 +7214,25 @@ def main():
 
                     elif state == "CHAR_SELECT":
                         if char_back_btn.rect.collidepoint(click_pos):
+                            hero_buy_confirm = None
                             state = "MENU"
-                        # Botão COMPRAR HERÓI (no painel de status)
-                        _buy_r = getattr(main, "_hero_buy_rect", None)
-                        if (_buy_r and _buy_r.collidepoint(click_pos)
-                                and getattr(main, "_hero_buy_can", False)):
-                            _buy_cid   = getattr(main, "_hero_buy_cid", -1)
-                            _buy_price = HERO_PRICES.get(_buy_cid, 0)
-                            if _buy_price and save_data.get("gold", 0) >= _buy_price:
-                                save_data["gold"] -= _buy_price
-                                _char_key = CHAR_DATA[_buy_cid]["id"]
-                                if _char_key not in save_data["unlocks"]:
-                                    save_data["unlocks"].append(_char_key)
-                                # Atualiza o botão imediatamente
-                                for _bi, _bb in enumerate(char_btns):
-                                    if list(CHAR_DATA.keys())[_bi] == _buy_cid:
-                                        _bb.locked   = False
-                                        _bb.lock_req = ""
-                                        break
-                                save_game()
-                                if snd_click: snd_click.play()
-                                push_skill_feed(
-                                    f"{CHAR_DATA[_buy_cid]['name']} desbloqueado!",
-                                    (200, 160, 255))
+                        _char_id_list = list(CHAR_DATA.keys())
                         for i, btn in enumerate(char_btns):
-                            if btn.rect.collidepoint(click_pos) and not btn.locked:
-                                if snd_click: snd_click.play()
-                                reset_game(i)
-                                state = "DIFF_SELECT"
+                            if btn.rect.collidepoint(click_pos):
+                                if btn.locked:
+                                    _cid_buy = _char_id_list[i]
+                                    _price_buy = HERO_PRICES.get(_cid_buy, 0)
+                                    if _price_buy:
+                                        hero_buy_confirm = {
+                                            "char_id": _cid_buy,
+                                            "price":   _price_buy,
+                                            "name":    CHAR_DATA[_cid_buy]["name"],
+                                        }
+                                        if snd_click: snd_click.play()
+                                else:
+                                    if snd_click: snd_click.play()
+                                    reset_game(i)
+                                    state = "DIFF_SELECT"
 
                     elif state == "DIFF_SELECT":
                         if diff_back_btn.rect.collidepoint(click_pos):
@@ -9728,30 +9752,99 @@ def main():
                         f"Seu ouro: {int(_sp_gold):,}g", True, (160, 140, 100))
                     screen.blit(_gd_s, _gd_s.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
                     cur_y += _gd_s.get_height() + 8
-                    # Botão COMPRAR
-                    _buy_can  = _sp_gold >= _sp_price
-                    _buy_col  = (40, 25, 60) if _buy_can else (25, 20, 30)
-                    _buy_brd  = (200, 140, 255) if _buy_can else (80, 60, 100)
-                    _buy_tcol = (220, 180, 255) if _buy_can else (100, 80, 120)
-                    _buy_w, _buy_h = SP_W - pad * 2, 30
-                    _buy_rect = pygame.Rect(sp_x + pad, cur_y, _buy_w, _buy_h)
-                    pygame.draw.rect(screen, _buy_col, _buy_rect, border_radius=5)
-                    pygame.draw.rect(screen, _buy_brd, _buy_rect, 1, border_radius=5)
-                    _buy_lbl = load_title_font(13, bold=True).render(
-                        "COMPRAR HERÓI" if _buy_can else "OURO INSUFICIENTE", True, _buy_tcol)
-                    screen.blit(_buy_lbl, _buy_lbl.get_rect(center=_buy_rect.center))
-                    # Guarda rect para handler de clique
-                    main._hero_buy_rect = _buy_rect
-                    main._hero_buy_cid  = _sp_cid
-                    main._hero_buy_can  = _buy_can
+                    # Dica de clique para comprar
+                    _buy_can   = _sp_gold >= _sp_price
+                    _hint_col  = (200, 160, 255) if _buy_can else (140, 80, 80)
+                    _hint_txt  = "Clique para comprar" if _buy_can else "Ouro insuficiente"
+                    _hint_s    = load_body_font(12).render(_hint_txt, True, _hint_col)
+                    screen.blit(_hint_s, _hint_s.get_rect(centerx=sp_x + SP_W // 2, top=cur_y))
                 else:
-                    main._hero_buy_rect = None
                     ht = load_body_font(12).render("Clique para selecionar", True, (150, 150, 120))
                     screen.blit(ht, ht.get_rect(centerx=sp_x + SP_W // 2,
                                                  top=sp_y + SP_H - 22))
 
+            # Gold do jogador acima do botão Voltar
+            _cs_gold = save_data.get("gold", 0)
+            _cs_gold_s = load_title_font(14, bold=True).render(
+                f"Ouro: {int(_cs_gold):,}g", True, UI_THEME["faded_gold"])
+            _cs_gold_r = _cs_gold_s.get_rect(
+                centerx=char_back_btn.rect.centerx,
+                bottom=char_back_btn.rect.top - 6)
+            _cs_gold_bg = pygame.Surface(
+                (_cs_gold_s.get_width() + 16, _cs_gold_s.get_height() + 6), pygame.SRCALPHA)
+            _cs_gold_bg.fill((10, 8, 4, 180))
+            screen.blit(_cs_gold_bg, (_cs_gold_r.x - 8, _cs_gold_r.y - 3))
+            screen.blit(_cs_gold_s, _cs_gold_r)
+
             char_back_btn.check_hover(m_pos, snd_hover)
             char_back_btn.draw(screen)
+
+            # Modal de confirmação de compra de herói
+            if hero_buy_confirm is not None:
+                _hcfd_w = 380; _hcfd_h = 190
+                _hcfd_x = (SCREEN_W - _hcfd_w) // 2
+                _hcfd_y = (SCREEN_H - _hcfd_h) // 2
+                # Overlay escuro
+                _hcfd_ov = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+                _hcfd_ov.fill((0, 0, 0, 160))
+                screen.blit(_hcfd_ov, (0, 0))
+                # Janela
+                _hcfd_bg = pygame.Surface((_hcfd_w, _hcfd_h), pygame.SRCALPHA)
+                _hcfd_bg.fill((12, 8, 20, 250))
+                screen.blit(_hcfd_bg, (_hcfd_x, _hcfd_y))
+                pygame.draw.rect(screen, (180, 120, 255),
+                                 pygame.Rect(_hcfd_x, _hcfd_y, _hcfd_w, _hcfd_h), 2, border_radius=10)
+                # Título
+                _hcfd_title = load_title_font(18, bold=True).render(
+                    "Comprar Herói", True, (200, 160, 255))
+                screen.blit(_hcfd_title, _hcfd_title.get_rect(
+                    centerx=_hcfd_x + _hcfd_w // 2, top=_hcfd_y + 16))
+                # Linha divisória
+                pygame.draw.line(screen, (100, 70, 140),
+                                 (_hcfd_x + 20, _hcfd_y + 48), (_hcfd_x + _hcfd_w - 20, _hcfd_y + 48), 1)
+                # Nome e preço
+                _hcfd_name_s = load_body_font(15).render(
+                    hero_buy_confirm["name"], True, UI_THEME["old_gold"])
+                screen.blit(_hcfd_name_s, _hcfd_name_s.get_rect(
+                    centerx=_hcfd_x + _hcfd_w // 2, top=_hcfd_y + 56))
+                _hcfd_gold_now = save_data.get("gold", 0)
+                _hcfd_price    = hero_buy_confirm["price"]
+                _hcfd_can      = _hcfd_gold_now >= _hcfd_price
+                _hcfd_pcol     = (180, 240, 140) if _hcfd_can else (220, 90, 90)
+                _hcfd_price_s  = load_title_font(14, bold=True).render(
+                    f"Custo: {_hcfd_price:,}g  |  Seu ouro: {int(_hcfd_gold_now):,}g",
+                    True, _hcfd_pcol)
+                screen.blit(_hcfd_price_s, _hcfd_price_s.get_rect(
+                    centerx=_hcfd_x + _hcfd_w // 2, top=_hcfd_y + 80))
+                # Pergunta
+                _hcfd_q = load_body_font(13).render(
+                    "Deseja comprar este herói?", True, (220, 210, 180))
+                screen.blit(_hcfd_q, _hcfd_q.get_rect(
+                    centerx=_hcfd_x + _hcfd_w // 2, top=_hcfd_y + 104))
+                # Botões SIM / NÃO
+                _hcfd_sim = pygame.Rect(_hcfd_x + 30,  _hcfd_y + 130, 140, 44)
+                _hcfd_nao = pygame.Rect(_hcfd_x + 210, _hcfd_y + 130, 140, 44)
+                _hcfd_sim_hov = _hcfd_sim.collidepoint(m_pos)
+                _hcfd_nao_hov = _hcfd_nao.collidepoint(m_pos)
+                if _hcfd_can:
+                    pygame.draw.rect(screen, (30, 65, 30) if _hcfd_sim_hov else (20, 45, 20),
+                                     _hcfd_sim, border_radius=8)
+                    pygame.draw.rect(screen, (80, 200, 80) if _hcfd_sim_hov else (50, 140, 50),
+                                     _hcfd_sim, 2, border_radius=8)
+                    _sim_s = load_body_font(14).render("SIM", True,
+                                 (140, 240, 140) if _hcfd_sim_hov else (100, 200, 100))
+                else:
+                    pygame.draw.rect(screen, (30, 25, 25), _hcfd_sim, border_radius=8)
+                    pygame.draw.rect(screen, (80, 60, 60), _hcfd_sim, 2, border_radius=8)
+                    _sim_s = load_body_font(14).render("SIM", True, (90, 70, 70))
+                screen.blit(_sim_s, _sim_s.get_rect(center=_hcfd_sim.center))
+                pygame.draw.rect(screen, (65, 20, 20) if _hcfd_nao_hov else (45, 14, 14),
+                                 _hcfd_nao, border_radius=8)
+                pygame.draw.rect(screen, (200, 70, 70) if _hcfd_nao_hov else (140, 50, 50),
+                                 _hcfd_nao, 2, border_radius=8)
+                _nao_s = load_body_font(14).render("NÃO", True,
+                             (240, 120, 120) if _hcfd_nao_hov else (200, 90, 90))
+                screen.blit(_nao_s, _nao_s.get_rect(center=_hcfd_nao.center))
         
         elif state == "DIFF_SELECT":
             draw_menu_background(screen, m_pos, dt)
