@@ -5272,7 +5272,7 @@ def main():
     # Globais que serão modificados
     global screen, loader, snd_hover, snd_click, SFX, upg_images, menu_char_anims
     global PLAYER_MAX_HP, PROJECTILE_DMG, SHOT_COOLDOWN, PLAYER_SPEED, PROJECTILE_SPEED, PICKUP_RANGE, AURA_DMG, PROJ_COUNT, PROJ_PIERCE, EXPLOSION_RADIUS, ORB_COUNT, CRIT_CHANCE, EXECUTE_THRESH, HAS_FURY
-    global CRIT_DMG_MULT, EXPLOSION_SIZE_MULT, REGEN_RATE, DAMAGE_RES, THORNS_PERCENT, FIRE_DMG_MULT, BURN_AURA_MULT, HAS_CHAOS_BOLT, HAS_INFERNO
+    global CRIT_DMG_MULT, EXPLOSION_SIZE_MULT, REGEN_RATE, DAMAGE_RES, THORNS_PERCENT, FIRE_DMG_MULT, BURN_AURA_MULT, HAS_CHAOS_BOLT, HAS_INFERNO, HAS_DIVINE_PROTECT
     global selected_difficulty, selected_pact, selected_bg, current_bg_name, bg_choices
     global current_hardcore_stage, show_stage_victory, show_reward_dialog, _spawn_diff
     global reward_room_player_pos, reward_room_anim_t, reward_room_anim_idx, _reward_room_bg
@@ -5285,6 +5285,9 @@ def main():
     global PROJ_RICOCHET, temp_settings, settings_control_waiting, settings_dragging_slider
     global LIFESTEAL_PCT, GOLD_RUN_MULT, XP_BONUS_PCT, ORB_DMG, ORB_DISTANCE, EXPLOSION_DMG
     global obstacle_grid_index, enemy_batch_index, last_obstacle_count
+    global death_anims, ecs_world, doom_seals
+    global _orb_hit_cd, _agis_spawn_time_gt
+    global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval, obstacle_total_placed
 
     # Configuração da tela (Já feita no apply_settings, mas garantindo o caption)
     pygame.display.set_caption("UnderWorld Hero")
