@@ -5277,7 +5277,7 @@ def main():
     global current_hardcore_stage, show_stage_victory, show_reward_dialog, _spawn_diff
     global reward_room_player_pos, reward_room_anim_t, reward_room_anim_idx, _reward_room_bg
     global player, enemies, projectiles, enemy_projectiles, gems, drops, particles, obstacles, puddles, damage_texts
-    global kills, game_time, level, xp, shot_t, aura_t, aura_anim_timer, aura_frame_idx, orb_rot_angle
+    global kills, game_time, level, xp, shot_t, aura_t, aura_anim_timer, aura_frame_idx, orb_rot_angle, run_max_combo
     global spawn_t, bosses_spawned, session_boss_kills, session_max_level, triggered_hordes
     global player_upgrades, has_bazuca, has_buraco_negro, has_serras, has_tesla, has_ceifador, has_berserk
     global chest_loot, chest_ui_timer, new_unlocks_this_session, up_options, up_keys, up_rarities, active_explosions
