@@ -5288,6 +5288,7 @@ def main():
     global death_anims, ecs_world, doom_seals
     global _orb_hit_cd, _agis_spawn_time_gt
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval, obstacle_total_placed
+    global _mining_system
 
     # Configuração da tela (Já feita no apply_settings, mas garantindo o caption)
     pygame.display.set_caption("UnderWorld Hero")
@@ -6879,11 +6880,30 @@ def main():
                                     _mk_rb_rw = _mk_panel_w - int(_mk_panel_w * 0.20)
                                     _mk_rb_rx = _mk_panel_x + int(_mk_panel_w * 0.10)
                                     _mk_rb_h  = 50
-                                    _mk_missions_rect  = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
+                                    _mk_templo_rect    = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.373) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
                                     _mk_ferreiro_rect  = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.453) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
                                     _mk_voltar_rect    = pygame.Rect(_mk_rb_rx, int(SCREEN_H * 0.562) - _mk_rb_h//2, _mk_rb_rw, _mk_rb_h)
-                                    if _mk_missions_rect.collidepoint(click_pos):
-                                        market_missions_open = True
+                                    if _mk_templo_rect.collidepoint(click_pos):
+                                        _templo_dir = os.path.join(BASE_DIR, "assets", "Teste", "templo")
+                                        if templo_scene is None:
+                                            templo_scene = TemploScene(_templo_dir)
+                                            templo_scene.load_all()
+                                            templo_scene.load_surfaces_and_bake()
+                                            templo_scene.setup_player()
+                                        else:
+                                            templo_scene.reset_spawn()
+                                        if player is not None:
+                                            _cid_mt  = player.char_id
+                                            _cdat_mt = CHAR_DATA.get(_cid_mt, {})
+                                            templo_scene.apply_char_frames(
+                                                dir_walk      = dict(player._dir_walk_frames),
+                                                dir_idle      = dict(player._dir_idle_frames),
+                                                walk_fallback = list(player.anim_frames),
+                                                idle_fallback = list(player.idle_frames),
+                                                anim_spd      = _cdat_mt.get("anim_speed", 0.10),
+                                                idle_anim_spd = _cdat_mt.get("idle_anim_speed", 0.13),
+                                            )
+                                        state = "TEMPLO"
                                         if snd_click: snd_click.play()
                                     elif _mk_ferreiro_rect.collidepoint(click_pos):
                                         _bs_dir = os.path.join(BASE_DIR, "assets", "Teste", "blacksmith")
@@ -6976,15 +6996,61 @@ def main():
                                                     else:
                                                         push_skill_feed("Ouro insuficiente!", (200, 60, 60))
                                                 break
-                                elif click_pos[0] >= SCREEN_W - 60:
+                                elif click_pos[0] >= int(SCREEN_W * 0.84):
                                     # Painel do templo só recebe cliques na borda direita
-                                    _tp_panel_x  = int(SCREEN_W * 0.84)
-                                    _tp_panel_w  = SCREEN_W - _tp_panel_x
-                                    _tp_rb_rw    = _tp_panel_w - int(_tp_panel_w * 0.20)
-                                    _tp_rb_rx    = _tp_panel_x + int(_tp_panel_w * 0.10)
-                                    _tp_rb_h     = 50
-                                    _tp_vlt_rect = pygame.Rect(_tp_rb_rx, int(SCREEN_H * 0.562) - _tp_rb_h//2, _tp_rb_rw, _tp_rb_h)
-                                    if _tp_vlt_rect.collidepoint(click_pos):
+                                    _tp_panel_x   = int(SCREEN_W * 0.84)
+                                    _tp_panel_w   = SCREEN_W - _tp_panel_x
+                                    _tp_rb_rw     = _tp_panel_w - int(_tp_panel_w * 0.20)
+                                    _tp_rb_rx     = _tp_panel_x + int(_tp_panel_w * 0.10)
+                                    _tp_rb_h      = 50
+                                    _tp_mkt_rect  = pygame.Rect(_tp_rb_rx, int(SCREEN_H * 0.373) - _tp_rb_h//2, _tp_rb_rw, _tp_rb_h)
+                                    _tp_fer_rect  = pygame.Rect(_tp_rb_rx, int(SCREEN_H * 0.453) - _tp_rb_h//2, _tp_rb_rw, _tp_rb_h)
+                                    _tp_vlt_rect  = pygame.Rect(_tp_rb_rx, int(SCREEN_H * 0.562) - _tp_rb_h//2, _tp_rb_rw, _tp_rb_h)
+                                    if _tp_mkt_rect.collidepoint(click_pos):
+                                        if market_scene is None:
+                                            _ferreiro_dir = os.path.join(BASE_DIR, "assets", "Teste", "ferreiro")
+                                            market_scene = MarketScene(_ferreiro_dir)
+                                            market_scene.load_all()
+                                            market_scene.load_surfaces_and_bake()
+                                            market_scene.setup_player()
+                                        if player is not None:
+                                            _cid_tm  = player.char_id
+                                            _cdat_tm = CHAR_DATA.get(_cid_tm, {})
+                                            market_scene.apply_char_frames(
+                                                dir_walk      = dict(player._dir_walk_frames),
+                                                dir_idle      = dict(player._dir_idle_frames),
+                                                walk_fallback = list(player.anim_frames),
+                                                idle_fallback = list(player.idle_frames),
+                                                anim_spd      = _cdat_tm.get("anim_speed", 0.10),
+                                                idle_anim_spd = _cdat_tm.get("idle_anim_speed", 0.13),
+                                            )
+                                        hub_equip_open = False; hub_status_open = False; hub_profile_open = False
+                                        state = "MARKET"
+                                        if snd_click: snd_click.play()
+                                    elif _tp_fer_rect.collidepoint(click_pos):
+                                        _bs_dir = os.path.join(BASE_DIR, "assets", "Teste", "blacksmith")
+                                        if blacksmith_scene is None:
+                                            blacksmith_scene = BlacksmithScene(_bs_dir)
+                                            blacksmith_scene.load_all()
+                                            blacksmith_scene.load_surfaces_and_bake()
+                                            blacksmith_scene.setup_player()
+                                        else:
+                                            blacksmith_scene.reset_spawn()
+                                        if player is not None:
+                                            _cid_tp  = player.char_id
+                                            _cdat_tp = CHAR_DATA.get(_cid_tp, {})
+                                            blacksmith_scene.apply_char_frames(
+                                                dir_walk      = dict(player._dir_walk_frames),
+                                                dir_idle      = dict(player._dir_idle_frames),
+                                                walk_fallback = list(player.anim_frames),
+                                                idle_fallback = list(player.idle_frames),
+                                                anim_spd      = _cdat_tp.get("anim_speed", 0.10),
+                                                idle_anim_spd = _cdat_tp.get("idle_anim_speed", 0.13),
+                                            )
+                                        hub_equip_open = False; hub_status_open = False; hub_profile_open = False
+                                        state = "BLACKSMITH"
+                                        if snd_click: snd_click.play()
+                                    elif _tp_vlt_rect.collidepoint(click_pos):
                                         hub_equip_open   = False
                                         hub_status_open  = False
                                         hub_profile_open = False
@@ -11531,12 +11597,9 @@ def main():
                     _mkt_missions_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
                     _mkt_ferreiro_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
                     _mkt_voltar_draw   = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
-                    for _r, _lbl in [
-                        (_mkt_missions_draw, "Missões"),
-                    ]:
-                        _hov = _r.collidepoint(m_pos)
-                        _ls = font_s.render(_lbl, True, (240, 220, 160) if _hov else (200, 180, 120))
-                        screen.blit(_ls, _ls.get_rect(center=_r.center))
+                    _thov = _mkt_missions_draw.collidepoint(m_pos)
+                    _ts   = font_s.render("Templo", True, (240, 220, 160) if _thov else (200, 180, 120))
+                    screen.blit(_ts, _ts.get_rect(center=_mkt_missions_draw.center))
                     _fhov = _mkt_ferreiro_draw.collidepoint(m_pos)
                     _fs   = font_s.render("Ferreiro", True, (255, 200, 80) if _fhov else (210, 160, 60))
                     screen.blit(_fs, _fs.get_rect(center=_mkt_ferreiro_draw.center))
@@ -11668,7 +11731,15 @@ def main():
                 _rb_rw = _hp_w - int(_hp_w * 0.20)
                 _rb_rx = _hp_x + int(_hp_w * 0.10)
                 _rb_h  = 50
-                _tp_voltar_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
+                _tp_mercado_draw  = pygame.Rect(_rb_rx, int(SCREEN_H * 0.373) - _rb_h//2, _rb_rw, _rb_h)
+                _tp_ferreiro_draw = pygame.Rect(_rb_rx, int(SCREEN_H * 0.453) - _rb_h//2, _rb_rw, _rb_h)
+                _tp_voltar_draw   = pygame.Rect(_rb_rx, int(SCREEN_H * 0.562) - _rb_h//2, _rb_rw, _rb_h)
+                _mhov = _tp_mercado_draw.collidepoint(m_pos)
+                _ms   = font_s.render("Mercado", True, (240, 220, 160) if _mhov else (200, 180, 120))
+                screen.blit(_ms, _ms.get_rect(center=_tp_mercado_draw.center))
+                _fhov = _tp_ferreiro_draw.collidepoint(m_pos)
+                _fs   = font_s.render("Ferreiro", True, (255, 200, 80) if _fhov else (210, 160, 60))
+                screen.blit(_fs, _fs.get_rect(center=_tp_ferreiro_draw.center))
                 _vol_hov = _tp_voltar_draw.collidepoint(m_pos)
                 _vol_s = font_m.render("VOLTAR", True, (200, 255, 200) if _vol_hov else (140, 220, 140))
                 screen.blit(_vol_s, _vol_s.get_rect(center=_tp_voltar_draw.center))
