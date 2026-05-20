@@ -4520,7 +4520,7 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
     # Título no cabeçalho
     if mode == "create":   title_txt = "CRIAR NOVO PERFIL"
     elif mode == "edit":   title_txt = "EDITAR PERFIL"
-    else:                  title_txt = "SELECIONAR HERÓI"
+    else:                  title_txt = "SELECIONAR PERFIL"
     _title_s = font_l.render(title_txt, True, GOLD)
     screen.blit(_title_s, _title_s.get_rect(centerx=sw // 2, centery=_hdr_cy))
 
@@ -4715,7 +4715,13 @@ def _draw_profile_select(screen, font_s, font_m, font_l, m_pos,
             # Conquistas (só para o selecionado, para compactar)
             if is_sel:
                 total_ach = len(_ach.ACHIEVEMENT_DEFS)
-                unlocked_c = len(achievements_data.get("unlocked", [])) if achievements_data else 0
+                if not hasattr(_draw_profile_select, "_ach_cache"):
+                    _draw_profile_select._ach_cache = {}
+                pid = p["id"]
+                if pid not in _draw_profile_select._ach_cache:
+                    _pdir = profile_mgr.get_profile_dir(pid)
+                    _draw_profile_select._ach_cache[pid] = len(_ach.load_achievements(_pdir).get("unlocked", []))
+                unlocked_c = _draw_profile_select._ach_cache[pid]
                 ach_s = font_s.render(f"★ {unlocked_c}/{total_ach}", True, (200, 160, 60))
                 screen.blit(ach_s, ach_s.get_rect(centerx=card_r.centerx, top=dv_y + 26))
 
@@ -4827,6 +4833,8 @@ def _handle_profile_select_click(click_pos, mode, sel_idx, new_name, new_ci, new
                             pid = profiles[sel_idx]["id"]
                             if del_confirm == pid:
                                 profile_mgr.delete_profile(pid)
+                                if hasattr(_draw_profile_select, "_ach_cache"):
+                                    _draw_profile_select._ach_cache.pop(pid, None)
                                 remaining = profile_mgr.get_all_profiles()
                                 new_idx = max(0, min(sel_idx, len(remaining) - 1))
                                 new_mode = "list" if remaining else "create"
