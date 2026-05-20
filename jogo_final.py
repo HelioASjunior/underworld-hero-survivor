@@ -9799,9 +9799,12 @@ def main():
                     pygame.draw.rect(screen, UI_THEME["iron"], (bx, by, BW, BH), 1, border_radius=3)
                     return by + BH + 6
 
-                cur_y = _bar("HP",         cdata["hp"],    10,  UI_THEME["blood_red"],  cur_y)
-                cur_y = _bar("VELOCIDADE", cdata["speed"], 400, (80, 200, 255),          cur_y)
-                cur_y = _bar("DANO",       cdata["damage"], 5,  UI_THEME["faded_gold"],  cur_y)
+                _max_hp  = max(c["hp"]     for c in CHAR_DATA.values())
+                _max_spd = max(c["speed"]  for c in CHAR_DATA.values())
+                _max_dmg = max(c["damage"] for c in CHAR_DATA.values())
+                cur_y = _bar("HP",         cdata["hp"],     _max_hp,  UI_THEME["blood_red"],  cur_y)
+                cur_y = _bar("VELOCIDADE", cdata["speed"],  _max_spd, (80, 200, 255),          cur_y)
+                cur_y = _bar("DANO",       cdata["damage"], _max_dmg, UI_THEME["faded_gold"],  cur_y)
                 cur_y += 6
 
                 # Linha separadora
