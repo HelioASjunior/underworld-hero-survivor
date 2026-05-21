@@ -10290,6 +10290,20 @@ def main():
                 _ie_GOLD = UI_THEME.get("old_gold", (200, 170, 60))
                 _ie_dir  = os.path.join("assets", "ui", "itens")
 
+                def _draw_leg_border(_dlb_rect, _dlb_br=4, _dlb_w=2):
+                    _dlb_t = pygame.time.get_ticks() / 600.0
+                    _dlb_x, _dlb_y = _dlb_rect.x, _dlb_rect.y
+                    _dlb_rw, _dlb_rh = _dlb_rect.width, _dlb_rect.height
+                    for _dlb_si, (_dlb_p1, _dlb_p2) in enumerate([
+                        ((_dlb_x,         _dlb_y),          (_dlb_x + _dlb_rw, _dlb_y)),
+                        ((_dlb_x + _dlb_rw, _dlb_y),        (_dlb_x + _dlb_rw, _dlb_y + _dlb_rh)),
+                        ((_dlb_x + _dlb_rw, _dlb_y + _dlb_rh), (_dlb_x, _dlb_y + _dlb_rh)),
+                        ((_dlb_x,          _dlb_y + _dlb_rh), (_dlb_x, _dlb_y)),
+                    ]):
+                        _dlb_ph = (_dlb_t + _dlb_si) % 4.0
+                        _dlb_bl = math.sin(_dlb_ph * math.pi * 0.5) ** 2
+                        pygame.draw.line(screen, (255, int(40 + _dlb_bl * 160), 30), _dlb_p1, _dlb_p2, _dlb_w)
+
                 # ── Escalar e cachear inventario.png ──────────────────────
                 # Quando crafting aberto, inventário fica à direita
                 if craft_open:
@@ -10419,6 +10433,8 @@ def main():
                         _img_ie = _ie_get_img(_eq_it["category"], _eq_it["idx"], min(_sr_ie.width,_sr_ie.height)-8)
                         if _img_ie:
                             screen.blit(_img_ie, _img_ie.get_rect(center=_sr_ie.center))
+                        if _eq_it.get("crafted"):
+                            _draw_leg_border(_sr_ie, _dlb_br=4)
                         if _sr_ie.collidepoint(m_pos): _ie_tooltip(_eq_it, _sr_ie)
                     elif not _eq_it:
                         _lbl_ie = font_s.render(_ie_labels.get(_sk_ie, _sk_ie), True, (80,72,55))
@@ -10458,6 +10474,8 @@ def main():
                         _it_ie = _ie_inv[_ii_ie]
                         _img_g = _ie_get_img(_it_ie.get("category",""), _it_ie.get("idx", 0), _ie_isize)
                         if _img_g: screen.blit(_img_g, _img_g.get_rect(center=_gr_ie.center))
+                        if _it_ie.get("crafted"):
+                            _draw_leg_border(_gr_ie, _dlb_br=3)
                         # Badge de quantidade para itens empilháveis (ex: minérios)
                         _it_qty = _it_ie.get("qty", 0)
                         if _it_qty > 1:
@@ -10692,6 +10710,7 @@ def main():
                                     pygame.draw.rect(screen, _cf_brd3, _cf_sr3, 2 if _cf_sel3 else 1, border_radius=4)
                                     if _cf_img2:
                                         screen.blit(_cf_img2, _cf_img2.get_rect(center=_cf_sr3.center))
+                                    _draw_leg_border(_cf_sr3, _dlb_br=4)
                                     _cf_col_r += 1
                                     if _cf_col_r >= _cf_COLS_r:
                                         _cf_col_r = 0
@@ -10737,6 +10756,7 @@ def main():
                             pygame.draw.rect(screen, (200, 160, 50), _cf_ico_r, 1, border_radius=6)
                             if _cf_bimg:
                                 screen.blit(_cf_bimg, _cf_bimg.get_rect(center=_cf_ico_r.center))
+                            _draw_leg_border(_cf_ico_r, _dlb_br=6, _dlb_w=2)
                             _cf_ry2 = _cf_ico_r.bottom + 5
 
                             # Nome — centralizado, truncado para caber na largura
@@ -10911,7 +10931,8 @@ def main():
                                 _cf_ry2 += 8
 
                             # Botão FORJAR
-                            _cf_BW = min(120, _cf_rw - 12)
+                            _cf_blbl = font_m.render("FORJAR", True, (255, 220, 80))
+                            _cf_BW = min(max(_cf_blbl.get_width() + 24, 120), _cf_rw - 12)
                             _cf_BH = 40
                             _cf_BR = pygame.Rect(_cf_rx + (_cf_rw - _cf_BW) // 2, _cf_ry2, _cf_BW, _cf_BH)
                             _cf_bhov = _cf_BR.collidepoint(m_pos)
@@ -10919,7 +10940,6 @@ def main():
                             _cf_bbrd = (255, 200, 60) if _cf_bhov else (180, 140, 40)
                             pygame.draw.rect(screen, _cf_bcol, _cf_BR, border_radius=7)
                             pygame.draw.rect(screen, _cf_bbrd, _cf_BR, 2, border_radius=7)
-                            _cf_blbl = font_m.render("FORJAR", True, (255, 220, 80))
                             screen.blit(_cf_blbl, _cf_blbl.get_rect(center=_cf_BR.center))
 
                             _cf_ry2 += _cf_BH + 8
@@ -11052,7 +11072,7 @@ def main():
                             _ld_ry += _ld_req_s.get_height() + 10
 
                             # Botão FUNDIR
-                            _ld_BW = min(110, _cf_rw_m - 8)
+                            _ld_BW = min(max(font_m.size("FUNDIR")[0] + 24, 110), _cf_rw_m - 8)
                             _ld_BH = 38
                             _ld_BR = pygame.Rect(_cf_rx_m + (_cf_rw_m - _ld_BW) // 2, _ld_ry, _ld_BW, _ld_BH)
                             _ld_bhov   = _ld_BR.collidepoint(m_pos) and _ld_enough
@@ -11524,8 +11544,9 @@ def main():
                     _hc_lbl = font_s.render("Fase Hardcore:", True, (220, 100, 100))
                     screen.blit(_hc_lbl, _hc_lbl.get_rect(centerx=_cx, top=int(SCREEN_H * 0.66)))
                     _hc_arr_y = int(SCREEN_H * 0.72)
-                    _hc_larr = pygame.Rect(_cx - 80, _hc_arr_y - 16, 32, 32)
-                    _hc_rarr = pygame.Rect(_cx + 48, _hc_arr_y - 16, 32, 32)
+                    _hc_txt_hw = font_m.size(f"{current_hardcore_stage} / {_hc_unlocked}")[0] // 2 + 14
+                    _hc_larr = pygame.Rect(_cx - _hc_txt_hw - 32, _hc_arr_y - 16, 32, 32)
+                    _hc_rarr = pygame.Rect(_cx + _hc_txt_hw, _hc_arr_y - 16, 32, 32)
                     _hcl_hov = _hc_larr.collidepoint(m_pos)
                     _hcr_hov = _hc_rarr.collidepoint(m_pos)
                     pygame.draw.rect(screen, (160, 60, 60) if _hcl_hov else (100, 40, 40), _hc_larr, border_radius=6)
