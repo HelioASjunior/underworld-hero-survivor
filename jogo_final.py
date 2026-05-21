@@ -5593,6 +5593,7 @@ def main():
     # Mensagem de erro de equipamento (nível insuficiente)
     _equip_err_msg       = ""
     _equip_err_msg_start = 0
+    _blacksmith_from  = "MARKET"       # Estado anterior ao entrar no BLACKSMITH
     # Crafting (FERREIRO)
     craft_open        = False          # Janela de Crafting do Ferreiro
     _craft_slots: list= [None, None, None]  # 3 slots de ingredientes
@@ -6113,7 +6114,7 @@ def main():
                             craft_open      = False
                             _craft_slots    = [None, None, None]
                             _drag_item = None; _drag_active = False
-                            state = "MARKET"
+                            state = _blacksmith_from
                     elif state == "TEMPLO":
                         if templo_npc_open:
                             templo_npc_open = False
@@ -6933,6 +6934,7 @@ def main():
                                                 anim_spd      = _cdat_bs.get("anim_speed", 0.10),
                                                 idle_anim_spd = _cdat_bs.get("idle_anim_speed", 0.13),
                                             )
+                                        _blacksmith_from = "MARKET"
                                         state = "BLACKSMITH"
                                         if snd_click: snd_click.play()
                                     elif _mk_voltar_rect.collidepoint(click_pos):
@@ -6951,7 +6953,7 @@ def main():
                                         craft_open   = False
                                         hub_equip_open = False
                                         _craft_slots = [None, None, None]
-                                        state = "MARKET"
+                                        state = _blacksmith_from
                                         if snd_click: snd_click.play()
                             elif state == "TEMPLO":
                                 if templo_npc_open:
@@ -7056,6 +7058,7 @@ def main():
                                                 idle_anim_spd = _cdat_tp.get("idle_anim_speed", 0.13),
                                             )
                                         hub_equip_open = False; hub_status_open = False; hub_profile_open = False
+                                        _blacksmith_from = "TEMPLO"
                                         state = "BLACKSMITH"
                                         if snd_click: snd_click.play()
                                     elif _tp_vlt_rect.collidepoint(click_pos):
