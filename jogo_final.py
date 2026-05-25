@@ -3064,6 +3064,22 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     DIV_X = px + PW // 2
     pygame.draw.line(screen, IRON, (DIV_X, py + 60), (DIV_X, py + PH - 32), 1)
 
+    # Timer de animação de sprite (idle)
+    _frame_idx = pygame.time.get_ticks() // 130
+
+    def _hero_frame(cid: int, target_px: int):
+        """Retorna o frame idle animado escalado para target_px, ou None."""
+        safe = cid if 0 <= cid < len(menu_idle_anims) else 0
+        frames = menu_idle_anims[safe] if menu_idle_anims else []
+        if not frames:
+            return None
+        img = frames[_frame_idx % len(frames)]
+        fw, fh = img.get_width(), img.get_height()
+        if fw <= 0 or fh <= 0:
+            return None
+        sc = target_px / max(fw, fh)
+        return pygame.transform.smoothscale(img, (max(1, int(fw * sc)), max(1, int(fh * sc))))
+
     # ── LADO ESQUERDO — Recordes ──────────────────────────────────────────
     LX = px + 16
     LW = PW // 2 - 24
@@ -3073,15 +3089,21 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     pygame.draw.line(screen, (40, 30, 18), (LX, py + 90), (LX + LW, py + 90), 1)
 
     records = save_data_ref.get("infinite_records", [])
-    ROW_H   = 52
-    ROW_Y0  = py + 96
+    SPRITE_SZ = 46   # tamanho do sprite do herói na linha
+    ROW_H     = max(SPRITE_SZ + 14, 60)
+    ROW_Y0    = py + 96
 
     if not records:
         for oi, otxt in enumerate(("Nenhum registro ainda.", "Sobreviva sua primeira run!")):
-            os_  = font_s.render(otxt, True, DIM_TEXT)
+            os_ = font_s.render(otxt, True, DIM_TEXT)
             screen.blit(os_, os_.get_rect(centerx=LX + LW//2, centery=py + PH//2 - 14 + oi * 24))
     else:
-        max_rows = (PH - 130) // ROW_H
+        max_rows = (PH - 126) // ROW_H
+        # Clip: garante que nada vaze pelas bordas do painel
+        clip_rect = pygame.Rect(LX, ROW_Y0, LW, max_rows * ROW_H)
+        old_clip  = screen.get_clip()
+        screen.set_clip(clip_rect)
+
         for ri, rec in enumerate(records[:max_rows]):
             ry = ROW_Y0 + ri * ROW_H
 
@@ -3093,39 +3115,43 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
 
             # Badge posição
             rank_col = MEDAL[ri] if ri < 3 else IRON
-            rk_r = pygame.Rect(LX + 4, ry + 12, 30, 28)
+            rk_r = pygame.Rect(LX + 4, ry + (ROW_H - 26) // 2, 26, 26)
             pygame.draw.rect(screen, rank_col, rk_r, border_radius=5)
-            rk_s = font_s.render(f"#{ri+1}", True, (8,8,8) if ri < 3 else (170,150,105))
+            rk_s = font_s.render(f"#{ri+1}", True, (8, 8, 8) if ri < 3 else (170, 150, 105))
             screen.blit(rk_s, rk_s.get_rect(center=rk_r.center))
 
-            # Herói — bolinha colorida + nome
-            cid   = rec.get("char_id", 0)
-            ccol  = _INF_CHAR_COLORS.get(cid, (80,80,80))
-            dot_r = pygame.Rect(LX + 40, ry + 20, 12, 12)
-            pygame.draw.ellipse(screen, ccol, dot_r)
-            pygame.draw.ellipse(screen, (200, 185, 148), dot_r, 1)
+            # Sprite animado do herói
+            cid = rec.get("char_id", 0)
+            himg = _hero_frame(cid, SPRITE_SZ)
+            if himg:
+                screen.blit(himg, himg.get_rect(midleft=(LX + 34, ry + ROW_H // 2)))
+            txt_x = LX + 34 + SPRITE_SZ + 6
+
+            # Nome do herói
             cname = CHAR_DATA.get(cid, {}).get("name", "?")
-            cn_s  = font_s.render(cname, True, PARCHMENT)
-            screen.blit(cn_s, (LX + 58, ry + 12))
+            cn_s  = font_m.render(cname, True, PARCHMENT)
+            screen.blit(cn_s, (txt_x, ry + 8))
 
             # Bioma
             biome = rec.get("biome", "dungeon")
-            bd    = _INF_BIOME_DATA.get(biome, {"name": biome.upper(), "color": (60,60,60)})
+            bd    = _INF_BIOME_DATA.get(biome, {"name": biome.upper(), "color": (60, 60, 60)})
             bm_s  = font_s.render(bd["name"], True, (130, 150, 130))
-            screen.blit(bm_s, (LX + 58, ry + 30))
+            screen.blit(bm_s, (txt_x, ry + 32))
 
-            # Tempo — destaque visual
+            # Tempo — destaque visual (direita)
             t    = rec.get("time", 0)
             tstr = f"{int(t)//60:02d}:{int(t)%60:02d}"
             tcol = (80, 215, 80) if ri == 0 else PARCHMENT
             ts   = font_m.render(tstr, True, tcol)
-            screen.blit(ts, ts.get_rect(right=LX + LW - 6, centery=ry + ROW_H//2 - 4))
+            screen.blit(ts, ts.get_rect(right=LX + LW - 6, centery=ry + ROW_H//2 - 6))
 
             # Data
             date_str = rec.get("date", "")
             if date_str:
                 ds = font_s.render(date_str, True, DIM_TEXT)
                 screen.blit(ds, ds.get_rect(right=LX + LW - 6, centery=ry + ROW_H//2 + 14))
+
+        screen.set_clip(old_clip)
 
     # ── LADO DIREITO — Nova Run ───────────────────────────────────────────
     RX = DIV_X + 16
@@ -3135,29 +3161,35 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     screen.blit(sec2_s, sec2_s.get_rect(centerx=RX + RW//2, top=py + 66))
     pygame.draw.line(screen, (40, 30, 18), (RX, py + 90), (RX + RW, py + 90), 1)
 
-    # Herói atual (informativo)
-    hero_y = py + 96
-    hero_cname = CHAR_DATA.get(hub_char_id, {}).get("name", "?")
-    hero_ccol  = _INF_CHAR_COLORS.get(hub_char_id, (80,80,80))
-    hi_bg = pygame.Surface((RW, 34), pygame.SRCALPHA)
-    hi_bg.fill((20, 14, 9, 180))
+    # Herói atual — com sprite animado
+    hero_y   = py + 96
+    PORTRAIT = 52
+    hi_bg    = pygame.Surface((RW, PORTRAIT + 10), pygame.SRCALPHA)
+    hi_bg.fill((20, 14, 9, 200))
     screen.blit(hi_bg, (RX, hero_y))
-    pygame.draw.rect(screen, IRON, pygame.Rect(RX, hero_y, RW, 34), 1, border_radius=4)
-    dot2 = pygame.Rect(RX + 10, hero_y + 11, 12, 12)
-    pygame.draw.ellipse(screen, hero_ccol, dot2)
-    hl_lbl = font_s.render("Heroi:", True, DIM_TEXT)
-    screen.blit(hl_lbl, (RX + 28, hero_y + 8))
-    hl_val = font_s.render(hero_cname, True, PARCHMENT)
-    screen.blit(hl_val, (RX + 28 + hl_lbl.get_width() + 6, hero_y + 8))
+    pygame.draw.rect(screen, IRON, pygame.Rect(RX, hero_y, RW, PORTRAIT + 10), 1, border_radius=4)
+
+    portrait_img = _hero_frame(hub_char_id, PORTRAIT)
+    if portrait_img:
+        screen.blit(portrait_img, portrait_img.get_rect(midleft=(RX + 6, hero_y + (PORTRAIT + 10) // 2)))
+        txt_ox = RX + 6 + PORTRAIT + 8
+    else:
+        txt_ox = RX + 14
+
+    hero_cname = CHAR_DATA.get(hub_char_id, {}).get("name", "?")
+    hl_lbl = font_s.render("Herói Atual:", True, DIM_TEXT)
+    screen.blit(hl_lbl, (txt_ox, hero_y + 10))
+    hl_val = font_m.render(hero_cname, True, PARCHMENT)
+    screen.blit(hl_val, (txt_ox, hero_y + 30))
 
     # Seleção de bioma
-    bl_y = hero_y + 44
+    bl_y = hero_y + PORTRAIT + 22
     bl_s = font_s.render("Selecione o Bioma:", True, DIM_TEXT)
     screen.blit(bl_s, (RX, bl_y))
 
     GAP    = 8
     BBTNH  = (PH - (bl_y - py) - 110) // 2
-    BBTNH  = max(72, min(100, BBTNH))
+    BBTNH  = max(72, min(95, BBTNH))
     BBTNW  = (RW - GAP) // 2
     biome_y0 = bl_y + 22
     biomes   = ["dungeon", "forest", "volcano", "moon"]
@@ -3174,19 +3206,17 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
         is_hov = br.collidepoint(m_pos)
         bc     = bd["color"]
 
-        # Fundo do bioma
         if is_sel:
-            bg_col = tuple(min(255, c + 55) for c in bc)
+            bg_col  = tuple(min(255, c + 55) for c in bc)
             brd_col = GOLD; brd_w = 2
         elif is_hov:
-            bg_col = tuple(min(255, c + 28) for c in bc)
+            bg_col  = tuple(min(255, c + 28) for c in bc)
             brd_col = CYAN; brd_w = 2
         else:
-            bg_col = bc; brd_col = IRON; brd_w = 1
+            bg_col  = bc; brd_col = IRON; brd_w = 1
 
         pygame.draw.rect(screen, bg_col, br, border_radius=8)
 
-        # Faixa clara no topo (highlight)
         hi_strip = pygame.Surface((BBTNW, BBTNH // 4), pygame.SRCALPHA)
         hi_strip.fill((255, 255, 255, 18 if not is_sel else 35))
         screen.blit(hi_strip, (bx, by))
@@ -3208,15 +3238,10 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     ini_r = pygame.Rect(RX, ini_y, RW, 50)
     is_hov = ini_r.collidepoint(m_pos)
 
-    if is_hov:
-        ini_bg = (48, 118, 58)
-        ini_brd = GOLD
-    else:
-        ini_bg  = (30, 80, 38)
-        ini_brd = (55, 130, 68)
+    ini_bg  = (48, 118, 58) if is_hov else (30, 80, 38)
+    ini_brd = GOLD         if is_hov else (55, 130, 68)
 
     pygame.draw.rect(screen, ini_bg, ini_r, border_radius=8)
-    # Highlight no topo do botão
     hi2 = pygame.Surface((RW, 12), pygame.SRCALPHA)
     hi2.fill((255, 255, 255, 22 if is_hov else 12))
     screen.blit(hi2, (RX, ini_y))
