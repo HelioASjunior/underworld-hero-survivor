@@ -5350,9 +5350,9 @@ def main():
     # Criar todos os botões da interface
     # Menu reposicionado para o canto inferior esquerdo conforme imagem
     menu_btns = [
-        Button(0.15, 0.53, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
-        Button(0.15, 0.59, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
-        Button(0.15, 0.65, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
+        Button(0.15, 0.63, BTN_W, BTN_H, "JOGAR",          font_m, color=(32, 86, 52), hover_color=(48, 120, 70)),
+        Button(0.15, 0.69, BTN_W, BTN_H, "CONFIGURAÇÕES",  font_m),
+        Button(0.15, 0.75, BTN_W, BTN_H, "SAIR",           font_m, color=(80, 30, 30), hover_color=(120, 42, 42)),
     ]
     menu_icons = ["play", "settings", "exit"]
     for idx, (btn, icon) in enumerate(zip(menu_btns, menu_icons)):
