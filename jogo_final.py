@@ -3057,7 +3057,7 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     DIM_TEXT  = (115, 100, 72)
     MEDAL     = [(210, 168, 30), (158, 158, 158), (160, 95, 42)]
 
-    title_s = font_l.render("MODO INFINITO", True, GOLD)
+    title_s = font_m.render("MODO INFINITO", True, GOLD)
     screen.blit(title_s, title_s.get_rect(centerx=px + PW//2, centery=py + 28))
 
     # Divisor vertical
@@ -3084,13 +3084,13 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     LX = px + 16
     LW = PW // 2 - 24
 
-    sec_s = font_m.render("MELHORES TEMPOS", True, CYAN)
-    screen.blit(sec_s, sec_s.get_rect(centerx=LX + LW//2, top=py + 66))
     pygame.draw.line(screen, (40, 30, 18), (LX, py + 90), (LX + LW, py + 90), 1)
+    sec_s = font_s.render("MELHORES TEMPOS", True, CYAN)
+    screen.blit(sec_s, sec_s.get_rect(centerx=LX + LW//2, top=py + 66))
 
     records = save_data_ref.get("infinite_records", [])
-    SPRITE_SZ = 46   # tamanho do sprite do herói na linha
-    ROW_H     = max(SPRITE_SZ + 14, 60)
+    SPRITE_SZ = 70   # tamanho do sprite do herói na linha
+    ROW_H     = max(SPRITE_SZ + 16, 60)
     ROW_Y0    = py + 96
 
     if not records:
@@ -3129,7 +3129,7 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
 
             # Nome do herói
             cname = CHAR_DATA.get(cid, {}).get("name", "?")
-            cn_s  = font_m.render(cname, True, PARCHMENT)
+            cn_s  = font_s.render(cname, True, PARCHMENT)
             screen.blit(cn_s, (txt_x, ry + 8))
 
             # Bioma
@@ -3142,7 +3142,7 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
             t    = rec.get("time", 0)
             tstr = f"{int(t)//60:02d}:{int(t)%60:02d}"
             tcol = (80, 215, 80) if ri == 0 else PARCHMENT
-            ts   = font_m.render(tstr, True, tcol)
+            ts   = font_s.render(tstr, True, tcol)
             screen.blit(ts, ts.get_rect(right=LX + LW - 6, centery=ry + ROW_H//2 - 6))
 
             # Data
@@ -3157,13 +3157,13 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     RX = DIV_X + 16
     RW = PW // 2 - 24
 
-    sec2_s = font_m.render("NOVA RUN", True, CYAN)
-    screen.blit(sec2_s, sec2_s.get_rect(centerx=RX + RW//2, top=py + 66))
     pygame.draw.line(screen, (40, 30, 18), (RX, py + 90), (RX + RW, py + 90), 1)
+    sec2_s = font_s.render("NOVA RUN", True, CYAN)
+    screen.blit(sec2_s, sec2_s.get_rect(centerx=RX + RW//2, top=py + 66))
 
     # Herói atual — com sprite animado
     hero_y   = py + 96
-    PORTRAIT = 52
+    PORTRAIT = 90
     hi_bg    = pygame.Surface((RW, PORTRAIT + 10), pygame.SRCALPHA)
     hi_bg.fill((20, 14, 9, 200))
     screen.blit(hi_bg, (RX, hero_y))
@@ -3177,10 +3177,11 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
         txt_ox = RX + 14
 
     hero_cname = CHAR_DATA.get(hub_char_id, {}).get("name", "?")
+    box_h  = PORTRAIT + 10
     hl_lbl = font_s.render("Herói Atual:", True, DIM_TEXT)
-    screen.blit(hl_lbl, (txt_ox, hero_y + 10))
-    hl_val = font_m.render(hero_cname, True, PARCHMENT)
-    screen.blit(hl_val, (txt_ox, hero_y + 30))
+    screen.blit(hl_lbl, (txt_ox, hero_y + box_h // 2 - 20))
+    hl_val = font_s.render(hero_cname, True, PARCHMENT)
+    screen.blit(hl_val, (txt_ox, hero_y + box_h // 2 + 2))
 
     # Seleção de bioma
     bl_y = hero_y + PORTRAIT + 22
@@ -3224,7 +3225,7 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
         pygame.draw.rect(screen, brd_col, br, brd_w, border_radius=8)
 
         nm_col = (235, 225, 205) if (is_sel or is_hov) else (190, 175, 145)
-        nm_s   = font_m.render(bd["name"], True, nm_col)
+        nm_s   = font_s.render(bd["name"], True, nm_col)
         screen.blit(nm_s, nm_s.get_rect(center=br.center))
 
         if is_sel:
@@ -3246,7 +3247,7 @@ def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, se
     hi2.fill((255, 255, 255, 22 if is_hov else 12))
     screen.blit(hi2, (RX, ini_y))
     pygame.draw.rect(screen, ini_brd, ini_r, 2, border_radius=8)
-    ini_s = font_m.render("INICIAR", True, (210, 245, 215) if is_hov else (175, 215, 180))
+    ini_s = font_s.render("INICIAR", True, (210, 245, 215) if is_hov else (175, 215, 180))
     screen.blit(ini_s, ini_s.get_rect(center=ini_r.center))
     _INF_PANEL_RECTS["iniciar"] = ini_r
 
