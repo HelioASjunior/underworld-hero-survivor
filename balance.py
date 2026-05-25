@@ -139,6 +139,37 @@ def spawn_interval(game_time: float) -> float:
     return raw
 
 
+def infinite_enemy_scale(game_time: float) -> float:
+    """
+    Escala de inimigos para Modo Infinito: +40% HP/dano por minuto, cap 20x.
+
+        scale(0 min)  = 1.0
+        scale(5 min)  = 3.0
+        scale(10 min) = 5.0
+        scale(25 min) = 11.0
+    """
+    raw: float = 1.0 + (game_time / 60.0) * 0.40
+    if raw < 1.0:
+        return 1.0
+    if raw > 20.0:
+        return 20.0
+    return raw
+
+
+def infinite_spawn_interval(game_time: float) -> float:
+    """
+    Intervalo entre spawns para Modo Infinito: reduz mais rápido que o normal.
+
+        interval(0 min) = 0.20 s
+        interval(5 min) = 0.11 s
+        interval(10 min) = 0.06 s (mínimo)
+    """
+    raw: float = 0.20 - game_time / 1800.0
+    if raw < 0.06:
+        return 0.06
+    return raw
+
+
 # ---------------------------------------------------------------------------
 # Custo de upgrades permanentes
 # ---------------------------------------------------------------------------

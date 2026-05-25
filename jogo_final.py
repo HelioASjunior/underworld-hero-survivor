@@ -411,6 +411,8 @@ save_data = {
     "hero_records": {},
     # Bênçãos compradas no Templo para a próxima run (IDs); zeradas ao entrar na run
     "active_blessings": [],
+    # Registros do Modo Infinito — lista de {time, char_id, biome, date}, desc por tempo
+    "infinite_records": [],
 }
 
 # Definição das Missões Diárias
@@ -550,6 +552,8 @@ def load_save():
                     save_data["hero_records"].update(loaded["hero_records"])
                 if "active_blessings" in loaded:
                     save_data["active_blessings"] = loaded["active_blessings"]
+                if "infinite_records" in loaded:
+                    save_data["infinite_records"] = loaded["infinite_records"]
                 if "char_equipped" in loaded:
                     save_data["char_equipped"] = loaded["char_equipped"]
                 elif "equipped_items" in loaded:
@@ -2774,6 +2778,9 @@ _spawn_diff = None  # set by reset_game() before use
 selected_pact = "NENHUM"
 selected_bg = "dungeon"
 current_bg_name = "bg_dungeon"
+is_infinite_mode   = False   # True durante uma run do Modo Infinito
+inf_panel_open     = False   # Painel flutuante do Modo Infinito (no HUB)
+inf_selected_biome = "dungeon"
 up_options = []
 up_keys = []
 up_rarities = []
@@ -2997,6 +3004,230 @@ def update_skill_feed(dt):
 def draw_dark_panel(screen, rect, alpha=180, border_color=None):
     """Desenha um painel translúcido no estilo ferro/pergaminho escuro."""
     dark_hud.draw_dark_panel(screen, rect, alpha=alpha, border_color=border_color)
+
+
+_INF_CHAR_COLORS = {
+    0: (120, 40, 30), 1: (30, 80, 45),  2: (35, 55, 120), 3: (70, 20, 80),
+    4: (110, 35, 20), 5: (55, 60, 65),  6: (90, 80, 50),  7: (20, 60, 110),
+}
+_INF_BIOME_DATA = {
+    "dungeon": {"name": "MASMORRA", "color": (50, 30, 80)},
+    "forest":  {"name": "FLORESTA", "color": (25, 70, 30)},
+    "volcano": {"name": "VULCAO",   "color": (100, 40, 10)},
+    "moon":    {"name": "LUA",      "color": (40, 40, 90)},
+}
+_INF_PANEL_RECTS: dict = {}
+
+
+def draw_infinite_panel(screen, font_l, font_m, font_s, m_pos, save_data_ref, sel_biome, hub_char_id=0):
+    global _INF_PANEL_RECTS
+    _INF_PANEL_RECTS = {}
+
+    sw, sh = screen.get_size()
+
+    # Fundo escurecido
+    dim = pygame.Surface((sw, sh), pygame.SRCALPHA)
+    dim.fill((0, 0, 0, 185))
+    screen.blit(dim, (0, 0))
+
+    PW = min(980, sw - 60)
+    PH = min(600, sh - 60)
+    px = (sw - PW) // 2
+    py = (sh - PH) // 2
+
+    # Painel base
+    base = pygame.Surface((PW, PH), pygame.SRCALPHA)
+    base.fill((14, 10, 8, 248))
+    screen.blit(base, (px, py))
+
+    # Borda dupla estilo pedra
+    pygame.draw.rect(screen, (80, 55, 28), pygame.Rect(px, py, PW, PH), 2, border_radius=10)
+    pygame.draw.rect(screen, (45, 32, 15), pygame.Rect(px+3, py+3, PW-6, PH-6), 1, border_radius=8)
+
+    # Faixa de cabeçalho
+    hdr = pygame.Surface((PW - 4, 54), pygame.SRCALPHA)
+    hdr.fill((25, 15, 8, 200))
+    screen.blit(hdr, (px+2, py+2))
+    pygame.draw.line(screen, (90, 65, 30), (px+20, py+56), (px+PW-20, py+56), 1)
+
+    GOLD      = (215, 175, 55)
+    CYAN      = (70, 195, 255)
+    IRON      = (95, 78, 50)
+    PARCHMENT = (210, 195, 160)
+    DIM_TEXT  = (115, 100, 72)
+    MEDAL     = [(210, 168, 30), (158, 158, 158), (160, 95, 42)]
+
+    title_s = font_l.render("MODO INFINITO", True, GOLD)
+    screen.blit(title_s, title_s.get_rect(centerx=px + PW//2, centery=py + 28))
+
+    # Divisor vertical
+    DIV_X = px + PW // 2
+    pygame.draw.line(screen, IRON, (DIV_X, py + 60), (DIV_X, py + PH - 32), 1)
+
+    # ── LADO ESQUERDO — Recordes ──────────────────────────────────────────
+    LX = px + 16
+    LW = PW // 2 - 24
+
+    sec_s = font_m.render("MELHORES TEMPOS", True, CYAN)
+    screen.blit(sec_s, sec_s.get_rect(centerx=LX + LW//2, top=py + 66))
+    pygame.draw.line(screen, (40, 30, 18), (LX, py + 90), (LX + LW, py + 90), 1)
+
+    records = save_data_ref.get("infinite_records", [])
+    ROW_H   = 52
+    ROW_Y0  = py + 96
+
+    if not records:
+        for oi, otxt in enumerate(("Nenhum registro ainda.", "Sobreviva sua primeira run!")):
+            os_  = font_s.render(otxt, True, DIM_TEXT)
+            screen.blit(os_, os_.get_rect(centerx=LX + LW//2, centery=py + PH//2 - 14 + oi * 24))
+    else:
+        max_rows = (PH - 130) // ROW_H
+        for ri, rec in enumerate(records[:max_rows]):
+            ry = ROW_Y0 + ri * ROW_H
+
+            # Fundo zebra
+            if ri % 2 == 0:
+                zb = pygame.Surface((LW, ROW_H - 2), pygame.SRCALPHA)
+                zb.fill((255, 255, 255, 18))
+                screen.blit(zb, (LX, ry + 1))
+
+            # Badge posição
+            rank_col = MEDAL[ri] if ri < 3 else IRON
+            rk_r = pygame.Rect(LX + 4, ry + 12, 30, 28)
+            pygame.draw.rect(screen, rank_col, rk_r, border_radius=5)
+            rk_s = font_s.render(f"#{ri+1}", True, (8,8,8) if ri < 3 else (170,150,105))
+            screen.blit(rk_s, rk_s.get_rect(center=rk_r.center))
+
+            # Herói — bolinha colorida + nome
+            cid   = rec.get("char_id", 0)
+            ccol  = _INF_CHAR_COLORS.get(cid, (80,80,80))
+            dot_r = pygame.Rect(LX + 40, ry + 20, 12, 12)
+            pygame.draw.ellipse(screen, ccol, dot_r)
+            pygame.draw.ellipse(screen, (200, 185, 148), dot_r, 1)
+            cname = CHAR_DATA.get(cid, {}).get("name", "?")
+            cn_s  = font_s.render(cname, True, PARCHMENT)
+            screen.blit(cn_s, (LX + 58, ry + 12))
+
+            # Bioma
+            biome = rec.get("biome", "dungeon")
+            bd    = _INF_BIOME_DATA.get(biome, {"name": biome.upper(), "color": (60,60,60)})
+            bm_s  = font_s.render(bd["name"], True, (130, 150, 130))
+            screen.blit(bm_s, (LX + 58, ry + 30))
+
+            # Tempo — destaque visual
+            t    = rec.get("time", 0)
+            tstr = f"{int(t)//60:02d}:{int(t)%60:02d}"
+            tcol = (80, 215, 80) if ri == 0 else PARCHMENT
+            ts   = font_m.render(tstr, True, tcol)
+            screen.blit(ts, ts.get_rect(right=LX + LW - 6, centery=ry + ROW_H//2 - 4))
+
+            # Data
+            date_str = rec.get("date", "")
+            if date_str:
+                ds = font_s.render(date_str, True, DIM_TEXT)
+                screen.blit(ds, ds.get_rect(right=LX + LW - 6, centery=ry + ROW_H//2 + 14))
+
+    # ── LADO DIREITO — Nova Run ───────────────────────────────────────────
+    RX = DIV_X + 16
+    RW = PW // 2 - 24
+
+    sec2_s = font_m.render("NOVA RUN", True, CYAN)
+    screen.blit(sec2_s, sec2_s.get_rect(centerx=RX + RW//2, top=py + 66))
+    pygame.draw.line(screen, (40, 30, 18), (RX, py + 90), (RX + RW, py + 90), 1)
+
+    # Herói atual (informativo)
+    hero_y = py + 96
+    hero_cname = CHAR_DATA.get(hub_char_id, {}).get("name", "?")
+    hero_ccol  = _INF_CHAR_COLORS.get(hub_char_id, (80,80,80))
+    hi_bg = pygame.Surface((RW, 34), pygame.SRCALPHA)
+    hi_bg.fill((20, 14, 9, 180))
+    screen.blit(hi_bg, (RX, hero_y))
+    pygame.draw.rect(screen, IRON, pygame.Rect(RX, hero_y, RW, 34), 1, border_radius=4)
+    dot2 = pygame.Rect(RX + 10, hero_y + 11, 12, 12)
+    pygame.draw.ellipse(screen, hero_ccol, dot2)
+    hl_lbl = font_s.render("Heroi:", True, DIM_TEXT)
+    screen.blit(hl_lbl, (RX + 28, hero_y + 8))
+    hl_val = font_s.render(hero_cname, True, PARCHMENT)
+    screen.blit(hl_val, (RX + 28 + hl_lbl.get_width() + 6, hero_y + 8))
+
+    # Seleção de bioma
+    bl_y = hero_y + 44
+    bl_s = font_s.render("Selecione o Bioma:", True, DIM_TEXT)
+    screen.blit(bl_s, (RX, bl_y))
+
+    GAP    = 8
+    BBTNH  = (PH - (bl_y - py) - 110) // 2
+    BBTNH  = max(72, min(100, BBTNH))
+    BBTNW  = (RW - GAP) // 2
+    biome_y0 = bl_y + 22
+    biomes   = ["dungeon", "forest", "volcano", "moon"]
+
+    for bi, bkey in enumerate(biomes):
+        col = bi % 2
+        row = bi // 2
+        bx  = RX + col * (BBTNW + GAP)
+        by  = biome_y0 + row * (BBTNH + GAP)
+        br  = pygame.Rect(bx, by, BBTNW, BBTNH)
+
+        bd     = _INF_BIOME_DATA[bkey]
+        is_sel = (bkey == sel_biome)
+        is_hov = br.collidepoint(m_pos)
+        bc     = bd["color"]
+
+        # Fundo do bioma
+        if is_sel:
+            bg_col = tuple(min(255, c + 55) for c in bc)
+            brd_col = GOLD; brd_w = 2
+        elif is_hov:
+            bg_col = tuple(min(255, c + 28) for c in bc)
+            brd_col = CYAN; brd_w = 2
+        else:
+            bg_col = bc; brd_col = IRON; brd_w = 1
+
+        pygame.draw.rect(screen, bg_col, br, border_radius=8)
+
+        # Faixa clara no topo (highlight)
+        hi_strip = pygame.Surface((BBTNW, BBTNH // 4), pygame.SRCALPHA)
+        hi_strip.fill((255, 255, 255, 18 if not is_sel else 35))
+        screen.blit(hi_strip, (bx, by))
+
+        pygame.draw.rect(screen, brd_col, br, brd_w, border_radius=8)
+
+        nm_col = (235, 225, 205) if (is_sel or is_hov) else (190, 175, 145)
+        nm_s   = font_m.render(bd["name"], True, nm_col)
+        screen.blit(nm_s, nm_s.get_rect(center=br.center))
+
+        if is_sel:
+            ck_s = font_s.render("✓", True, GOLD)
+            screen.blit(ck_s, ck_s.get_rect(right=br.right - 8, bottom=br.bottom - 6))
+
+        _INF_PANEL_RECTS[f"biome_{bkey}"] = br
+
+    # Botão INICIAR
+    ini_y = biome_y0 + 2 * (BBTNH + GAP) + 12
+    ini_r = pygame.Rect(RX, ini_y, RW, 50)
+    is_hov = ini_r.collidepoint(m_pos)
+
+    if is_hov:
+        ini_bg = (48, 118, 58)
+        ini_brd = GOLD
+    else:
+        ini_bg  = (30, 80, 38)
+        ini_brd = (55, 130, 68)
+
+    pygame.draw.rect(screen, ini_bg, ini_r, border_radius=8)
+    # Highlight no topo do botão
+    hi2 = pygame.Surface((RW, 12), pygame.SRCALPHA)
+    hi2.fill((255, 255, 255, 22 if is_hov else 12))
+    screen.blit(hi2, (RX, ini_y))
+    pygame.draw.rect(screen, ini_brd, ini_r, 2, border_radius=8)
+    ini_s = font_m.render("INICIAR", True, (210, 245, 215) if is_hov else (175, 215, 180))
+    screen.blit(ini_s, ini_s.get_rect(center=ini_r.center))
+    _INF_PANEL_RECTS["iniciar"] = ini_r
+
+    # Fechar hint
+    esc_s = font_s.render("[F] / [ESC]  Fechar", True, DIM_TEXT)
+    screen.blit(esc_s, esc_s.get_rect(centerx=px + PW//2, bottom=py + PH - 6))
 
 
 def draw_screen_title(screen, font, text, center_x, center_y, text_color=None, pill_alpha=195):
@@ -5297,6 +5528,7 @@ def main():
     global _orb_hit_cd, _agis_spawn_time_gt
     global pending_horde_queue, obstacle_spawn_t, obstacle_spawn_interval, obstacle_total_placed
     global _mining_system
+    global is_infinite_mode, inf_panel_open, inf_selected_biome
 
     # Configuração da tela (Já feita no apply_settings, mas garantindo o caption)
     pygame.display.set_caption("UnderWorld Hero")
@@ -5857,10 +6089,16 @@ def main():
                         hub_chest_open = False
                         _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
+                    elif inf_panel_open:
+                        inf_panel_open = False
+                        if snd_click: snd_click.play()
                     elif hub_scene is not None and hub_scene.player_near_chest:
                         hub_chest_open = True
                         _chest_tab = "itens"
                         _drag_item = None; _drag_active = False
+                        if snd_click: snd_click.play()
+                    elif hub_scene is not None and hub_scene.player_near_infinite_board and not hub_chest_open:
+                        inf_panel_open = True
                         if snd_click: snd_click.play()
 
                 if state == "MARKET" and event.key == pygame.K_f:
@@ -6087,7 +6325,9 @@ def main():
                             _craft_slots = [None, None, None]
                             state = "HUB"
                     elif state == "HUB":
-                        if hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
+                        if inf_panel_open:
+                            inf_panel_open = False
+                        elif hub_chest_open or hub_equip_open or hub_status_open or hub_profile_open:
                             hub_chest_open   = False
                             hub_equip_open   = False
                             hub_status_open  = False
@@ -6568,6 +6808,24 @@ def main():
                                     _drag_active = True
                                     _drag_offset = (click_pos[0]-_cx_i, click_pos[1]-_cy_i)
                                     if snd_click: snd_click.play()
+
+                        # Painel Modo Infinito
+                        if inf_panel_open:
+                            for _ik, _ir in list(_INF_PANEL_RECTS.items()):
+                                if _ir.collidepoint(click_pos):
+                                    if _ik.startswith("biome_"):
+                                        inf_selected_biome = _ik[6:]
+                                        if snd_click: snd_click.play()
+                                    elif _ik == "iniciar":
+                                        is_infinite_mode     = True
+                                        inf_panel_open       = False
+                                        selected_bg          = inf_selected_biome
+                                        _reload_biome_assets()
+                                        active_run_mods      = set()
+                                        reset_game(hub_last_char_id)
+                                        state = "PLAYING"
+                                        if snd_click: snd_click.play()
+                                    break
 
                         # Setas do seletor de bioma
                         _avail_bgs_click = [k for k in bg_choices if k not in BG_LOCKED]
@@ -8097,9 +8355,15 @@ def main():
 
             update_skill_feed(dt)
 
-            time_scale = _bal.enemy_scale(game_time)
+            if is_infinite_mode:
+                time_scale = _bal.infinite_enemy_scale(game_time)
+            else:
+                time_scale = _bal.enemy_scale(game_time)
 
-            current_spawn_rate = _bal.spawn_interval(game_time)
+            if is_infinite_mode:
+                current_spawn_rate = _bal.infinite_spawn_interval(game_time)
+            else:
+                current_spawn_rate = _bal.spawn_interval(game_time)
             
             biome_type = BG_DATA[selected_bg]["type"]
             player.base_speed = PLAYER_SPEED * (1.10 if streak_count >= 3 else 1.0)
@@ -8180,7 +8444,8 @@ def main():
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
                             if random.random() < 0.50: gems.add(Gem(e.pos, loader))
                             if e.kind == "agis":
-                                show_reward_dialog = True
+                                if not is_infinite_mode:
+                                    show_reward_dialog = True
                                 if selected_difficulty == "HARDCORE" and current_hardcore_stage < 10:
                                     _next_hcs = current_hardcore_stage + 1
                                     if _next_hcs > save_data["hardcore_stages"].get("unlocked", 1):
@@ -8711,7 +8976,8 @@ def main():
                                 for gi in range(gold_count):
                                     offset = pygame.Vector2(random.randint(-80, 80), random.randint(-80, 80))
                                     drops.add(create_drop(hit.pos + offset, "coin"))
-                                show_reward_dialog = True
+                                if not is_infinite_mode:
+                                    show_reward_dialog = True
                                 if selected_difficulty == "HARDCORE" and current_hardcore_stage < 10:
                                     _next_hcs = current_hardcore_stage + 1
                                     if _next_hcs > save_data["hardcore_stages"].get("unlocked", 1):
@@ -8834,6 +9100,32 @@ def main():
                     player.hp = 1
                     damage_texts.add(DamageText(player.pos, "PROTECAO DIVINA!", True, (200, 160, 255)))
                     play_sfx("win")
+                elif is_infinite_mode:
+                    play_sfx("lose")
+                    _inf_cid = getattr(player, "char_id", 0)
+                    _inf_rec = {
+                        "time": game_time,
+                        "char_id": _inf_cid,
+                        "biome": selected_bg,
+                        "date": datetime.now().strftime("%d/%m/%Y"),
+                    }
+                    _inf_recs = save_data.setdefault("infinite_records", [])
+                    _inf_recs.append(_inf_rec)
+                    _inf_recs.sort(key=lambda r: r["time"], reverse=True)
+                    save_data["infinite_records"] = _inf_recs[:10]
+                    save_data["stats"]["deaths"] += 1
+                    save_data["stats"]["total_time"] += game_time
+                    save_data["stats"]["max_level_reached"] = max(
+                        save_data["stats"]["max_level_reached"], session_max_level)
+                    update_hero_record(_inf_cid, "max_kills", kills)
+                    update_hero_record(_inf_cid, "max_combo", run_max_combo)
+                    check_achievements()
+                    _check_achievements()
+                    is_infinite_mode = False
+                    clear_current_run_state()
+                    save_game()
+                    inf_panel_open = True
+                    state = "HUB"
                 else:
                     play_sfx("lose")
                     state = "GAME_OVER"
@@ -9996,13 +10288,36 @@ def main():
                     _chest_sp = hub_scene.chest_screen_pos
                     _f_now    = pygame.time.get_ticks()
                     _f_bob    = math.sin(_f_now / 400.0) * 4
-                    _f_surf   = font_s.render("[F]  Abrir Baú", True, (240, 220, 100))
+                    _f_surf   = font_s.render("[F]  Abrir Bau", True, (240, 220, 100))
                     _f_bg     = pygame.Surface((_f_surf.get_width() + 16, _f_surf.get_height() + 8), pygame.SRCALPHA)
                     _f_bg.fill((10, 8, 6, 180))
                     _f_rect   = _f_bg.get_rect(centerx=int(_chest_sp.x), bottom=int(_chest_sp.y - 150 + _f_bob))
                     screen.blit(_f_bg, _f_rect)
                     pygame.draw.rect(screen, (200, 170, 60), _f_rect, 1, border_radius=4)
                     screen.blit(_f_surf, _f_surf.get_rect(center=_f_rect.center))
+                # Quadro Modo Infinito: label permanente + hint quando próximo
+                if not hub_chest_open and not inf_panel_open:
+                    _inf_sp  = hub_scene.infinite_board_screen_pos
+                    _inf_now = pygame.time.get_ticks()
+                    _inf_bob = math.sin(_inf_now / 420.0 + 0.8) * 4
+                    _inf_ls  = font_s.render("MODO INFINITO", True, (80, 200, 255))
+                    _inf_lb  = pygame.Surface((_inf_ls.get_width() + 12, _inf_ls.get_height() + 6), pygame.SRCALPHA)
+                    _inf_lb.fill((8, 6, 5, 165))
+                    _inf_lr  = _inf_lb.get_rect(centerx=int(_inf_sp.x), bottom=int(_inf_sp.y - 70 + _inf_bob))
+                    screen.blit(_inf_lb, _inf_lr)
+                    pygame.draw.rect(screen, (50, 140, 210), _inf_lr, 1, border_radius=3)
+                    screen.blit(_inf_ls, _inf_ls.get_rect(center=_inf_lr.center))
+                    if hub_scene.player_near_infinite_board:
+                        _inf_fs  = font_s.render("[F] Modo Infinito", True, (130, 220, 255))
+                        _inf_fb  = pygame.Surface((_inf_fs.get_width() + 16, _inf_fs.get_height() + 8), pygame.SRCALPHA)
+                        _inf_fb.fill((8, 6, 5, 185))
+                        _inf_fr  = _inf_fb.get_rect(centerx=int(_inf_sp.x), bottom=_inf_lr.top - 4)
+                        screen.blit(_inf_fb, _inf_fr)
+                        pygame.draw.rect(screen, (50, 140, 210), _inf_fr, 1, border_radius=4)
+                        screen.blit(_inf_fs, _inf_fs.get_rect(center=_inf_fr.center))
+                if inf_panel_open:
+                    draw_infinite_panel(screen, font_l, font_m, font_s, m_pos,
+                                        save_data, inf_selected_biome, hub_last_char_id)
             elif state == "MARKET":
                 market_scene.draw(screen)
 

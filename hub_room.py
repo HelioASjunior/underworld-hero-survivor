@@ -633,6 +633,10 @@ CHEST_INTERACT_RADIUS   = 150                         # raio de interação em p
 
 SACERDOTE_INTERACT_RADIUS = 250   # raio de interação do Sacerdote (px)
 
+# Quadro Modo Infinito no 1º andar — parede esquerda, tiles (~4,12) origin=(-16,-16)
+INFINITE_BOARD_POS         = pygame.Vector2(352, 832)
+INFINITE_BOARD_INTERACT_RADIUS = 200
+
 # Ferreiro NPC no Mercado — Trader_weapon (stall direito), tiles (20-21,14-15), origin=(-16,-16)
 # Centro do sprite 2×2: world x=(20+1)*64=1344, y=(14+1)*64=960
 FERREIRO_NPC_POS         = pygame.Vector2(1344, 960)
@@ -812,6 +816,21 @@ class HubScene:
         return pygame.Vector2(
             INTERIOR_1_CHEST_POS.x + self._cam.x,
             INTERIOR_1_CHEST_POS.y + self._cam.y,
+        )
+
+    @property
+    def player_near_infinite_board(self) -> bool:
+        """True quando o jogador está perto do quadro de Modo Infinito."""
+        if self._cur_key != "interior_1" or self._player is None:
+            return False
+        return self._player.pos.distance_to(INFINITE_BOARD_POS) <= INFINITE_BOARD_INTERACT_RADIUS
+
+    @property
+    def infinite_board_screen_pos(self) -> "pygame.Vector2":
+        """Posição do quadro em coordenadas de tela."""
+        return pygame.Vector2(
+            INFINITE_BOARD_POS.x + self._cam.x,
+            INFINITE_BOARD_POS.y + self._cam.y,
         )
 
     # ------------------------------------------------------------------ #
