@@ -361,6 +361,9 @@ On Windows, without activating the venv:
 | Frame cache | Indexed by `(id(raw_frames), size)` | Effect sprites pre-scaled, no per-frame recomputation |
 | AI LOD | Enemies >1 200 px update every other frame | ~40-50% fewer AI calculations during dense hordes |
 | Frustum culling | `screen.blits()` + `colliderect` on all sprite groups | Off-screen sprites skipped entirely by GPU |
+| HP bar batching | `screen.fill()` in 3 separate passes (bg → fill → border) | ~800 fewer draw calls per frame with 400 enemies |
+| Death animation fix | `death_anims.update()` correctly called every frame | Group no longer accumulates sprites — no FPS degradation over run time |
+| Spatial index throttle | Rebuild alternated with separation via `_sep_frame` | Rebuild runs every other frame, interleaved with the Numba kernel |
 
 ### Optional Cython build (advanced)
 
@@ -668,6 +671,10 @@ gcc --version
 - [x] Double buffering (`pygame.DOUBLEBUF`) to reduce tearing.
 - [x] AI LOD — enemies farther than 1 200 px update their AI every other frame.
 - [x] Frustum culling on all sprite groups via `screen.blits()` + `colliderect`.
+- [x] Blacksmith visual feedback — fade-out error message when forging without the correct ingredients.
+- [x] HP bar batching — `screen.fill()` in 3 passes reduces ~800 draw calls/frame during dense hordes.
+- [x] Death animation accumulation fix — `death_anims` now self-removes correctly, eliminating FPS degradation over run time.
+- [x] Spatial index rebuild interleaved with enemy separation (every other frame via `_sep_frame`).
 - [x] Volcano biome with decorations, geysers, and exclusive enemies.
 - [x] Moon biome with lunar themed decorations.
 - [ ] SDL3 when Pygame-CE releases it (GPU acceleration and better performance).

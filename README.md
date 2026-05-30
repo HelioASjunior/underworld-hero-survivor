@@ -253,6 +253,8 @@ São **94 armas lendárias** divididas em 4 categorias: Espadas, Machados, Marte
 
 Armas craftadas são **soulbound** — vinculadas ao personagem que as forjou e não podem ser vendidas. O guia completo com todos os 94 itens e ingredientes está em [`CRAFT_GUIDE.txt`](CRAFT_GUIDE.txt).
 
+Ao clicar em **FORJAR** com slots incorretos ou vazios, uma mensagem em vermelho aparece abaixo do botão com fade-out automático — sem interromper o fluxo da UI.
+
 ### Exemplo canônico
 
 ```
@@ -426,6 +428,9 @@ O jogo já é otimizado em múltiplas camadas:
 | Cache de frames | Indexado por `(id(raw_frames), size)` | Sprites efeito pre-escalados, sem recomputar |
 | AI LOD | Inimigos >1 200 px atualizam em frames alternados | ~40-50 % menos cálculos de IA em hordas densas |
 | Frustum culling | `screen.blits()` com `colliderect` em todos os grupos | Inimigos/projéteis fora da tela ignorados pelo GPU |
+| Batch de HP bars | `screen.fill()` em 3 passes separados (bg → fill → borda) | ~800 draw calls a menos por frame com 400 inimigos |
+| Animações de morte | `death_anims.update()` corretamente chamado a cada frame | Grupo não acumula sprites — sem degradação de FPS ao longo da run |
+| Spatial index throttle | Rebuild intercalado com separação via `_sep_frame` | Rebuild roda a cada 2 frames, intercalado com o kernel Numba |
 
 ### Build opcional com Cython (avançado)
 
@@ -744,6 +749,10 @@ gcc --version
 - [x] Frame time smoothing — média móvel de 6 frames elimina micro-stutters.
 - [x] AI LOD — inimigos distantes (>1 200 px) atualizam IA em frames alternados.
 - [x] Frustum culling em todos os grupos de sprites via `screen.blits()` + `colliderect`.
+- [x] Feedback visual no Ferreiro — mensagem de erro com fade-out ao tentar forjar sem os ingredientes corretos.
+- [x] Batch de barras de HP — `screen.fill()` em 3 passes reduz ~800 draw calls/frame com hordas densas.
+- [x] Fix de acúmulo de animações de morte — `death_anims` agora se auto-remove corretamente, eliminando degradação de FPS ao longo da run.
+- [x] Spatial index rebuild intercalado com separação de inimigos (a cada 2 frames via `_sep_frame`).
 - [x] Bioma Vulcão com decorações, geiseres e inimigos exclusivos.
 - [x] Bioma Lua com decorações temáticas.
 - [ ] SDL3 quando Pygame-CE lançar (GPU acceleration e melhor performance).
