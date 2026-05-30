@@ -8833,7 +8833,9 @@ def main():
                 obstacle_grid_index.rebuild(obstacles)
                 last_obstacle_count = current_obstacle_count
 
-            enemy_batch_index.rebuild(enemies)
+            # Rebuild intercalado com separação: sep_frame==1 → rebuild, sep_frame==0 → separação
+            if _sep_frame == 1:
+                enemy_batch_index.rebuild(enemies)
 
             now_ms = pygame.time.get_ticks()
             active_explosions = [exp for exp in active_explosions if exp.update(now_ms)]
