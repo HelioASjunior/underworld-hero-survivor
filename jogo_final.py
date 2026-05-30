@@ -5860,6 +5860,8 @@ def main():
     _craft_scroll_y: int = 0          # scroll da lista de receitas
     _craft_tab: str   = "armas"       # aba ativa do painel de crafting: "armas" | "minerios"
     _lingot_selected: int = 0         # índice em LINGOT_DEFS selecionado na aba Minérios
+    _craft_error_msg: str = ""        # mensagem de erro ao tentar forjar
+    _craft_error_timer: float = 0.0   # tempo restante para exibir a mensagem
     # Drag-and-drop: item sendo arrastado com o mouse
     _drag_item: dict | None = None   # {"item":{...}, "from":"chest"|"inventory"|"equip"|"craft_slot", "_idx":int, "_slot":str|None}
     _drag_active: bool = False       # True enquanto o botão do mouse está pressionado
@@ -7020,9 +7022,11 @@ def main():
                                     _cf_ok = all(_cf_slot_ok(_craft_slots[_si], _req)
                                                  for _si, _req in enumerate(_cf_recipe))
                                     if not _cf_ok:
-                                        push_skill_feed("Ingredientes incorretos!", (220, 60, 60))
+                                        _craft_error_msg = "Ingredientes incorretos ou itens faltantes"
+                                        _craft_error_timer = 2.5
                                     elif save_data.get("gold", 0) < _cf_gcost:
-                                        push_skill_feed(f"Ouro insuficiente! Precisa {_cf_gcost}g", (220, 60, 60))
+                                        _craft_error_msg = f"Ouro insuficiente — necessário: {_cf_gcost}g"
+                                        _craft_error_timer = 2.5
                                     else:
                                         # Consume ingredients — slot 0 = base weapon (full remove); others = qty-aware
                                         for _si, (_cf_sl, _req) in enumerate(zip(_craft_slots, _cf_recipe)):
@@ -8228,6 +8232,8 @@ def main():
         if state == "MARKET" and market_scene is not None:
             keys = pygame.key.get_pressed()
             market_scene.update(dt, keys, SCREEN_W, SCREEN_H)
+            if _craft_error_timer > 0:
+                _craft_error_timer = max(0.0, _craft_error_timer - dt)
 
         # 3c. Lógica da Sala de Recompensa
         if state == "REWARD_ROOM" and player is not None:
@@ -11291,6 +11297,14 @@ def main():
                             screen.blit(_cf_sb_w, _cf_sb_w.get_rect(
                                 centerx=_cf_rx + _cf_rw // 2, top=_cf_ry2))
 
+                            # Mensagem de erro do FORJAR (fade-out)
+                            if _craft_error_timer > 0 and _craft_error_msg:
+                                _cf_err_alpha = min(255, int(255 * min(1.0, _craft_error_timer / 0.5)))
+                                _cf_err_surf = font_s.render(_craft_error_msg, True, (255, 90, 90))
+                                _cf_err_surf.set_alpha(_cf_err_alpha)
+                                screen.blit(_cf_err_surf, _cf_err_surf.get_rect(
+                                    centerx=_cf_rx + _cf_rw // 2, top=_cf_ry2 + _cf_sb_w.get_height() + 6))
+
                             # Armazena rects para event handling no próximo frame
                             setattr(main, "_cf_ui_rects", {
                                 "slot_rects":   _cf_slot_rects2,
@@ -12249,30 +12263,42 @@ def main():
             screen.blits([(e.image, e.rect) for e in enemies if _scr_rect.colliderect(e.rect)])
             screen.blits([(d.image, d.rect) for d in death_anims if _scr_rect.colliderect(d.rect)])
 
+            # Barras de HP — coleta tudo em 3 listas e desenha em batch
+            # (screen.fill é mais rápido que draw.rect para retângulos sólidos)
+            _hpbar_bgs     = []
+            _hpbar_fills   = []
+            _hpbar_borders = []
             for e in enemies:
                 if not _scr_rect.colliderect(e.rect):
                     continue
-                if e.hp < e.max_hp or e.kind in ["boss", "mini_boss", "agis", "elite", "orc"]:
-                    if e.kind == "boss":
-                        bar_w, bar_h = 120, 10
-                    elif e.kind in ("mini_boss", "agis"):
-                        bar_w, bar_h = 110, 10
-                    elif e.kind in ("elite", "orc"):
-                        bar_w, bar_h = 60, 6
-                    else:
-                        bar_w, bar_h = 40, 6
-                    bar_x = e.rect.centerx - bar_w // 2
-                    bar_y = e.rect.top - 15
-                    pygame.draw.rect(screen, (200, 0, 0), (bar_x, bar_y, bar_w, bar_h))
-                    ratio = max(0, e.hp / e.max_hp)
-                    if e.kind == "agis":
-                        bar_color = (180, 0, 255)
-                    elif e.kind == "mini_boss":
-                        bar_color = (255, 140, 0)
-                    else:
-                        bar_color = (0, 255, 0)
-                    pygame.draw.rect(screen, bar_color, (bar_x, bar_y, int(bar_w * ratio), bar_h))
-                    pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h), 1)
+                if not (e.hp < e.max_hp or e.kind in ("boss", "mini_boss", "agis", "elite", "orc")):
+                    continue
+                if e.kind == "boss":
+                    bar_w, bar_h = 120, 10
+                elif e.kind in ("mini_boss", "agis"):
+                    bar_w, bar_h = 110, 10
+                elif e.kind in ("elite", "orc"):
+                    bar_w, bar_h = 60, 6
+                else:
+                    bar_w, bar_h = 40, 6
+                bar_x = e.rect.centerx - bar_w // 2
+                bar_y = e.rect.top - 15
+                ratio = max(0.0, e.hp / e.max_hp)
+                if e.kind == "agis":        bar_color = (180, 0, 255)
+                elif e.kind == "mini_boss": bar_color = (255, 140, 0)
+                else:                       bar_color = (0, 255, 0)
+                _hpbar_bgs.append((bar_x, bar_y, bar_w, bar_h))
+                fill_w = int(bar_w * ratio)
+                if fill_w > 0:
+                    _hpbar_fills.append((bar_color, (bar_x, bar_y, fill_w, bar_h)))
+                if e.kind in ("boss", "mini_boss", "agis", "elite", "orc"):
+                    _hpbar_borders.append((bar_x, bar_y, bar_w, bar_h))
+            for _r in _hpbar_bgs:
+                screen.fill((200, 0, 0), _r)
+            for _bc, _r in _hpbar_fills:
+                screen.fill(_bc, _r)
+            for _r in _hpbar_borders:
+                pygame.draw.rect(screen, (0, 0, 0), _r, 1)
 
             show_offscreen_arrows = settings["gameplay"].get("show_offscreen_arrows", "On") == "On"
             if show_offscreen_arrows:
