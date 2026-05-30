@@ -8777,6 +8777,7 @@ def main():
             obstacles.update(dt, cam)
             damage_texts.update(dt, cam)
             particles.update(dt, cam)
+            death_anims.update(dt, cam)
 
             # --- Dano melee do mini_boss ---
             for e in enemies:
