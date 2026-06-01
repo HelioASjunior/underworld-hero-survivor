@@ -31,6 +31,7 @@ _connected = False
 _last_payload: dict = {}
 _last_send: float = 0.0
 _MIN_INTERVAL = 15.0  # segundos — limite do Discord
+session_start: float = 0.0  # timestamp de quando o jogo foi aberto
 
 
 def connect() -> bool:
@@ -45,6 +46,8 @@ def connect() -> bool:
         _rpc = Presence(CLIENT_ID)
         _rpc.connect()
         _connected = True
+        global session_start
+        session_start = time.time()
         print("[Discord RPC] Conectado ao Discord com sucesso.")
         return True
     except Exception as e:

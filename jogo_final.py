@@ -1727,27 +1727,35 @@ def _discord_payload(
     hero_img = _HERO_IMAGE_KEY.get(char_id, "icone")
 
     # ── Menu / seleção (sem herói selecionado ainda) ────────────────────────
+    _sess = int(discord_rpc.session_start) if discord_rpc.session_start > 0 else None
+
     if state == "PROFILE_SELECT":
-        return {
+        p = {
             "details": "Selecionando Perfil",
             "state": "UnderWorld Hero",
             "large_image": "icone",
             "large_text": "UnderWorld Hero",
         }
+        if _sess: p["start"] = _sess
+        return p
     if state == "MENU":
-        return {
+        p = {
             "details": "No Menu Principal",
             "state": "UnderWorld Hero",
             "large_image": "icone",
             "large_text": "UnderWorld Hero",
         }
+        if _sess: p["start"] = _sess
+        return p
     if state in ("CHAR_SELECT", "DIFF_SELECT", "MOD_SELECT"):
-        return {
+        p = {
             "details": "Preparando uma Run",
             "state": "Selecionando herói e dificuldade",
             "large_image": "icone",
             "large_text": "UnderWorld Hero",
         }
+        if _sess: p["start"] = _sess
+        return p
 
     # ── HUB e dependências — herói como imagem grande ──────────────────────
     _loc_label = {
@@ -1758,7 +1766,7 @@ def _discord_payload(
         "REWARD_ROOM": "Sala de Recompensas",
     }
     if state in _loc_label:
-        return {
+        p = {
             "details": f"No {_loc_label[state]}",
             "state": f"Herói: {hero}",
             "large_image": hero_img,
@@ -1766,6 +1774,8 @@ def _discord_payload(
             "small_image": "icone",
             "small_text": "UnderWorld Hero",
         }
+        if _sess: p["start"] = _sess
+        return p
 
     # ── Em combate — herói como imagem grande, mapa no texto ───────────────
     if state in ("PLAYING", "PAUSED", "UPGRADE", "CHEST_UI", "ITEM_SHOP"):
@@ -1789,17 +1799,19 @@ def _discord_payload(
             "small_image": "icone",
             "small_text":  "UnderWorld Hero",
         }
-        if run_start_ts > 0:
-            payload["start"] = int(run_start_ts)
+        if _sess:
+            payload["start"] = _sess
         return payload
 
     # ── Fallback ────────────────────────────────────────────────────────────
-    return {
+    p = {
         "details": "Jogando UnderWorld Hero",
         "state": "...",
         "large_image": "icone",
         "large_text": "UnderWorld Hero",
     }
+    if _sess: p["start"] = _sess
+    return p
 
 # Loja de Itens — categorias e seus assets (nome do prefixo e quantidade de arquivos)
 # Estatísticas de cada item por categoria — ordem crescente de poder (estilo Diablo)
