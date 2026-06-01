@@ -432,7 +432,8 @@ class HubPlayer:
         self._facing_right = True
         self._is_moving    = False
 
-        self.draw_scale = 1.0   # escala do sprite; 1.5 no interior, 1.0 no exterior
+        self.draw_scale      = 1.0   # escala do sprite; 1.5 no interior, 1.0 no exterior
+        self.char_hub_scale  = 1.0   # override por personagem (ex.: 0.8 para reduzir tamanho)
 
         self._frame_idx       = 0
         self._idle_frame_idx  = 0
@@ -445,12 +446,13 @@ class HubPlayer:
 
     def set_char_frames(
         self,
-        dir_walk:      dict[str, list[pygame.Surface]],
-        dir_idle:      dict[str, list[pygame.Surface]],
-        walk_fallback: list[pygame.Surface] | None = None,
-        idle_fallback: list[pygame.Surface] | None = None,
-        anim_spd:      float = 0.10,
-        idle_anim_spd: float = 0.13,
+        dir_walk:       dict[str, list[pygame.Surface]],
+        dir_idle:       dict[str, list[pygame.Surface]],
+        walk_fallback:  list[pygame.Surface] | None = None,
+        idle_fallback:  list[pygame.Surface] | None = None,
+        anim_spd:       float = 0.10,
+        idle_anim_spd:  float = 0.13,
+        char_hub_scale: float = 1.0,
     ):
         self._dir_walk_frames = dir_walk or {}
         self._dir_idle_frames = dir_idle or {}
@@ -458,6 +460,7 @@ class HubPlayer:
         self._idle_frames     = idle_fallback or []
         self._anim_spd        = anim_spd
         self._idle_anim_spd   = idle_anim_spd
+        self.char_hub_scale   = char_hub_scale
 
     def update(self, dt: float, keys):
         dx = dy = 0
@@ -773,14 +776,16 @@ class HubScene:
         self,
         dir_walk:      dict,
         dir_idle:      dict,
-        walk_fallback: list | None = None,
-        idle_fallback: list | None = None,
-        anim_spd:      float = 0.10,
-        idle_anim_spd: float = 0.13,
+        walk_fallback:  list | None = None,
+        idle_fallback:  list | None = None,
+        anim_spd:       float = 0.10,
+        idle_anim_spd:  float = 0.13,
+        char_hub_scale: float = 1.0,
     ):
         if self._player:
             self._player.set_char_frames(
-                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd,
+                char_hub_scale=char_hub_scale,
             )
 
     # ------------------------------------------------------------------ #
@@ -893,8 +898,9 @@ class HubScene:
         m = self.current_map
         if m is None or self._player is None:
             return
-        # Heróis maiores dentro dos quartos internos
-        self._player.draw_scale = 1.5 if self._cur_key in ("interior_1", "interior_2") else 1.0
+        # Heróis maiores dentro dos quartos internos (ajuste por personagem via char_hub_scale)
+        base = 1.5 if self._cur_key in ("interior_1", "interior_2") else 1.0
+        self._player.draw_scale = base * self._player.char_hub_scale
         m.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         m.draw_top(screen, self._cam)
@@ -944,14 +950,16 @@ class MarketScene:
         self,
         dir_walk:      dict,
         dir_idle:      dict,
-        walk_fallback: list | None = None,
-        idle_fallback: list | None = None,
-        anim_spd:      float = 0.10,
-        idle_anim_spd: float = 0.13,
+        walk_fallback:  list | None = None,
+        idle_fallback:  list | None = None,
+        anim_spd:       float = 0.10,
+        idle_anim_spd:  float = 0.13,
+        char_hub_scale: float = 1.0,
     ):
         if self._player:
             self._player.set_char_frames(
-                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd,
+                char_hub_scale=char_hub_scale,
             )
 
     @property
@@ -1019,7 +1027,7 @@ class MarketScene:
     def draw(self, screen: pygame.Surface):
         if self._market_map is None or self._player is None:
             return
-        self._player.draw_scale = 1.5
+        self._player.draw_scale = 1.5 * self._player.char_hub_scale
         self._market_map.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         self._market_map.draw_top(screen, self._cam)
@@ -1078,14 +1086,16 @@ class BlacksmithScene:
         self,
         dir_walk:      dict,
         dir_idle:      dict,
-        walk_fallback: list | None = None,
-        idle_fallback: list | None = None,
-        anim_spd:      float = 0.10,
-        idle_anim_spd: float = 0.13,
+        walk_fallback:  list | None = None,
+        idle_fallback:  list | None = None,
+        anim_spd:       float = 0.10,
+        idle_anim_spd:  float = 0.13,
+        char_hub_scale: float = 1.0,
     ):
         if self._player:
             self._player.set_char_frames(
-                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd,
+                char_hub_scale=char_hub_scale,
             )
 
     @property
@@ -1127,7 +1137,7 @@ class BlacksmithScene:
     def draw(self, screen: pygame.Surface):
         if self._map is None or self._player is None:
             return
-        self._player.draw_scale = 1.5
+        self._player.draw_scale = 1.5 * self._player.char_hub_scale
         self._map.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         self._map.draw_top(screen, self._cam)
@@ -1198,14 +1208,16 @@ class TemploScene:
         self,
         dir_walk:      dict,
         dir_idle:      dict,
-        walk_fallback: list | None = None,
-        idle_fallback: list | None = None,
-        anim_spd:      float = 0.10,
-        idle_anim_spd: float = 0.13,
+        walk_fallback:  list | None = None,
+        idle_fallback:  list | None = None,
+        anim_spd:       float = 0.10,
+        idle_anim_spd:  float = 0.13,
+        char_hub_scale: float = 1.0,
     ):
         if self._player:
             self._player.set_char_frames(
-                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd
+                dir_walk, dir_idle, walk_fallback, idle_fallback, anim_spd, idle_anim_spd,
+                char_hub_scale=char_hub_scale,
             )
 
     @property
@@ -1252,7 +1264,7 @@ class TemploScene:
     def draw(self, screen: pygame.Surface):
         if self._map is None or self._player is None:
             return
-        self._player.draw_scale = 1.5
+        self._player.draw_scale = 1.5 * self._player.char_hub_scale
         self._map.draw_base(screen, self._cam)
         self._player.draw(screen, self._cam)
         self._map.draw_top(screen, self._cam)

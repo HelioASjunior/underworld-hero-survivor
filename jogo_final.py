@@ -14,6 +14,7 @@ import achievements as _ach
 
 from characters import CharacterCombatContext, CharacterDependencies, create_player
 import hud as dark_hud
+import discord_rpc
 from forest_biome import build_forest_ground, ForestDecoManager
 from dungeon_biome import DungeonDecoManager
 from volcano_biome import build_volcano_ground, VolcanoDecoManager
@@ -892,7 +893,7 @@ CHAR_DATA = {
     },
     1: {
         "name": "CAÇADOR", "hp": 63, "speed": 340, "damage": 38, "mana": 75,
-        "desc": "Ult: Chuva de Flechas", "size": (192, 192), "menu_size": (200, 200),
+        "desc": "Ult: Chuva de Flechas", "size": (192, 192), "menu_size": (200, 200), "hub_scale": 0.78,
         "anim_frames": 8, "menu_anim_frames": 8,
         "dash_duration": 0.18, "dash_cooldown": 2.2,
         "id": "CHAR_1",
@@ -1678,6 +1679,127 @@ BG_DATA = {
 
 # Biomas disponíveis (apenas dungeon por enquanto; demais bloqueados)
 BG_LOCKED = {"forest"}
+
+# ---------------------------------------------------------------------------
+# Discord Rich Presence — helper de payload
+# ---------------------------------------------------------------------------
+_BIOME_LABEL = {
+    "dungeon": "Masmorra",
+    "forest":  "Floresta",
+    "volcano": "Vulcão",
+    "moon":    "Lua",
+}
+_DIFF_LABEL = {
+    "FÁCIL":    "Fácil",
+    "MÉDIO":    "Médio",
+    "DIFÍCIL":  "Difícil",
+    "HARDCORE": "Hardcore",
+}
+# Chave da imagem no Discord (sem acentos, minúsculas) por char_id.
+# Faça upload dessas imagens em: Discord Dev Portal → Rich Presence → Art Assets
+_HERO_IMAGE_KEY = {
+    0: "guerreiro",
+    1: "cacador",
+    2: "mago",
+    3: "vampire",
+    4: "demonio",
+    5: "golem",
+    6: "esqueleto",
+    7: "furacao",
+}
+
+def _discord_payload(
+    state: str,
+    player,
+    level: int,
+    kills: int,
+    game_time: float,
+    selected_difficulty: str,
+    selected_bg: str,
+    is_infinite_mode: bool,
+    run_start_ts: float,
+    fallback_char_id: int = 0,
+) -> dict:
+    biome    = _BIOME_LABEL.get(selected_bg, selected_bg.capitalize())
+    diff     = _DIFF_LABEL.get(selected_difficulty, selected_difficulty)
+    char_id  = player.char_id if player is not None else fallback_char_id
+    hero     = CHAR_DATA.get(char_id, {}).get("name", "?").title()
+    hero_img = _HERO_IMAGE_KEY.get(char_id, "icone")
+
+    # ── Menu / seleção (sem herói selecionado ainda) ────────────────────────
+    if state == "PROFILE_SELECT":
+        return {
+            "details": "Selecionando Perfil",
+            "state": "UnderWorld Hero",
+            "large_image": "icone",
+            "large_text": "UnderWorld Hero",
+        }
+    if state == "MENU":
+        return {
+            "details": "No Menu Principal",
+            "state": "UnderWorld Hero",
+            "large_image": "icone",
+            "large_text": "UnderWorld Hero",
+        }
+    if state in ("CHAR_SELECT", "DIFF_SELECT", "MOD_SELECT"):
+        return {
+            "details": "Preparando uma Run",
+            "state": "Selecionando herói e dificuldade",
+            "large_image": "icone",
+            "large_text": "UnderWorld Hero",
+        }
+
+    # ── HUB e dependências — herói como imagem grande ──────────────────────
+    _loc_label = {
+        "HUB":         "Quartel General",
+        "MARKET":      "Mercado",
+        "BLACKSMITH":  "Ferraria",
+        "TEMPLO":      "Templo",
+        "REWARD_ROOM": "Sala de Recompensas",
+    }
+    if state in _loc_label:
+        return {
+            "details": f"No {_loc_label[state]}",
+            "state": f"Herói: {hero}",
+            "large_image": hero_img,
+            "large_text": hero,
+            "small_image": "icone",
+            "small_text": "UnderWorld Hero",
+        }
+
+    # ── Em combate — herói como imagem grande, mapa no texto ───────────────
+    if state in ("PLAYING", "PAUSED", "UPGRADE", "CHEST_UI", "ITEM_SHOP"):
+        mins  = int(game_time // 60)
+        secs  = int(game_time % 60)
+        t_str = f"{mins:02d}:{secs:02d}"
+        suffix = " (Pausado)" if state == "PAUSED" else ""
+
+        if is_infinite_mode:
+            details  = f"Modo Infinito — {biome}{suffix}"
+            state_rp = f"Nv {level} | {kills} abates | {t_str}"
+        else:
+            details  = f"Em Combate — {biome} | {diff}{suffix}"
+            state_rp = f"Nv {level} | {kills} abates | {t_str}"
+
+        payload = {
+            "details":     details,
+            "state":       state_rp,
+            "large_image": hero_img,
+            "large_text":  hero,
+            "small_image": "icone",
+            "small_text":  "UnderWorld Hero",
+        }
+        if run_start_ts > 0:
+            payload["start"] = int(run_start_ts)
+        return payload
+
+    # ── Fallback ────────────────────────────────────────────────────────────
+    return {
+        "details": "Jogando UnderWorld Hero",
+        "state": "...",
+        "large_image": "icone",
+        "large_text": "UnderWorld Hero",
+    }
 
 # Loja de Itens — categorias e seus assets (nome do prefixo e quantidade de arquivos)
 # Estatísticas de cada item por categoria — ordem crescente de poder (estilo Diablo)
@@ -3426,7 +3548,7 @@ def apply_upgrade(key, mult=1.0):
             if player: player.hp = min(player.hp + int(eff["hp"] * mult), PLAYER_MAX_HP)
         if "regen"     in eff: REGEN_RATE += eff["regen"] * mult
         if "thorns"    in eff: THORNS_PERCENT = min(0.80, THORNS_PERCENT + eff["thorns"] * mult)
-        if "lifesteal" in eff: LIFESTEAL_PCT = min(0.50, LIFESTEAL_PCT + eff["lifesteal"] * mult)
+        if "lifesteal" in eff: LIFESTEAL_PCT = min(0.35, LIFESTEAL_PCT + eff["lifesteal"] * mult)
         if "speed"     in eff: PLAYER_SPEED = min(700, PLAYER_SPEED + eff["speed"] * mult)
         if "pickup"    in eff: PICKUP_RANGE = min(800, PICKUP_RANGE + eff["pickup"] * mult)
         if "aura_dmg"  in eff: AURA_DMG = max(AURA_DMG, 1); AURA_DMG += int(eff["aura_dmg"] * mult)
@@ -5560,6 +5682,11 @@ def main():
     pygame.display.set_caption("UnderWorld Hero")
     clock = pygame.time.Clock()
 
+    # Discord Rich Presence
+    discord_rpc.connect()
+    _discord_timer   = 0.0    # acumula dt para enviar update a cada 1 s
+    _run_start_ts    = 0.0    # timestamp unix do início da run atual
+
     # Inicializar sistema de UI Scaler para responsividade (opcional, usar quando necessário)
     try:
         init_ui_scaler(base_res=(1920, 1080), current_res=(SCREEN_W, SCREEN_H))
@@ -6898,8 +7025,9 @@ def main():
                                     dir_idle      = dict(player._dir_idle_frames),
                                     walk_fallback = list(player.anim_frames),
                                     idle_fallback = list(player.idle_frames),
-                                    anim_spd      = _cdat_m.get("anim_speed", 0.10),
-                                    idle_anim_spd = _cdat_m.get("idle_anim_speed", 0.13),
+                                    anim_spd       = _cdat_m.get("anim_speed", 0.10),
+                                    idle_anim_spd  = _cdat_m.get("idle_anim_speed", 0.13),
+                                    char_hub_scale = _cdat_m.get("hub_scale", 1.0),
                                 )
                             state = "MARKET"
                             if snd_click: snd_click.play()
@@ -6920,8 +7048,9 @@ def main():
                                     dir_idle      = dict(player._dir_idle_frames),
                                     walk_fallback = list(player.anim_frames),
                                     idle_fallback = list(player.idle_frames),
-                                    anim_spd      = _cdat_tp.get("anim_speed", 0.10),
-                                    idle_anim_spd = _cdat_tp.get("idle_anim_speed", 0.13),
+                                    anim_spd       = _cdat_tp.get("anim_speed", 0.10),
+                                    idle_anim_spd  = _cdat_tp.get("idle_anim_speed", 0.13),
+                                    char_hub_scale = _cdat_tp.get("hub_scale", 1.0),
                                 )
                             state = "TEMPLO"
                             if snd_click: snd_click.play()
@@ -7200,8 +7329,9 @@ def main():
                                                 dir_idle      = dict(player._dir_idle_frames),
                                                 walk_fallback = list(player.anim_frames),
                                                 idle_fallback = list(player.idle_frames),
-                                                anim_spd      = _cdat_mt.get("anim_speed", 0.10),
-                                                idle_anim_spd = _cdat_mt.get("idle_anim_speed", 0.13),
+                                                anim_spd       = _cdat_mt.get("anim_speed", 0.10),
+                                                idle_anim_spd  = _cdat_mt.get("idle_anim_speed", 0.13),
+                                                char_hub_scale = _cdat_mt.get("hub_scale", 1.0),
                                             )
                                         state = "TEMPLO"
                                         if snd_click: snd_click.play()
@@ -7222,8 +7352,9 @@ def main():
                                                 dir_idle      = dict(player._dir_idle_frames),
                                                 walk_fallback = list(player.anim_frames),
                                                 idle_fallback = list(player.idle_frames),
-                                                anim_spd      = _cdat_bs.get("anim_speed", 0.10),
-                                                idle_anim_spd = _cdat_bs.get("idle_anim_speed", 0.13),
+                                                anim_spd       = _cdat_bs.get("anim_speed", 0.10),
+                                                idle_anim_spd  = _cdat_bs.get("idle_anim_speed", 0.13),
+                                                char_hub_scale = _cdat_bs.get("hub_scale", 1.0),
                                             )
                                         _blacksmith_from = "MARKET"
                                         state = "BLACKSMITH"
@@ -7322,8 +7453,9 @@ def main():
                                                 dir_idle      = dict(player._dir_idle_frames),
                                                 walk_fallback = list(player.anim_frames),
                                                 idle_fallback = list(player.idle_frames),
-                                                anim_spd      = _cdat_tm.get("anim_speed", 0.10),
-                                                idle_anim_spd = _cdat_tm.get("idle_anim_speed", 0.13),
+                                                anim_spd       = _cdat_tm.get("anim_speed", 0.10),
+                                                idle_anim_spd  = _cdat_tm.get("idle_anim_speed", 0.13),
+                                                char_hub_scale = _cdat_tm.get("hub_scale", 1.0),
                                             )
                                         hub_equip_open = False; hub_status_open = False; hub_profile_open = False
                                         state = "MARKET"
@@ -7345,8 +7477,9 @@ def main():
                                                 dir_idle      = dict(player._dir_idle_frames),
                                                 walk_fallback = list(player.anim_frames),
                                                 idle_fallback = list(player.idle_frames),
-                                                anim_spd      = _cdat_tp.get("anim_speed", 0.10),
-                                                idle_anim_spd = _cdat_tp.get("idle_anim_speed", 0.13),
+                                                anim_spd       = _cdat_tp.get("anim_speed", 0.10),
+                                                idle_anim_spd  = _cdat_tp.get("idle_anim_speed", 0.13),
+                                                char_hub_scale = _cdat_tp.get("hub_scale", 1.0),
                                             )
                                         hub_equip_open = False; hub_status_open = False; hub_profile_open = False
                                         _blacksmith_from = "TEMPLO"
@@ -7633,8 +7766,9 @@ def main():
                                             dir_idle      = dict(player._dir_idle_frames),
                                             walk_fallback = list(player.anim_frames),
                                             idle_fallback = list(player.idle_frames),
-                                            anim_spd      = _cdata.get("anim_speed", 0.10),
-                                            idle_anim_spd = _cdata.get("idle_anim_speed", 0.13),
+                                            anim_spd       = _cdata.get("anim_speed", 0.10),
+                                            idle_anim_spd  = _cdata.get("idle_anim_speed", 0.13),
+                                            char_hub_scale = _cdata.get("hub_scale", 1.0),
                                         )
                                     hub_countdown_active = False
                                     hub_countdown_timer  = 0.0
@@ -7748,8 +7882,9 @@ def main():
                                     dir_idle      = dict(player._dir_idle_frames),
                                     walk_fallback = list(player.anim_frames),
                                     idle_fallback = list(player.idle_frames),
-                                    anim_spd      = _cdata_go.get("anim_speed", 0.10),
-                                    idle_anim_spd = _cdata_go.get("idle_anim_speed", 0.13),
+                                    anim_spd       = _cdata_go.get("anim_speed", 0.10),
+                                    idle_anim_spd  = _cdata_go.get("idle_anim_speed", 0.13),
+                                    char_hub_scale = _cdata_go.get("hub_scale", 1.0),
                                 )
                             save_game()
                             state = "HUB"
@@ -7806,8 +7941,9 @@ def main():
                                     dir_idle      = dict(player._dir_idle_frames),
                                     walk_fallback = list(player.anim_frames),
                                     idle_fallback = list(player.idle_frames),
-                                    anim_spd      = _cdata_ret.get("anim_speed", 0.10),
-                                    idle_anim_spd = _cdata_ret.get("idle_anim_speed", 0.13),
+                                    anim_spd       = _cdata_ret.get("anim_speed", 0.10),
+                                    idle_anim_spd  = _cdata_ret.get("idle_anim_speed", 0.13),
+                                    char_hub_scale = _cdata_ret.get("hub_scale", 1.0),
                                 )
                             save_game()
                             state = "HUB"
@@ -8176,6 +8312,10 @@ def main():
                 menu_intro_timer = MENU_ENTER_DURATION
                 menu_exit_timer = 0.0
                 menu_pending_action = None
+            # Marca início de run (qualquer transição para PLAYING que não seja retomar pausa/upgrade)
+            if state == "PLAYING" and prev_state not in ("PAUSED", "UPGRADE", "CHEST_UI", "ITEM_SHOP"):
+                import time as _time
+                _run_start_ts = _time.time() - game_time
             prev_state = state
             transition_timer = UI_TRANSITION_DURATION
         transition_timer = max(0.0, transition_timer - dt_raw)
@@ -8223,8 +8363,9 @@ def main():
                                 dir_idle      = dict(player._dir_idle_frames),
                                 walk_fallback = list(player.anim_frames),
                                 idle_fallback = list(player.idle_frames),
-                                anim_spd      = _cdata2.get("anim_speed", 0.10),
-                                idle_anim_spd = _cdata2.get("idle_anim_speed", 0.13),
+                                anim_spd       = _cdata2.get("anim_speed", 0.10),
+                                idle_anim_spd  = _cdata2.get("idle_anim_speed", 0.13),
+                                char_hub_scale = _cdata2.get("hub_scale", 1.0),
                             )
                     # V4: vai para MOD_SELECT antes de PLAYING
                     _mod_pool = random.sample(RUN_MODIFIERS_POOL, k=3)
@@ -8474,7 +8615,7 @@ def main():
                         _orb_hit_cd[_eid] = 0.35
                         damage_texts.add(DamageText(e.pos, f"{tick_dmg}!", _is_crit, (255, 200, 80) if not _is_crit else (255, 255, 60)))
                         if LIFESTEAL_PCT > 0:
-                            player.hp = min(PLAYER_MAX_HP, player.hp + tick_dmg * LIFESTEAL_PCT)
+                            player.hp = min(PLAYER_MAX_HP, player.hp + tick_dmg * LIFESTEAL_PCT * 0.50)
                         if e.hp <= 0:
                             if player.ult_charge < player.ult_max: player.ult_charge += 1
                             if random.random() < 0.50: gems.add(Gem(e.pos, loader))
@@ -12823,8 +12964,20 @@ def main():
             mx, my = pygame.mouse.get_pos()
             screen.blit(cursor_img, (mx, my))
 
+        # Discord Rich Presence — atualiza a cada 1 s (throttle real em discord_rpc.update)
+        _discord_timer += dt_raw
+        if _discord_timer >= 1.0:
+            _discord_timer = 0.0
+            _dp = _discord_payload(
+                state, player, level, kills, game_time,
+                selected_difficulty, selected_bg, is_infinite_mode, _run_start_ts,
+                fallback_char_id=hub_last_char_id,
+            )
+            discord_rpc.update(_dp)
+
         pygame.display.flip()
 
+    discord_rpc.close()
     pygame.quit()
 
 # --- Variáveis do Menu de Configurações ---
