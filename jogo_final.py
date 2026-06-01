@@ -6126,8 +6126,11 @@ def main():
                         _drag_item = None; _drag_active = False
                         if snd_click: snd_click.play()
                     elif hub_scene is not None and hub_scene.player_near_infinite_board and not hub_chest_open:
-                        inf_panel_open = True
-                        if snd_click: snd_click.play()
+                        if selected_difficulty == "HARDCORE":
+                            inf_panel_open = True
+                            if snd_click: snd_click.play()
+                        else:
+                            push_skill_feed("Modo Infinito disponível apenas no modo HARDCORE!", (255, 100, 80), duration=3.5)
 
                 if state == "MARKET" and event.key == pygame.K_f:
                     if (market_scene is not None and market_scene.player_near_loja
@@ -10343,12 +10346,17 @@ def main():
                     pygame.draw.rect(screen, (50, 140, 210), _inf_lr, 1, border_radius=3)
                     screen.blit(_inf_ls, _inf_ls.get_rect(center=_inf_lr.center))
                     if hub_scene.player_near_infinite_board:
-                        _inf_fs  = font_s.render("[F] Modo Infinito", True, (130, 220, 255))
+                        if selected_difficulty == "HARDCORE":
+                            _inf_fs   = font_s.render("[F] Modo Infinito", True, (130, 220, 255))
+                            _inf_fcol = (50, 140, 210)
+                        else:
+                            _inf_fs   = font_s.render("[F] Somente no modo HARDCORE", True, (220, 120, 80))
+                            _inf_fcol = (160, 60, 40)
                         _inf_fb  = pygame.Surface((_inf_fs.get_width() + 16, _inf_fs.get_height() + 8), pygame.SRCALPHA)
                         _inf_fb.fill((8, 6, 5, 185))
                         _inf_fr  = _inf_fb.get_rect(centerx=int(_inf_sp.x), bottom=_inf_lr.top - 4)
                         screen.blit(_inf_fb, _inf_fr)
-                        pygame.draw.rect(screen, (50, 140, 210), _inf_fr, 1, border_radius=4)
+                        pygame.draw.rect(screen, _inf_fcol, _inf_fr, 1, border_radius=4)
                         screen.blit(_inf_fs, _inf_fs.get_rect(center=_inf_fr.center))
                 if inf_panel_open:
                     draw_infinite_panel(screen, font_l, font_m, font_s, m_pos,
