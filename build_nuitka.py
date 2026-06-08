@@ -33,9 +33,9 @@ EXE_NAME = "UnderWorld Hero"
 DOCKER_IMAGE = "underworldhero-linux-env"
 
 
-def run(cmd):
+def run(cmd, env=None):
     print(f"\n>>> {' '.join(str(c) for c in cmd)}\n")
-    result = subprocess.run(cmd, cwd=BASE_DIR)
+    result = subprocess.run(cmd, cwd=BASE_DIR, env=env)
     if result.returncode != 0:
         sys.exit(result.returncode)
 
@@ -101,6 +101,10 @@ def build_windows(out_dir, onefile=False):
                 "forest_biome", "dungeon_biome", "volcano_biome", "moon_biome",
                 "combat.projectiles"):
         cmd.append(f"--include-module={mod}")
+
+    # Use MinGW64 GCC instead of MSVC: GCC has no per-TU heap limit (MSVC
+    # fatal error C1002) and Nuitka auto-downloads WinLibs if not installed.
+    cmd += ["--mingw64", "--low-memory"]
 
     cmd.append(os.path.join(BASE_DIR, "jogo_final.py"))
     run(cmd)
