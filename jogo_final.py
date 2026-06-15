@@ -7988,7 +7988,7 @@ def main():
                 item_shop_scroll_y  = max(0, item_shop_scroll_y)
 
             # Scroll da lista de receitas do FERREIRO
-            if event.type == pygame.MOUSEWHEEL and state == "MARKET" and craft_open:
+            if event.type == pygame.MOUSEWHEEL and state in ("MARKET", "BLACKSMITH") and craft_open:
                 _craft_scroll_y -= event.y * 30
                 _craft_scroll_y  = max(0, _craft_scroll_y)
 
@@ -11178,7 +11178,8 @@ def main():
                             pygame.draw.rect(screen, (20, 16, 12), _cf_list_r, border_radius=4)
                             pygame.draw.rect(screen, (80, 60, 30), _cf_list_r, 1, border_radius=4)
 
-                            _cf_REC = 44; _cf_REC_PAD = 5
+                            #Tamanho dos itens do ferreiro  (receitas)
+                            _cf_REC = 64; _cf_REC_PAD = 6
                             _cf_COLS_r = max(1, _cf_lw // (_cf_REC + _cf_REC_PAD))
 
                             # Altura total de conteúdo para scroll
@@ -11235,6 +11236,31 @@ def main():
                                 if _cf_col_r != 0:
                                     _cf_draw_y += _cf_REC + _cf_REC_PAD
                             screen.set_clip(None)
+
+                            # Scrollbar da lista de receitas (quando conteúdo maior que a área)
+                            try:
+                                if _cf_total_h2 > _cf_lh and _cf_lh > 32:
+                                    _sb_w = 8
+                                    _sb_margin = 6
+                                    _sb_track_h = _cf_lh - _sb_margin * 2
+                                    _sb_track_x = _cf_list_r.right - (_sb_w + 6)
+                                    _sb_track_y = _cf_list_r.top + _sb_margin
+                                    _sb_track_r = pygame.Rect(_sb_track_x, _sb_track_y, _sb_w, _sb_track_h)
+                                    pygame.draw.rect(screen, (30, 25, 18), _sb_track_r, border_radius=4)
+
+                                    _cf_max_sc = max(0, _cf_total_h2 - _cf_lh + 12)
+                                    if _cf_max_sc > 0:
+                                        _thumb_h = max(20, int((_cf_lh * _cf_lh) / _cf_total_h2))
+                                        _thumb_range = _sb_track_h - _thumb_h
+                                        _thumb_y = _sb_track_y + int((_craft_scroll_y / _cf_max_sc) * _thumb_range) if _cf_max_sc > 0 else _sb_track_y
+                                    else:
+                                        _thumb_h = _sb_track_h
+                                        _thumb_y = _sb_track_y
+
+                                    _thumb_r = pygame.Rect(_sb_track_x, _thumb_y, _sb_w, _thumb_h)
+                                    pygame.draw.rect(screen, (160, 130, 70), _thumb_r, border_radius=4)
+                            except Exception:
+                                pass
 
                             # Resultado selecionado (direita)
                             _cf_ry2  = _cf_y0 + 4
