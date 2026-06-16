@@ -6050,6 +6050,8 @@ def main():
     _sep_frame = 0          # throttle: separação de inimigos roda em frames alternados
     SEP_DIST  = 52
     SEP_FORCE = 18.0
+    _sep_enemies       = []   # cache da lista filtrada para o kernel de separação
+    _sep_enemies_count = -1   # invalida cache ao mudar o total de inimigos
 
     # Console in-game (temporário) para comandos de criador.
     _dev_console_open = False
@@ -8954,7 +8956,10 @@ def main():
             # --- Separação de inimigos via Numba/NumPy kernel (frames alternados) ---
             _sep_frame = (_sep_frame + 1) % 2
             if _sep_frame == 0:
-                _sep_enemies = [_e for _e in enemies if _e.kind not in ("boss", "agis")]
+                _cur_sep_count = len(enemies)
+                if _cur_sep_count != _sep_enemies_count:
+                    _sep_enemies = [_e for _e in enemies if _e.kind not in ("boss", "agis")]
+                    _sep_enemies_count = _cur_sep_count
                 if len(_sep_enemies) > 1:
                     _sep_pos = np.empty((len(_sep_enemies), 2), dtype=np.float32)
                     for _i, _e in enumerate(_sep_enemies):
@@ -8996,11 +9001,11 @@ def main():
             now_ms = pygame.time.get_ticks()
             active_explosions = [exp for exp in active_explosions if exp.update(now_ms)]
 
-            for p in list(projectiles):
+            for p in projectiles:
                 is_melee = getattr(p, "is_melee", False)
                 if not is_melee:
                     if obstacle_grid_index.point_collides(p.pos):
-                        p.kill()
+                        p.dead = True
                         continue
 
                 _p_hitbox = getattr(p, "hitbox", p.rect)
@@ -9212,18 +9217,18 @@ def main():
                                 if new_target:
                                     p.vel = (new_target.pos - p.pos).normalize() * PROJECTILE_SPEED
                                 else:
-                                    p.kill()
+                                    p.dead = True
                             elif len(p.hit_enemies) > p.pierce:
-                                p.kill()
+                                p.dead = True
 
-            for p in list(enemy_projectiles):
+            for p in enemy_projectiles:
                 if p.rect.colliderect(player.rect) and player.iframes <= 0:
                     player.hp -= p.dmg * (1.0 - DAMAGE_RES)
                     player.iframes = 0.5
                     play_sfx("hurt")
                     shake_timer = 0.22
                     shake_strength = 9
-                    p.kill()
+                    p.dead = True
                     if THORNS_PERCENT > 0:
                         owner = getattr(p, "owner", None)
                         if owner and owner.hp > 0:
@@ -9231,12 +9236,12 @@ def main():
                             owner.hp -= reflected_dmg
                             damage_texts.add(DamageText(owner.pos, int(reflected_dmg), False, (255, 0, 255)))
 
-            for g in list(gems):
+            for g in gems:
                 if g.rect.colliderect(player.rect):
                     _xp_mult = 1.25 if "blessed" in active_run_mods else 1.0
-                    xp += int(GEM_XP * (1.0 + XP_BONUS_PCT) * _xp_mult); g.kill(); play_sfx("gem")
+                    xp += int(GEM_XP * (1.0 + XP_BONUS_PCT) * _xp_mult); g.dead = True; play_sfx("gem")
 
-            for d in list(drops):
+            for d in drops:
                 if d.rect.colliderect(player.rect):
                     if d.kind == "coin":
                         coin_value = 35 * _spawn_diff.get("gold_mult", 1.0) * GOLD_RUN_MULT
@@ -9247,7 +9252,7 @@ def main():
                         achievements_data["total_gold_accumulated"] = achievements_data.get("total_gold_accumulated", 0.0) + coin_value
                         update_mission_progress("gold", coin_value)
                         play_sfx("drop")
-                        d.kill()
+                        d.dead = True
                     elif d.kind == "chest":
                         auto_pickup = settings["gameplay"].get("auto_pickup_chest", "On") == "On"
                         if not auto_pickup and not is_control_pressed(keys, "dash"):
@@ -9262,11 +9267,17 @@ def main():
                         else:
                             state = "CHEST_UI"
                             chest_ui_timer = 5.0
-                        d.kill()
+                        d.dead = True
 
             for p in list(puddles):
                 if p.hitbox.colliderect(player.rect) and player.iframes <= 0:
                     player.hp -= 0.5 * dt
+
+            # Mark-and-sweep: remove sprites marcados como dead em um único pass por grupo
+            for _s in [_s for _s in projectiles       if getattr(_s, 'dead', False)]: _s.kill()
+            for _s in [_s for _s in enemy_projectiles if getattr(_s, 'dead', False)]: _s.kill()
+            for _s in [_s for _s in gems              if getattr(_s, 'dead', False)]: _s.kill()
+            for _s in [_s for _s in drops             if getattr(_s, 'dead', False)]: _s.kill()
 
             if xp >= current_xp_to_level:
                 level += 1
